@@ -116,6 +116,17 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
         </p>
       </div>
 
+      {/* Live Configuration Banner */}
+      <div className="p-4 rounded-xl flex items-start gap-3 stagger-in" style={{ ...stagger(0.5), background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+        <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
+        <div className="text-xs space-y-1">
+          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Job Workflow Provider Note</span>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Live job scraping is not configured (requires <code className="mono px-1 py-0.5 rounded" style={{ background: 'var(--bg-root)' }}>BRIGHTDATA_JOB_DATASET_ID</code>). Use <strong>Offline Test Mode</strong> to test job normalization and validation with local fixtures, or use <strong>Product Discovery</strong> for verified live Datasets v3 scraping.
+          </p>
+        </div>
+      </div>
+
       {/* Main Extraction Form Box */}
       <div className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
         {/* Mode Switcher */}

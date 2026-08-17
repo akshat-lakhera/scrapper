@@ -17,6 +17,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
   const [selectingUrl, setSelectingUrl] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchExecuted, setSearchExecuted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
   const title = useScrambleText('Product Discovery & Intelligence', true);
@@ -56,7 +57,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
     if (mode === 'url' && !targetUrl.trim()) return alert('Please enter a target URL or select a test fixture');
     if (mode === 'search' && !query.trim()) return alert('Please enter a search query');
     try {
-      setLoading(true); setResult(null); setSearchResults([]);
+      setLoading(true); setResult(null); setSearchResults([]); setSearchExecuted(false);
       if (mode === 'url') {
         const scrapePayloadUrl = targetUrl.trim().startsWith('http') ? targetUrl.trim() : `https://${targetUrl.trim()}`;
         const res = await executeScrape({ target_url: scrapePayloadUrl, workflow_type: 'products', schema_name: 'products' });
@@ -64,6 +65,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
       } else {
         const s = await executeSearch({ query: query.trim(), workflow_type: 'products', target_domain: targetDomain.trim() });
         setSearchResults(s.results || []);
+        setSearchExecuted(true);
       }
     } catch (e: any) { alert(`Extraction error: ${e.message}`); } finally { setLoading(false); }
   };
@@ -241,14 +243,32 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
         </button>
       </div>
 
-      {/* Empty State */}
+      {/* Empty State / SERP Notice */}
       {!result && searchResults.length === 0 && !loading && (
-        <div className="flex flex-col items-center justify-center py-16 rounded-2xl stagger-in" style={{ ...stagger(2), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-          <div className="empty-orb mb-4" />
-          <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Collector Ready</p>
-          <p className="text-xs mt-1 text-center max-w-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Enter a public URL or search query to extract structured product data with automated schema normalization.
-          </p>
+        <div className="flex flex-col items-center justify-center py-16 rounded-2xl stagger-in px-4 text-center" style={{ ...stagger(2), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+          {searchExecuted ? (
+            <>
+              <AlertTriangle size={32} className="mb-3" style={{ color: 'var(--warning)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Search is unavailable until the Bright Data SERP zone is configured. Use Direct URL mode instead.
+              </p>
+              <button
+                onClick={() => setMode('url')}
+                className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold btn-spring"
+                style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid rgba(168,85,247,0.3)' }}
+              >
+                Switch to Direct URL Mode
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="empty-orb mb-4" />
+              <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Collector Ready</p>
+              <p className="text-xs mt-1 text-center max-w-sm" style={{ color: 'var(--text-tertiary)' }}>
+                Enter a public URL or search query to extract structured product data with automated schema normalization.
+              </p>
+            </>
+          )}
         </div>
       )}
 

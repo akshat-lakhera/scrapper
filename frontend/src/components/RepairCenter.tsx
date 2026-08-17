@@ -167,6 +167,17 @@ export const RepairCenter: React.FC = () => {
         </button>
       </div>
 
+      {/* Verification Notice */}
+      <div className="p-4 rounded-xl flex items-start gap-3 stagger-in" style={{ ...stagger(0.5), background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+        <Sparkles size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
+        <div className="text-xs space-y-1">
+          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Provider Capability Status</span>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            <strong>Live extraction:</strong> verified with Bright Data Datasets v3. <strong>Custom Scraper Studio self-healing:</strong> requires separate live verification against custom collectors.
+          </p>
+        </div>
+      </div>
+
       {/* Main Grid: Left Runs Selector, Right 3-Stage Workstation */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Runs Audit List (4 cols) */}
