@@ -34,7 +34,7 @@ class BrightDataProvider(ScraperProvider):
     ) -> Dict[str, Any]:
         headers = self._get_headers()
         search_target_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
-        if target_domain and target_domain != "demo.local":
+        if target_domain:
             search_target_url += f"+site:{target_domain}"
 
         # 1. Try Bright Data SERP API (/request) endpoint
@@ -78,9 +78,9 @@ class BrightDataProvider(ScraperProvider):
                                 "seller": item.get("displayed_link") or target_domain or "Google Search",
                                 "company": item.get("displayed_link") or "Company",
                                 "description": snippet,
-                                "price": item.get("price") or 0,
-                                "currency": "INR",
-                                "availability": "Online"
+                                "price": item.get("price") if isinstance(item.get("price"), (int, float)) else None,
+                                "currency": DOMExtractor._infer_currency_from_domain(link, snippet),
+                                "availability": "In stock" if "in stock" in snippet.lower() else None
                             })
 
                     if organic_results:

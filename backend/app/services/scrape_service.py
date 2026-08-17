@@ -289,12 +289,12 @@ class ScrapeService:
         default_scraper = ScraperDB(
             provider=settings.SCRAPER_PROVIDER,
             external_scraper_id=settings.BRIGHTDATA_SCRAPER_ID or "c_default_product_scraper",
-            name="Wireless Headphones Monitor",
+            name="E-Commerce Product Intelligence",
             workflow_type="products",
-            target_domain="demo.local",
+            target_domain="e-commerce",
             schema_name="products",
             requested_fields=json.dumps(PRODUCT_SCHEMA.get_all_field_names()),
-            instructions="Scrape product title, price, currency, availability, rating, review count, and specs.",
+            instructions="Extract real-time product title, price, currency, availability, rating, review count, seller, specs, and image assets.",
             status="active"
         )
         db.add(default_scraper)

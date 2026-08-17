@@ -79,7 +79,7 @@ async def create_scraper(req: ScraperCreate, db: Session = Depends(get_db)):
     return await ScrapeService.create_scraper(
         db,
         name=req.name,
-        target_domain=req.target_domain or "demo.local",
+        target_domain=req.target_domain or "",
         workflow_type=req.workflow_type or "products",
         schema_name=req.schema_name or "products",
         requested_fields=req.requested_fields,
@@ -94,7 +94,7 @@ def get_scraper(id: int, db: Session = Depends(get_db)):
     return scraper
 
 class RunScraperRequest(BaseModel):
-    target_url: str = Field(..., json_schema_extra={"example": "https://demo.local/product_v1.html"})
+    target_url: str = Field(..., json_schema_extra={"example": "https://www.flipkart.com/laptops/pr?sid=6bo,b5g"})
     workflow_type: Optional[str] = "products"
     schema_name: Optional[str] = "products"
 
