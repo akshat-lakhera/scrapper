@@ -185,17 +185,26 @@ class BrightDataProvider(ScraperProvider):
         headers = self._get_headers()
         active_collector = scraper_id if scraper_id and scraper_id != "local" and scraper_id != "default" else self.default_scraper_id
         
-        # 1. Try DCA Trigger if collector is configured
+        # 1. Try Datasets v3 or DCA Trigger if collector / dataset is configured
         if active_collector:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                trigger_url = f"{self.base_url}/dca/trigger?collector={active_collector}&queue_next=1"
-                payload = [{"url": target}]
+                if active_collector.startswith("gd_"):
+                    # Bright Data Datasets v3 API
+                    trigger_url = f"{self.base_url}/datasets/v3/scrape?dataset_id={active_collector}&notify=false&include_errors=true"
+                    payload = {
+                        "input": [{"url": target}],
+                        "limit_per_input": None
+                    }
+                else:
+                    # Bright Data DCA Collector API
+                    trigger_url = f"{self.base_url}/dca/trigger?collector={active_collector}&queue_next=1"
+                    payload = [{"url": target}]
 
                 try:
                     response = await client.post(trigger_url, json=payload, headers=headers)
                     if response.status_code in (200, 201, 202):
                         data = response.json()
-                        collection_id = data.get("collection_id") or data.get("id") or f"snapshot_run_{schema.name}_1"
+                        collection_id = data.get("snapshot_id") or data.get("collection_id") or data.get("id") or f"snapshot_run_{schema.name}_1"
                         extracted_list = await self._poll_dataset(client, collection_id, headers)
                         if extracted_list:
                             raw_item = extracted_list[0] if isinstance(extracted_list, list) else extracted_list
@@ -205,7 +214,7 @@ class BrightDataProvider(ScraperProvider):
                                 "raw_result": raw_item
                             }
                 except Exception as e:
-                    logger.warning(f"DCA trigger failed for {target}, attempting SERP fallback: {e}")
+                    logger.warning(f"Collector trigger failed for {target}, attempting SERP fallback: {e}")
 
         # 2. Try Direct Live Web HTML Extraction via DOMExtractor
         try:
