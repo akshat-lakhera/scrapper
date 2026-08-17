@@ -11,8 +11,8 @@ logger = logging.getLogger("marketscout.brightdata")
 
 class BrightDataProvider(ScraperProvider):
     """
-    Production Bright Data Provider using the verified Datasets v3 API.
-    Handles trigger, progress monitoring, and snapshot retrieval.
+    Production Bright Data Provider using verified Datasets v3 and SERP APIs.
+    Handles trigger, progress monitoring, snapshot retrieval, and diagnostic synthesis.
     Zero synthetic fallbacks, zero direct HTTP bypassing, and zero fabricated values.
     """
 
@@ -20,6 +20,7 @@ class BrightDataProvider(ScraperProvider):
         self.api_key = settings.BRIGHTDATA_API_KEY
         self.base_url = settings.BRIGHTDATA_BASE_URL.rstrip("/")
         self.default_scraper_id = settings.BRIGHTDATA_SCRAPER_ID
+        self.serp_zone = settings.BRIGHTDATA_SERP_ZONE
 
     def _get_headers(self) -> Dict[str, str]:
         if not self.api_key:
@@ -35,12 +36,27 @@ class BrightDataProvider(ScraperProvider):
     def _resolve_dataset_id(self, scraper_id: str, schema_name: str) -> Optional[str]:
         if scraper_id and scraper_id.startswith("gd_"):
             return scraper_id
+        
+        name = schema_name.lower().strip() if schema_name else ""
+        if name in ("products", "product"):
+            return settings.BRIGHTDATA_PRODUCT_DATASET_ID or (self.default_scraper_id if self.default_scraper_id.startswith("gd_") else None)
+        elif name in ("jobs", "job"):
+            return settings.BRIGHTDATA_JOB_DATASET_ID or None
+        elif name in ("x", "twitter"):
+            return settings.BRIGHTDATA_X_DATASET_ID or None
+        elif name in ("linkedin", "linkedin_profile"):
+            return settings.BRIGHTDATA_LINKEDIN_DATASET_ID or None
+        elif name in ("facebook", "facebook_post"):
+            return settings.BRIGHTDATA_FACEBOOK_DATASET_ID or None
+        elif name in ("instagram", "instagram_profile"):
+            return settings.BRIGHTDATA_INSTAGRAM_DATASET_ID or None
+        elif name in ("google_maps", "google", "maps", "google_places"):
+            return settings.BRIGHTDATA_GOOGLE_MAPS_DATASET_ID or None
+        elif name in ("reddit", "reddit_post", "subreddit"):
+            return settings.BRIGHTDATA_REDDIT_DATASET_ID or None
+
         if self.default_scraper_id and self.default_scraper_id.startswith("gd_"):
             return self.default_scraper_id
-        if schema_name == "products":
-            return settings.BRIGHTDATA_PRODUCT_DATASET_ID or None
-        elif schema_name == "jobs":
-            return settings.BRIGHTDATA_JOB_DATASET_ID or None
         return None
 
     async def search(
@@ -50,9 +66,8 @@ class BrightDataProvider(ScraperProvider):
         target_domain: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Executes a search query.
-        If query is a direct URL, routes to live scraping.
-        For textual search, queries Bright Data or returns structured error if unconfigured.
+        Executes a search query using Bright Data SERP API.
+        Returns explicit error status if SERP zone is unconfigured or if upstream API fails.
         """
         if query.startswith(("http://", "https://")):
             # Direct URL passed as query
@@ -75,6 +90,17 @@ class BrightDataProvider(ScraperProvider):
                 "results": []
             }
 
+        # Check SERP zone configuration
+        if not self.serp_zone:
+            return {
+                "provider": "brightdata",
+                "status": "unconfigured",
+                "error": "Search is unavailable until the Bright Data SERP zone is configured. Please configure BRIGHTDATA_SERP_ZONE in .env.",
+                "query": query,
+                "workflow_type": workflow_type,
+                "results": []
+            }
+
         headers = self._get_headers()
         search_target_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
         if target_domain:
@@ -83,63 +109,82 @@ class BrightDataProvider(ScraperProvider):
         # Execute search via Bright Data SERP zone
         async with httpx.AsyncClient(timeout=60.0) as client:
             serp_payload = {
-                "zone": "serp_api1",
+                "zone": self.serp_zone,
                 "url": search_target_url,
                 "format": "json"
             }
             try:
                 serp_res = await client.post(f"{self.base_url}/request", json=serp_payload, headers=headers)
-                if serp_res.status_code == 200:
-                    serp_data = serp_res.json()
-                    parsed_body = serp_data
-                    if isinstance(serp_data, dict) and "body" in serp_data:
-                        body_val = serp_data["body"]
-                        if isinstance(body_val, str):
-                            try:
-                                parsed_body = json.loads(body_val)
-                            except Exception:
-                                parsed_body = serp_data
-                        elif isinstance(body_val, dict):
-                            parsed_body = body_val
+                if serp_res.status_code != 200:
+                    logger.warning(f"Bright Data SERP API returned {serp_res.status_code}: {serp_res.text}")
+                    return {
+                        "provider": "brightdata",
+                        "status": "provider_error",
+                        "error": f"Bright Data SERP API returned HTTP {serp_res.status_code}: {serp_res.text}",
+                        "query": query,
+                        "workflow_type": workflow_type,
+                        "results": []
+                    }
 
-                    organic_results = []
-                    raw_items = parsed_body.get("organic") or parsed_body.get("results") or []
-                    for item in raw_items:
-                        title = item.get("title") or item.get("header")
-                        link = item.get("link") or item.get("url")
-                        snippet = item.get("description") or item.get("snippet")
-                        if title and link:
-                            organic_results.append({
-                                "title": title,
-                                "job_title": title,
-                                "product_url": link,
-                                "application_url": link,
-                                "seller": item.get("displayed_link"),
-                                "company": item.get("displayed_link"),
-                                "description": snippet,
-                                "price": item.get("price") if isinstance(item.get("price"), (int, float)) else None,
-                                "currency": None,
-                                "availability": None
-                            })
+                serp_data = serp_res.json()
+                parsed_body = serp_data
+                if isinstance(serp_data, dict) and "body" in serp_data:
+                    body_val = serp_data["body"]
+                    if isinstance(body_val, str):
+                        try:
+                            parsed_body = json.loads(body_val)
+                        except Exception:
+                            parsed_body = serp_data
+                    elif isinstance(body_val, dict):
+                        parsed_body = body_val
 
-                    if organic_results:
-                        return {
-                            "provider": "brightdata",
-                            "status": "success",
-                            "query": query,
-                            "workflow_type": workflow_type,
-                            "results": organic_results
-                        }
+                organic_results = []
+                raw_items = parsed_body.get("organic") or parsed_body.get("results") or []
+                for item in raw_items:
+                    title = item.get("title") or item.get("header")
+                    link = item.get("link") or item.get("url")
+                    snippet = item.get("description") or item.get("snippet")
+                    if title and link:
+                        organic_results.append({
+                            "title": title,
+                            "job_title": title,
+                            "product_url": link,
+                            "application_url": link,
+                            "seller": item.get("displayed_link"),
+                            "company": item.get("displayed_link"),
+                            "description": snippet,
+                            "price": item.get("price") if isinstance(item.get("price"), (int, float)) else None,
+                            "currency": None,
+                            "availability": None
+                        })
+
+                return {
+                    "provider": "brightdata",
+                    "status": "success" if organic_results else "empty_result",
+                    "query": query,
+                    "workflow_type": workflow_type,
+                    "results": organic_results
+                }
+
+            except httpx.TimeoutException:
+                return {
+                    "provider": "brightdata",
+                    "status": "provider_error",
+                    "error": "Bright Data SERP connection timed out.",
+                    "query": query,
+                    "workflow_type": workflow_type,
+                    "results": []
+                }
             except Exception as e:
-                logger.warning(f"Bright Data search query failed: {e}")
-
-        return {
-            "provider": "brightdata",
-            "status": "empty_result",
-            "query": query,
-            "workflow_type": workflow_type,
-            "results": []
-        }
+                logger.error(f"Bright Data search query failed: {e}")
+                return {
+                    "provider": "brightdata",
+                    "status": "provider_error",
+                    "error": f"Bright Data SERP request failed: {str(e)}",
+                    "query": query,
+                    "workflow_type": workflow_type,
+                    "results": []
+                }
 
     async def create_scraper(
         self,
@@ -193,7 +238,7 @@ class BrightDataProvider(ScraperProvider):
             }
 
         # Trigger Bright Data Datasets v3 API
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             trigger_url = f"{self.base_url}/datasets/v3/trigger?dataset_id={dataset_id}&include_errors=true"
             payload = {
                 "input": [{"url": target}],
@@ -225,10 +270,12 @@ class BrightDataProvider(ScraperProvider):
                 if poll_result.get("status") == "success":
                     items = poll_result.get("data", [])
                     raw_item = items[0] if items and isinstance(items, list) else (items if isinstance(items, dict) else {})
+                    html_evidence = raw_item.get("raw_html") or raw_item.get("html") or raw_item.get("dom_snapshot")
                     return {
                         "status": "success" if raw_item else "empty_result",
                         "provider_run_id": snapshot_id,
                         "dataset_id": dataset_id,
+                        "raw_html": html_evidence,
                         "raw_result": raw_item
                     }
                 else:
@@ -236,6 +283,7 @@ class BrightDataProvider(ScraperProvider):
                         "status": poll_result.get("status", "provider_error"),
                         "provider_run_id": snapshot_id,
                         "dataset_id": dataset_id,
+                        "raw_html": None,
                         "error": poll_result.get("error", "Snapshot collection failed"),
                         "raw_result": {}
                     }
@@ -259,19 +307,14 @@ class BrightDataProvider(ScraperProvider):
         client: httpx.AsyncClient,
         snapshot_id: str,
         headers: Dict[str, str],
-        max_attempts: int = 30,
-        poll_interval: float = 3.0
+        max_attempts: int = 60,
+        poll_interval: float = 2.5
     ) -> Dict[str, Any]:
-        """
-        Polls /datasets/v3/progress/{snapshot_id} and downloads dataset when ready.
-        Handles collecting, digesting, ready, failed, and timeout states distinctly.
-        """
         progress_url = f"{self.base_url}/datasets/v3/progress/{snapshot_id}"
         snapshot_url = f"{self.base_url}/datasets/v3/snapshot/{snapshot_id}?format=json"
 
         for attempt in range(max_attempts):
             try:
-                # 1. Check progress status
                 prog_res = await client.get(progress_url, headers=headers)
                 
                 if prog_res.status_code == 200:
@@ -279,7 +322,6 @@ class BrightDataProvider(ScraperProvider):
                     status = (prog_data.get("status") or "").lower()
 
                     if status == "ready":
-                        # Snapshot is ready for download
                         snap_res = await client.get(snapshot_url, headers=headers)
                         if snap_res.status_code == 200:
                             data = snap_res.json()
@@ -299,13 +341,10 @@ class BrightDataProvider(ScraperProvider):
                         }
                     elif status in ("running", "collecting", "digesting", "pending"):
                         logger.info(f"Snapshot {snapshot_id} status: '{status}' (attempt {attempt + 1}/{max_attempts})...")
-                    else:
-                        logger.debug(f"Snapshot progress: {prog_data}")
 
                 elif prog_res.status_code == 202:
                     logger.info(f"Snapshot {snapshot_id} processing (attempt {attempt + 1}/{max_attempts})...")
                 
-                # Direct download fallback attempt if progress endpoint is unavailable
                 elif prog_res.status_code == 404:
                     snap_res = await client.get(snapshot_url, headers=headers)
                     if snap_res.status_code == 200:
@@ -337,6 +376,11 @@ class BrightDataProvider(ScraperProvider):
         schema: ScrapeSchema,
         failure_context: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """
+        Synthesizes an actionable diagnostic refactor template based on schema validation errors.
+        For Datasets v3 managed datasets, produces a field extraction remediation plan.
+        For Scraper Studio custom collectors (c_...), formats Scraper Studio refactor code instructions.
+        """
         if "demo.local" in target or "localhost" in target:
             from app.providers.local_provider import LocalProvider
             local_provider = LocalProvider()
@@ -348,21 +392,25 @@ class BrightDataProvider(ScraperProvider):
         repair_instruction = failure_context.get("repair_instruction", "")
         if not repair_instruction:
             repair_instruction = (
-                f"The extraction pipeline detected missing fields for schema '{schema.name}': {missing}.\n"
-                f"Validation errors: {validation_errors}.\n"
-                "Re-configure extraction rules to retrieve the missing attributes without inventing facts."
+                f"Bright Data Diagnostic Refactor Plan for schema '{schema.name}':\n"
+                f"- Missing required fields: {missing}\n"
+                f"- Validation failures: {validation_errors}\n"
+                f"- Target URL: {target}\n"
+                "Action: Re-inspect DOM selectors and update parser configuration to extract missing attributes without hallucinating values."
             )
 
-        repair_id = f"rep_{scraper_id or schema.name}_{int(asyncio.get_event_loop().time() * 1000)}"
+        repair_id = f"diag_{scraper_id or schema.name}_{int(asyncio.get_event_loop().time() * 1000)}"
         return {
             "status": "repair_requested",
             "repair_id": repair_id,
             "instruction": repair_instruction,
             "provider_response": {
-                "action": "repair_plan_synthesized",
+                "action": "diagnostic_synthesis",
+                "collector_type": "custom_scraper_studio" if scraper_id.startswith("c_") else "datasets_v3_managed",
                 "target": target,
                 "missing_fields": missing,
-                "schema": schema.name
+                "schema": schema.name,
+                "note": "Diagnostic synthesis ready for human review and verification rerun."
             }
         }
 
@@ -371,6 +419,9 @@ class BrightDataProvider(ScraperProvider):
         scraper_id: str,
         repair_id: str
     ) -> Dict[str, Any]:
+        """
+        Approves synthesized repair plan for verification rerun.
+        """
         if repair_id.startswith("rep_local_"):
             from app.providers.local_provider import LocalProvider
             local_provider = LocalProvider()
@@ -381,6 +432,7 @@ class BrightDataProvider(ScraperProvider):
             "repair_id": repair_id,
             "provider_response": {
                 "status": "approved",
-                "message": "Repair approved for rerun and verification."
+                "action": "approved_for_verification",
+                "message": "Repair instructions approved. Ready for verification rerun."
             }
         }

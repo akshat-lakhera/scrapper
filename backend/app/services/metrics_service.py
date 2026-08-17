@@ -1,41 +1,81 @@
+from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from app.models.scrape_run import ScrapeRunDB
-from app.models.scraper import ScraperDB
 from app.models.repair_attempt import RepairAttemptDB
+from app.models.scraper import ScraperDB
+from app.models.extractor_rule_db import ExtractorRuleBundleDB, CandidateRulePatchDB
 
 class MetricsService:
     @staticmethod
-    def get_metrics(db: Session) -> dict:
-        total_scrapers = db.query(ScraperDB).count()
-        total_runs = db.query(ScrapeRunDB).count()
+    def get_metrics(db: Session) -> Dict[str, Any]:
+        runs = db.query(ScrapeRunDB).all()
+        repairs = db.query(RepairAttemptDB).all()
+        patches = db.query(CandidateRulePatchDB).all()
+        bundles = db.query(ExtractorRuleBundleDB).all()
+        scrapers = db.query(ScraperDB).all()
+
+        total_runs = len(runs)
+        total_scrapers = len(scrapers)
+
+        # Status breakdown
+        status_counts = {"success": 0, "degraded": 0, "repair_requested": 0, "repaired": 0, "manual_review": 0, "provider_error": 0}
+        total_quality = 0
+        total_latency = 0
+
+        for r in runs:
+            st = r.status or "unknown"
+            if st in status_counts:
+                status_counts[st] += 1
+            else:
+                status_counts[st] = 1
+            total_quality += (r.data_quality_score or 0)
+            total_latency += (r.duration_ms or 0)
+
+        # Observed metrics (None when unobserved)
+        successful_repairs = sum(1 for a in repairs if a.result == "successful")
+        approved_repairs = sum(1 for a in repairs if a.approval_status == "approved")
+        promoted_patches = [p for p in patches if p.status == "promoted"]
         
-        success_count = db.query(ScrapeRunDB).filter(ScrapeRunDB.status == "success").count()
-        degraded_count = db.query(ScrapeRunDB).filter(ScrapeRunDB.status == "degraded").count()
-        repaired_count = db.query(ScrapeRunDB).filter(ScrapeRunDB.status == "repaired").count()
-        manual_review_count = db.query(ScrapeRunDB).filter(ScrapeRunDB.status == "manual_review").count()
+        repair_precision: Optional[float] = round((successful_repairs / approved_repairs * 100), 1) if approved_repairs > 0 else None
+        avg_confidence_promoted: Optional[float] = round(sum(p.confidence_score for p in promoted_patches) / len(promoted_patches) * 100, 1) if len(promoted_patches) > 0 else None
+        avg_confidence_all: Optional[float] = round(sum(p.confidence_score for p in patches) / len(patches) * 100, 1) if len(patches) > 0 else None
+        
+        # Rule bundles and templates count
+        unique_domains = len(set(b.domain for b in bundles)) if bundles else 0
+        unique_templates = len(set(b.template_signature for b in bundles)) if bundles else 0
+        
+        bundle_count_by_domain: Dict[str, int] = {}
+        for b in bundles:
+            dom = b.domain or "unknown"
+            bundle_count_by_domain[dom] = bundle_count_by_domain.get(dom, 0) + 1
 
-        avg_dur = db.query(func.avg(RepairAttemptDB.duration_ms)).filter(
-            RepairAttemptDB.result == "successful"
-        ).scalar() or 0
-
-        latest_run = db.query(ScrapeRunDB).order_by(ScrapeRunDB.id.desc()).first()
-        health = "healthy"
-        if latest_run:
-            if latest_run.status == "repaired":
-                health = "repaired"
-            elif latest_run.status in ("degraded", "failed"):
-                health = "degraded"
-            elif latest_run.status == "manual_review":
-                health = "manual_review"
+        # Same template repair rate
+        same_template_success = 0
+        same_template_total = 0
+        for p in promoted_patches:
+            same_template_total += 1
+            if p.non_regression_rate >= 0.8:
+                same_template_success += 1
+        same_template_rate = round((same_template_success / same_template_total * 100), 1) if same_template_total > 0 else None
 
         return {
-            "total_scrapers": total_scrapers,
             "total_runs": total_runs,
-            "successful_runs": success_count,
-            "degraded_runs": degraded_count,
-            "repaired_runs": repaired_count,
-            "manual_review_runs": manual_review_count,
-            "avg_repair_duration_ms": int(avg_dur),
-            "scraper_health": health
+            "total_scrapers": total_scrapers,
+            "status_counts": status_counts,
+            "average_quality_score": round(total_quality / total_runs, 1) if total_runs > 0 else None,
+            "average_latency_ms": round(total_latency / total_runs, 1) if total_runs > 0 else 0,
+            "repair_metrics": {
+                "total_repair_attempts": len(repairs),
+                "successful_repairs": successful_repairs,
+                "approved_repairs": approved_repairs,
+                "promoted_patches": len(promoted_patches),
+                "repair_precision_percent": repair_precision,
+                "average_healing_confidence": avg_confidence_all,
+                "avg_confidence_promoted_only": avg_confidence_promoted,
+                "same_template_repair_success_rate": same_template_rate,
+                "managed_domains_count": unique_domains,
+                "template_count": unique_templates,
+                "rule_bundle_count_by_domain": bundle_count_by_domain,
+                "active_rule_bundles": len([b for b in bundles if b.is_active])
+            }
         }

@@ -18,9 +18,9 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+async function request<T>(url: string, options?: RequestInit, timeoutMs = 180_000): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     if (!res.ok) {
@@ -34,6 +34,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       throw new ApiError(detail, res.status);
     }
     return res.json() as Promise<T>;
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+      throw new Error(`Scraper cluster operation timed out after ${timeoutMs / 1000}s while collecting live dataset.`);
+    }
+    throw err;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -82,18 +87,26 @@ export async function executeScrape(data: {
   });
 }
 
-export async function healScrapeRun(scraperId: number, runId: number) {
-  return request<Record<string, any>>(`${API_BASE}/scrapers/${scraperId}/heal?run_id=${runId}`, {
+export async function healScrapeRun(_scraperId: number, runId: number) {
+  return request<Record<string, any>>(`${API_BASE}/runs/${runId}/heal`, {
     method: 'POST',
   });
 }
 
-export async function approveRepair(scraperId: number, repairAttemptId: number) {
-  return request<Record<string, any>>(`${API_BASE}/scrapers/${scraperId}/approve-repair`, {
+export async function approveRepair(runId: number, repairAttemptId: number) {
+  return request<Record<string, any>>(`${API_BASE}/runs/${runId}/approve-repair`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repair_attempt_id: repairAttemptId }),
+    body: JSON.stringify({ repair_attempt_id: repairAttemptId, run_id: runId }),
   });
+}
+
+export async function fetchRuleBundles() {
+  return request<any[]>(`${API_BASE}/rules`);
+}
+
+export async function fetchRulePatches() {
+  return request<any[]>(`${API_BASE}/rules/patches`);
 }
 
 export async function executeSearch(data: {

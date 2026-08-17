@@ -1,29 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Wrench, 
-  AlertTriangle, 
   CheckCircle2, 
-  ShieldAlert, 
   RotateCcw, 
   Sparkles, 
   Check, 
-  Code2,
-  Copy,
-  CheckCheck
+  Copy, 
+  CheckCheck, 
+  GitBranch, 
+  ShieldCheck, 
+  FileCode2 
 } from 'lucide-react';
 import type { ScrapeRun, RepairAttempt } from '../types';
-import { fetchRuns, healScrapeRun, approveRepair } from '../api';
+import { fetchRuns, healScrapeRun, approveRepair, fetchRulePatches } from '../api';
 import { useScrambleText, stagger } from '../hooks';
+import { StatusBadge } from './StatusBadge';
+import { useToast } from './ToastContext';
+
+const REPAIR_STATE_MACHINE = [
+  { id: 'healthy', label: 'Healthy' },
+  { id: 'degraded', label: 'Degradation detected' },
+  { id: 'repair_requested', label: 'Repair requested' },
+  { id: 'approval_required', label: 'Approval required' },
+  { id: 'rerunning', label: 'Rerunning' },
+  { id: 'verification', label: 'Verification' },
+  { id: 'repaired', label: 'Repaired' },
+];
 
 export const RepairCenter: React.FC = () => {
   const [runs, setRuns] = useState<ScrapeRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<ScrapeRun | null>(null);
   const [loading, setLoading] = useState(false);
   const [repairAttempt, setRepairAttempt] = useState<RepairAttempt | null>(null);
+  const [activePatch, setActivePatch] = useState<any | null>(null);
   const [repairedData, setRepairedData] = useState<any>(null);
   const [repairStatus, setRepairStatus] = useState<string>('');
   const [copied, setCopied] = useState(false);
-  const title = useScrambleText('Self-Healing Engine & Interactive Repair Center', true);
+  const title = useScrambleText('Self-Healing Engine & Versioned Rule Workstation', true);
+  const { showToast, showCopyToast } = useToast();
 
   const loadRuns = async () => {
     try {
@@ -31,14 +45,28 @@ export const RepairCenter: React.FC = () => {
       const allRuns = await fetchRuns();
       setRuns(allRuns);
 
-      const targetRun = allRuns.find(r => 
-        r.status === 'degraded' || r.status === 'repair_requested' || r.status === 'repaired' || r.status === 'manual_review'
-      ) || allRuns[0];
+      const targetRun =
+        allRuns.find(
+          (r) =>
+            r.status === 'degraded' ||
+            r.status === 'repair_requested' ||
+            r.status === 'repaired' ||
+            r.status === 'manual_review'
+        ) || allRuns[0];
 
-      if (targetRun && (!selectedRun || !allRuns.some(r => r.id === selectedRun.id))) {
+      if (targetRun && (!selectedRun || !allRuns.some((r) => r.id === selectedRun.id))) {
         setSelectedRun(targetRun);
         setRepairStatus(targetRun.status);
       }
+
+      // Fetch latest patches
+      try {
+        const patches = await fetchRulePatches();
+        if (patches && patches.length > 0 && targetRun) {
+          const matchingPatch = patches.find((p: any) => p.scrape_run_id === targetRun.id) || patches[0];
+          setActivePatch(matchingPatch);
+        }
+      } catch {}
     } catch (e) {
       console.error(e);
     } finally {
@@ -50,17 +78,24 @@ export const RepairCenter: React.FC = () => {
     loadRuns();
   }, []);
 
-  const handleSelectRun = (r: ScrapeRun) => {
+  const handleSelectRun = async (r: ScrapeRun) => {
     setSelectedRun(r);
     setRepairAttempt(null);
     setRepairedData(null);
     setRepairStatus(r.status);
+
+    try {
+      const patches = await fetchRulePatches();
+      const matchingPatch = patches.find((p: any) => p.scrape_run_id === r.id);
+      setActivePatch(matchingPatch || null);
+    } catch {}
   };
 
   const handleHeal = async () => {
     if (!selectedRun) return;
     try {
       setLoading(true);
+      showToast('info', 'Synthesizing Candidate Rule Patch', `Run #${selectedRun.id}`);
       const res = await healScrapeRun(selectedRun.scraper_id || 1, selectedRun.id);
       setRepairAttempt({
         id: res.attempt_id,
@@ -71,12 +106,13 @@ export const RepairCenter: React.FC = () => {
         rerun_status: 'pending',
         result: 'pending',
         duration_ms: 0,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
       setRepairStatus('repair_requested');
+      showToast('repair_requested', 'Candidate Patch Synthesized', 'Tested on regression suite with confidence gate');
       await loadRuns();
     } catch (e: any) {
-      alert(`Heal failed: ${e.message}`);
+      showToast('error', 'Heal Generation Failed', e.message);
     } finally {
       setLoading(false);
     }
@@ -86,12 +122,14 @@ export const RepairCenter: React.FC = () => {
     if (!selectedRun || !repairAttempt) return;
     try {
       setLoading(true);
-      const res = await approveRepair(selectedRun.scraper_id || 1, repairAttempt.id);
+      showToast('info', 'Promoting Rule Bundle & Rerunning', `Attempt #${repairAttempt.id}`);
+      const res = await approveRepair(selectedRun.id, repairAttempt.id);
       setRepairedData(res.repaired_data || res.repaired_result);
       setRepairStatus(res.status || 'repaired');
+      showToast('repair_verified', 'Rule Bundle Promoted', `Promoted to version v${res.promoted_bundle_version || 2}`);
       await loadRuns();
     } catch (e: any) {
-      alert(`Approval failed: ${e.message}`);
+      showToast('error', 'Repair Approval Failed', e.message);
     } finally {
       setLoading(false);
     }
@@ -101,322 +139,328 @@ export const RepairCenter: React.FC = () => {
     if (!repairedData) return;
     navigator.clipboard.writeText(JSON.stringify(repairedData, null, 2));
     setCopied(true);
+    showCopyToast('Repaired JSON copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const statusBadge = (s: string) => {
-    switch (s) {
-      case 'success':
-        return { label: 'SUCCESS', color: 'var(--success)', bg: 'rgba(16,185,129,0.1)' };
-      case 'repaired':
-        return { label: 'REPAIRED', color: 'var(--healed)', bg: 'rgba(139,92,246,0.1)' };
-      case 'degraded':
-        return { label: 'DEGRADED', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
-      case 'repair_requested':
-        return { label: 'PENDING APPROVAL', color: 'var(--accent)', bg: 'rgba(168,85,247,0.1)' };
-      case 'manual_review':
-        return { label: 'MANUAL REVIEW', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
-      case 'provider_error':
-        return { label: 'PROVIDER ERROR', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
-      case 'provider_timeout':
-        return { label: 'TIMEOUT', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
-      default:
-        return { label: s.toUpperCase(), color: 'var(--text-secondary)', bg: 'var(--bg-elevated)' };
-    }
+  const getStateMachineIndex = () => {
+    if (repairStatus === 'repaired') return 6;
+    if (loading && repairAttempt) return 4;
+    if (repairAttempt) return 3;
+    if (repairStatus === 'degraded' || repairStatus === 'manual_review') return 1;
+    if (repairStatus === 'success') return 0;
+    return 0;
   };
 
-  // Parse missing fields dynamically — never fabricate
-  const parseMissingFields = (run: ScrapeRun): string[] => {
-    try {
-      if (run.validation_errors) {
-        const errs: string[] = typeof run.validation_errors === 'string' ? JSON.parse(run.validation_errors) : run.validation_errors;
-        const missing = errs
-          .filter(e => e.includes("Missing required field") || e.includes("missing"))
-          .map(e => e.replace(/.*Missing required field: '([^']+)'.*/, '$1').replace(/.*missing.*/, '$&'));
-        if (missing.length > 0) return missing;
-        // Return all validation errors as-is if no specific field extraction worked
-        if (errs.length > 0) return errs;
-      }
-    } catch {
-      // ignore
-    }
-    return [];
-  };
+  const currentMachineIndex = getStateMachineIndex();
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="stagger-in flex flex-col md:flex-row md:items-center justify-between gap-4" style={stagger(0)}>
+      <section className="stagger-in flex flex-col md:flex-row md:items-center justify-between gap-4" style={stagger(0)} aria-labelledby="repair-title">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Wrench size={14} style={{ color: 'var(--accent)' }} />
+            <Wrench size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
             <span className="text-[11px] mono uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--accent)' }}>
-              Bright Data Scraper Studio
+              Autonomous Self-Healing
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <h1 id="repair-title" className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
             <span className="text-gradient">{title}</span>
           </h1>
           <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Diagnose broken website selectors, synthesize refactor instructions, and approve automated repairs.
+            Root-cause selector analysis, candidate rule synthesis, multi-page regression testing, and versioned rule promotion.
           </p>
         </div>
 
         <button
           onClick={loadRuns}
           disabled={loading}
-          className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 self-start md:self-auto"
-          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+          className="btn-spring px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 self-start md:self-auto focus-ring"
+          style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
         >
-          <RotateCcw size={13} className={loading ? 'animate-spin' : ''} />
+          <RotateCcw size={13} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           <span>Refresh Runs</span>
         </button>
-      </div>
+      </section>
 
-      {/* Verification Notice */}
-      <div className="p-4 rounded-xl flex items-start gap-3 stagger-in" style={{ ...stagger(0.5), background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-        <Sparkles size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
-        <div className="text-xs space-y-1">
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Provider Capability Status</span>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            <strong>Live extraction:</strong> verified with Bright Data Datasets v3. <strong>Custom Scraper Studio self-healing:</strong> requires separate live verification against custom collectors.
-          </p>
+      {/* 7-Stage State Machine Progress Stepper */}
+      <section className="p-6 rounded-2xl glow-hover stagger-in space-y-4" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} aria-label="Self-Healing Lifecycle State Machine">
+        <div className="flex items-center justify-between">
+          <span className="mono text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            Self-Healing State Machine
+          </span>
+          <span className="mono text-xs font-bold text-purple-400">
+            Stage {currentMachineIndex + 1} of {REPAIR_STATE_MACHINE.length}
+          </span>
         </div>
-      </div>
 
-      {/* Main Grid: Left Runs Selector, Right 3-Stage Workstation */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Runs Audit List (4 cols) */}
-        <div className="lg:col-span-4 space-y-3 stagger-in" style={stagger(1)}>
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              Execution History
-            </span>
-            <span className="mono text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>
-              {runs.length} Runs
-            </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          {REPAIR_STATE_MACHINE.map((step, idx) => {
+            const isPassed = idx < currentMachineIndex;
+            const isCurrent = idx === currentMachineIndex;
+
+            return (
+              <div
+                key={step.id}
+                className="p-3 rounded-xl flex flex-col justify-between transition-all"
+                style={{
+                  background: isCurrent
+                    ? 'rgba(168,85,247,0.15)'
+                    : isPassed
+                    ? 'rgba(16,185,129,0.08)'
+                    : 'var(--bg-elevated)',
+                  border: isCurrent
+                    ? '1px solid var(--accent)'
+                    : isPassed
+                    ? '1px solid rgba(16,185,129,0.3)'
+                    : '1px solid var(--border-subtle)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="mono text-[9px] font-bold uppercase text-slate-400">
+                    Step {idx + 1}
+                  </span>
+                  {isPassed ? (
+                    <CheckCircle2 size={12} className="text-emerald-400" aria-hidden="true" />
+                  ) : isCurrent ? (
+                    <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" aria-hidden="true" />
+                  ) : null}
+                </div>
+                <div
+                  className="text-xs font-semibold"
+                  style={{
+                    color: isCurrent
+                      ? 'var(--accent)'
+                      : isPassed
+                      ? 'var(--success)'
+                      : 'var(--text-tertiary)',
+                  }}
+                >
+                  {step.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Target Under Inspection */}
+        <section className="lg:col-span-1 space-y-4" aria-labelledby="runs-list-heading">
+          <div className="flex items-center justify-between">
+            <h2 id="runs-list-heading" className="text-xs mono uppercase tracking-wider font-semibold text-slate-400">
+              Execution History ({runs.length})
+            </h2>
+            <span className="text-[11px] mono text-purple-400">Select Target</span>
           </div>
 
-          <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-            {runs.length === 0 && !loading && (
-              <div className="p-6 rounded-xl text-center text-xs" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}>
-                No runs recorded yet. Execute a scrape from the Product or Job tab.
-              </div>
-            )}
-
+          <div className="space-y-3 max-h-[750px] overflow-y-auto pr-1">
             {runs.map((r) => {
               const isSelected = selectedRun?.id === r.id;
-              const badge = statusBadge(r.status);
               return (
-                <div
+                <button
                   key={r.id}
                   onClick={() => handleSelectRun(r)}
-                  className="p-4 rounded-xl glow-hover cursor-pointer transition-all space-y-2"
+                  className="w-full p-4 rounded-2xl text-left transition-all btn-spring focus-ring space-y-2 block"
                   style={{
                     background: isSelected ? 'var(--bg-elevated)' : 'var(--bg-surface)',
                     border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
-                    boxShadow: isSelected ? '0 0 16px rgba(168,85,247,0.15)' : 'none'
+                    boxShadow: isSelected ? '0 0 20px rgba(168,85,247,0.15)' : 'none',
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="mono text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                      Run #{r.id}
-                    </span>
-                    <span
-                      className="text-[10px] mono font-bold px-2 py-0.5 rounded"
-                      style={{ background: badge.bg, color: badge.color }}
-                    >
-                      {badge.label}
-                    </span>
+                    <span className="mono text-xs font-bold text-white">Run #{r.id}</span>
+                    <StatusBadge status={r.status} size="sm" />
                   </div>
-
-                  <div className="mono text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="mono text-xs truncate text-slate-300" title={r.target_url}>
                     {r.target_url}
                   </div>
-
-                  <div className="flex items-center justify-between text-[10px] mono pt-1" style={{ color: 'var(--text-tertiary)' }}>
-                    <span>{r.workflow_type?.toUpperCase() || 'PRODUCTS'}</span>
-                    <span style={{ color: r.data_quality_score >= 80 ? 'var(--success)' : r.data_quality_score >= 50 ? 'var(--warning)' : 'var(--danger)' }}>
-                      Quality: {r.data_quality_score}%
-                    </span>
+                  <div className="flex items-center justify-between text-[11px] mono text-slate-400">
+                    <span className="uppercase text-purple-400 font-semibold">{r.workflow_type}</span>
+                    <span className="font-semibold text-slate-300">Quality: {r.data_quality_score}%</span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* Right Column: Healing Workstation (8 cols) */}
-        <div className="lg:col-span-8 space-y-6 stagger-in" style={stagger(2)}>
+        {/* Right Column: Workstation & Rule Promotion Suite */}
+        <section className="lg:col-span-2 space-y-6" aria-labelledby="workstation-heading">
           {selectedRun ? (
-            <div className="rounded-2xl p-6 space-y-6" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-              {/* Selected Run Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                    Target Under Inspection
-                  </div>
-                  <h2 className="text-base sm:text-lg font-bold text-white mt-0.5 flex items-center gap-2">
-                    <span>Run #{selectedRun.id}</span>
-                    <span className="text-xs font-normal mono px-2 py-0.5 rounded max-w-sm truncate" style={{ background: 'var(--bg-root)', color: 'var(--text-secondary)' }}>
+            <div className="space-y-6">
+              {/* Target Banner */}
+              <div className="p-6 rounded-2xl space-y-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="mono text-[10px] px-2.5 py-0.5 rounded font-bold uppercase" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
+                        {selectedRun.workflow_type}
+                      </span>
+                      <span className="mono text-[11px] text-slate-400">Run #{selectedRun.id}</span>
+                      <span className="mono text-[10px] px-2 py-0.5 rounded font-semibold text-slate-300" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        {selectedRun.selected_strategy || 'rule_bundle_v1'}
+                      </span>
+                    </div>
+                    <h2 id="workstation-heading" className="mono text-sm font-bold text-white truncate max-w-xl">
                       {selectedRun.target_url}
-                    </span>
-                  </h2>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                      Quality Score
-                    </div>
-                    <div className="text-xl font-bold mono" style={{ color: selectedRun.data_quality_score >= 80 ? 'var(--success)' : selectedRun.data_quality_score >= 50 ? 'var(--warning)' : 'var(--danger)' }}>
-                      {selectedRun.data_quality_score}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 1: Failure Diagnosis */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--warning)' }}>
-                    <AlertTriangle size={14} />
-                    <span>Step 1 · Schema Degradation Diagnosis</span>
-                  </div>
-                  <span className="text-[10px] mono text-slate-400">Automated Audit</span>
-                </div>
-
-                <div className="p-4 rounded-xl space-y-2.5 text-xs" style={{ background: 'var(--bg-root)', border: '1px solid var(--border-default)' }}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Target URL:</span>
-                    <code className="mono text-[11px] px-2 py-0.5 rounded truncate max-w-md" style={{ background: 'var(--bg-surface)', color: 'var(--accent)' }}>
-                      {selectedRun.target_url}
-                    </code>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Missing Schema Fields:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {parseMissingFields(selectedRun).map(f => (
-                        <span key={f} className="px-2 py-0.5 rounded mono text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>
-                          {f}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 2: Bright Data Refactor Plan */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--accent)' }}>
-                    <Code2 size={14} />
-                    <span>Step 2 · Bright Data Refactor Template</span>
+                    </h2>
                   </div>
 
-                  {!repairAttempt && repairStatus !== 'repaired' && repairStatus !== 'manual_review' && (
-                    <button
-                      onClick={handleHeal}
-                      disabled={loading}
-                      className="btn-spring px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5"
-                      style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 0 16px rgba(168,85,247,0.3)' }}
-                    >
-                      <Sparkles size={12} className={loading ? 'animate-spin' : ''} />
-                      <span>{loading ? 'Synthesizing…' : 'Generate Healing Plan'}</span>
-                    </button>
-                  )}
-                </div>
-
-                {repairAttempt ? (
-                  <div className="p-4 rounded-xl space-y-3" style={{ background: 'var(--bg-root)', border: '1px solid var(--border-default)' }}>
-                    <div className="text-[11px] mono p-3 rounded-lg overflow-x-auto whitespace-pre-wrap leading-relaxed" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                      {repairAttempt.instruction}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-                      <div className="text-xs flex items-center gap-2">
-                        <span style={{ color: 'var(--text-tertiary)' }}>Approval Gate:</span>
-                        <span className="mono font-bold uppercase text-[11px] px-2 py-0.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
-                          {repairAttempt.approval_status}
-                        </span>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={repairStatus || selectedRun.status} size="md" />
+                    <div className="mono text-xs font-bold text-right ml-2">
+                      <div className="text-[10px] uppercase text-slate-400">Quality Score</div>
+                      <div className="text-sm" style={{ color: selectedRun.data_quality_score >= 80 ? 'var(--success)' : 'var(--danger)' }}>
+                        {selectedRun.data_quality_score}%
                       </div>
-
-                      {repairStatus !== 'repaired' && repairStatus !== 'manual_review' && (
-                        <button
-                          onClick={handleApproveRepair}
-                          disabled={loading}
-                          className="btn-spring px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
-                          style={{
-                            background: 'linear-gradient(135deg, var(--success), #059669)',
-                            color: '#fff',
-                            boxShadow: '0 0 20px rgba(16,185,129,0.3)',
-                          }}
-                        >
-                          <Check size={14} />
-                          <span>Approve Repair & Re-Run Scraper</span>
-                        </button>
-                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4 rounded-xl text-center text-xs space-y-2" style={{ background: 'var(--bg-root)', border: '1px dashed var(--border-default)' }}>
-                    <div className="text-slate-400">Click &quot;Generate Healing Plan&quot; above to synthesize a Bright Data refactor instruction for this run.</div>
-                  </div>
+                </div>
+
+                {/* Action CTA Button */}
+                {(selectedRun.status === 'degraded' || selectedRun.status === 'provider_error' || selectedRun.status === 'manual_review') && !repairAttempt && (
+                  <button
+                    onClick={handleHeal}
+                    disabled={loading}
+                    className="w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 btn-spring focus-ring"
+                    style={{
+                      background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
+                      color: '#fff',
+                      boxShadow: '0 4px 20px rgba(168,85,247,0.3)',
+                    }}
+                  >
+                    <Sparkles size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+                    <span>{loading ? 'Synthesizing Candidate Patch & Testing…' : 'Synthesize Candidate Rule Patch'}</span>
+                  </button>
                 )}
               </div>
 
-              {/* Step 3: Verification & Recovery Results */}
-              {repairStatus === 'repaired' && (
-                <div className="p-5 rounded-xl space-y-4" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.3)' }}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--healed)' }}>
-                      <CheckCircle2 size={16} />
-                      <span>Step 3 · Verified Healing Successful</span>
+              {/* Versioned Candidate Patch & Regression Proof Card */}
+              {activePatch && (
+                <div className="p-6 rounded-2xl space-y-5 stagger-in" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 8px 32px rgba(168,85,247,0.1)' }}>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                    <div className="flex items-center gap-2">
+                      <GitBranch size={16} className="text-purple-400" aria-hidden="true" />
+                      <h3 className="mono text-sm font-bold text-white">
+                        Rule Bundle Patch (v{activePatch.from_version} → v{activePatch.to_version})
+                      </h3>
                     </div>
-
-                    <button
-                      onClick={copyRepairedJson}
-                      className="p-2 rounded-lg text-xs font-medium flex items-center gap-1 btn-spring"
-                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
-                    >
-                      {copied ? <CheckCheck size={13} style={{ color: 'var(--success)' }} /> : <Copy size={13} />}
-                      <span>{copied ? 'Copied' : 'Copy JSON'}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="mono text-[11px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                        Confidence: {Math.round(activePatch.confidence_score * 100)}%
+                      </span>
+                      <span className="mono text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                        Recovery: {Math.round(activePatch.field_recovery_rate * 100)}%
+                      </span>
+                    </div>
                   </div>
 
-                  {repairedData && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Recovered Record Payload:</div>
-                      <pre className="p-3.5 rounded-xl text-xs mono overflow-x-auto leading-relaxed" style={{ background: 'var(--bg-root)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}>
-                        {JSON.stringify(repairedData, null, 2)}
-                      </pre>
+                  {/* Selector Diff Table */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold uppercase mono text-slate-300 flex items-center gap-1.5">
+                      <FileCode2 size={13} className="text-purple-400" aria-hidden="true" />
+                      <span>Synthesized Field Selector Replacements</span>
                     </div>
+                    <div className="rounded-xl overflow-hidden border border-white/5 bg-black/40">
+                      <table className="w-full text-left text-xs mono">
+                        <thead>
+                          <tr className="border-b border-white/5 text-slate-400 bg-white/[0.02]">
+                            <th className="py-2.5 px-3">FIELD</th>
+                            <th className="py-2.5 px-3">PREVIOUS SELECTOR</th>
+                            <th className="py-2.5 px-3">CANDIDATE SELECTOR</th>
+                            <th className="py-2.5 px-3">STABILITY</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {Object.entries(activePatch.selector_diff || {}).map(([fName, diff]: [string, any]) => (
+                            <tr key={fName}>
+                              <td className="py-2.5 px-3 font-bold text-purple-300">{fName}</td>
+                              <td className="py-2.5 px-3 text-red-400 truncate max-w-[160px] line-through">{diff.old_selector || 'None'}</td>
+                              <td className="py-2.5 px-3 text-emerald-400 font-semibold truncate max-w-[200px]">{diff.new_selector || 'Manual review'}</td>
+                              <td className="py-2.5 px-3 text-slate-300">{diff.stability_score ? `${Math.round(diff.stability_score * 100)}%` : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Multi-Page Regression Test Suite */}
+                  {activePatch.regression_tests && activePatch.regression_tests.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold uppercase mono text-slate-300 flex items-center gap-1.5">
+                        <ShieldCheck size={13} className="text-emerald-400" aria-hidden="true" />
+                        <span>Holdout Regression Suite Results ({activePatch.regression_tests.length} Samples)</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {activePatch.regression_tests.map((test: any, idx: number) => (
+                          <div key={idx} className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1 text-xs mono">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400 uppercase text-[10px] font-bold">{test.page_type}</span>
+                              <span className={test.passed_validity ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                                Score: {test.quality_score}%
+                              </span>
+                            </div>
+                            <div className="truncate text-slate-300 text-[11px]" title={test.target_url}>{test.target_url}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 1-Click Approve & Promote Button */}
+                  {activePatch.status === 'pending_approval' && (
+                    <button
+                      onClick={handleApproveRepair}
+                      disabled={loading}
+                      className="w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 btn-spring focus-ring"
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: '#fff',
+                        boxShadow: '0 4px 20px rgba(16,185,129,0.3)',
+                      }}
+                    >
+                      <Check size={15} aria-hidden="true" />
+                      <span>Approve & Promote Candidate Rules (v{activePatch.to_version})</span>
+                    </button>
                   )}
                 </div>
               )}
 
-              {/* Manual Review Fallback */}
-              {repairStatus === 'manual_review' && (
-                <div className="p-5 rounded-xl space-y-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--danger)' }}>
-                    <ShieldAlert size={16} />
-                    <span>Manual Review Escalation</span>
+              {/* Repaired Data Result Display */}
+              {repairedData && (
+                <div className="p-6 rounded-2xl space-y-4 stagger-in bg-emerald-500/5 border border-emerald-500/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-400" aria-hidden="true" />
+                      <h3 className="mono text-sm font-bold text-white">Promoted Rule Bundle Output</h3>
+                    </div>
+                    <button
+                      onClick={copyRepairedJson}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 btn-spring bg-black/40 text-slate-300 hover:text-white"
+                    >
+                      {copied ? <CheckCheck size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                      <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
+                    </button>
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    The target public page structure is missing critical markup or the URL does not contain product/job schema data. Automatic refactor could not recover missing fields. Escalated to human operator review.
-                  </p>
+
+                  <pre className="p-4 rounded-xl text-xs mono overflow-x-auto bg-black/60 border border-white/5 text-emerald-300">
+                    {JSON.stringify(repairedData, null, 2)}
+                  </pre>
                 </div>
               )}
             </div>
           ) : (
-            <div className="p-12 rounded-2xl text-center space-y-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+            <div className="py-24 text-center space-y-2 rounded-2xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
               <div className="empty-orb mx-auto mb-3" />
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Select a Run to Begin</p>
-              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Choose a degraded or completed run from the left panel to test the Self-Healing engine.</p>
+              <p className="text-sm font-semibold text-white">No Target Selected</p>
+              <p className="text-xs text-slate-400">Select an execution run from the left panel to inspect diagnostics.</p>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

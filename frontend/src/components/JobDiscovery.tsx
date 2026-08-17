@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
-import { Briefcase, Search, Play, AlertTriangle, Wrench, ExternalLink, Check, Copy, CheckCheck, Code2, MapPin, Building2, Calendar } from 'lucide-react';
+import { Briefcase, Search, Play, AlertTriangle, Wrench, ExternalLink, Check, Copy, CheckCheck, MapPin, Building2, Calendar } from 'lucide-react';
 import { executeScrape, executeSearch, selectSearchResult } from '../api';
 import { useScrambleText, stagger } from '../hooks';
+import { StatusBadge } from './StatusBadge';
+import { ScrapeProgressTimeline } from './ScrapeProgressTimeline';
+import { FieldCompletenessBar } from './DataVisualizations';
+import { JsonDiffViewer } from './JsonDiffViewer';
+import { useToast } from './ToastContext';
 
-interface JobDiscoveryProps { setActiveTab: (tab: string) => void; }
+interface JobDiscoveryProps {
+  setActiveTab: (tab: string) => void;
+}
 
 export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
   const [mode, setMode] = useState<'url' | 'search'>('url');
@@ -16,10 +23,11 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [selectingUrl, setSelectingUrl] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
-  const [showRawJson, setShowRawJson] = useState(false);
   const title = useScrambleText('Job Market Intelligence', true);
+  const { showToast, showCopyToast } = useToast();
 
   const popularDomains = ['glassdoor.co.in', 'linkedin.com', 'indeed.com', 'naukri.com', 'wellfound.com', 'foundit.in'];
 
@@ -54,16 +62,35 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
     if (mode === 'url' && !targetUrl.trim()) return alert('Please enter a job posting URL');
     if (mode === 'search' && !query.trim()) return alert('Please enter a job search query');
     try {
-      setLoading(true); setResult(null); setSearchResults([]);
+      setLoading(true);
+      setResult(null);
+      setErrorMsg(null);
+      setSearchResults([]);
+      showToast('info', 'Extraction Started', `Job Target: ${mode === 'url' ? targetUrl : query}`);
+
       if (mode === 'url') {
         const scrapePayloadUrl = targetUrl.trim().startsWith('http') ? targetUrl.trim() : `https://${targetUrl.trim()}`;
         const res = await executeScrape({ target_url: scrapePayloadUrl, workflow_type: 'jobs', schema_name: 'jobs' });
         setResult(res);
+
+        if (res.status === 'success') {
+          showToast('success', 'Job Extraction Succeeded', `Quality score: ${res.quality_score || 0}%`);
+        } else if (res.status === 'degraded') {
+          showToast('degraded', 'Degradation Detected', 'Missing required job attributes');
+        } else if (res.status === 'provider_error') {
+          showToast('error', 'Provider Error', 'Live job dataset is unconfigured or unavailable');
+        }
       } else {
         const s = await executeSearch({ query: query.trim(), workflow_type: 'jobs', target_domain: targetDomain.trim() });
         setSearchResults(s.results || []);
+        showToast('info', 'Search Completed', `Discovered ${s.results?.length || 0} job listings`);
       }
-    } catch (e: any) { alert(`Extraction error: ${e.message}`); } finally { setLoading(false); }
+    } catch (e: any) {
+      setErrorMsg(e.message);
+      showToast('error', 'Extraction Failed', e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelect = async (item: any) => {
@@ -73,14 +100,23 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
       setSelectingUrl(url);
       setTargetUrl(url);
       setLoading(true);
+      setErrorMsg(null);
+      showToast('info', 'Scraping Discovered Job', url);
+
       const res = await selectSearchResult(0, url, 'jobs');
       setResult(res);
+
+      if (res.status === 'success') {
+        showToast('success', 'Job Scrape Completed', `Quality: ${res.quality_score || 0}%`);
+      }
+
       setTimeout(() => {
         const el = document.getElementById('job-scrape-result');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } catch (e: any) {
-      alert(`Scrape failed: ${e.message}`);
+      setErrorMsg(e.message);
+      showToast('error', 'Scrape Failed', e.message);
     } finally {
       setLoading(false);
       setSelectingUrl(null);
@@ -91,51 +127,69 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
     if (!result) return;
     navigator.clipboard.writeText(JSON.stringify(result.extracted_data || result, null, 2));
     setCopied(true);
+    showCopyToast('Job JSON copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleField = (n: string) => setSelectedFields(p => p.includes(n) ? p.filter(f => f !== n) : [...p, n]);
+  const toggleField = (n: string) => setSelectedFields((p) => (p.includes(n) ? p.filter((f) => f !== n) : [...p, n]));
   const extracted = result?.extracted_data || {};
   const isDegraded = result?.status === 'degraded' || result?.repair_triggered;
+
+  // Field completeness
+  const fieldCompletenessData = fields.map((f) => ({
+    name: f.name,
+    required: f.req,
+    present: extracted[f.name] !== undefined && extracted[f.name] !== null && extracted[f.name] !== '',
+    value: extracted[f.name],
+  }));
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="stagger-in" style={stagger(0)}>
+      <section className="stagger-in" style={stagger(0)} aria-labelledby="job-discovery-title">
         <div className="flex items-center gap-2 mb-2">
-          <Briefcase size={14} style={{ color: 'var(--accent)' }} />
+          <Briefcase size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
           <span className="text-[11px] mono uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--accent)' }}>
             Talent Discovery
           </span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        <h1 id="job-discovery-title" className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
           <span className="text-gradient">{title}</span>
         </h1>
         <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           Extract structured job postings, requirements, compensation, and recruiter links across any career portal.
         </p>
-      </div>
+      </section>
 
       {/* Live Configuration Banner */}
-      <div className="p-4 rounded-xl flex items-start gap-3 stagger-in" style={{ ...stagger(0.5), background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-        <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
+      <div
+        role="region"
+        aria-label="Job Workflow Configuration Notice"
+        className="p-4 rounded-xl flex items-start gap-3 stagger-in"
+        style={{ ...stagger(0.5), background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)' }}
+      >
+        <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} aria-hidden="true" />
         <div className="text-xs space-y-1">
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Job Workflow Provider Note</span>
+          <span className="font-semibold text-white">Job Workflow Provider Note</span>
           <p style={{ color: 'var(--text-secondary)' }}>
-            Live job scraping is not configured (requires <code className="mono px-1 py-0.5 rounded" style={{ background: 'var(--bg-root)' }}>BRIGHTDATA_JOB_DATASET_ID</code>). Use <strong>Offline Test Mode</strong> to test job normalization and validation with local fixtures, or use <strong>Product Discovery</strong> for verified live Datasets v3 scraping.
+            Live job scraping is not configured (requires <code className="mono px-1 py-0.5 rounded bg-black/40 text-amber-300">BRIGHTDATA_JOB_DATASET_ID</code>). Use <strong>Offline Test Mode</strong> to test job normalization and validation with local fixtures, or use <strong>Product Discovery</strong> for verified live Datasets v3 scraping.
           </p>
         </div>
       </div>
 
       {/* Main Extraction Form Box */}
-      <div className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+      <section
+        className="rounded-2xl glow-hover stagger-in p-6 space-y-6"
+        style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+        aria-label="Job Extraction Form"
+      >
         {/* Mode Switcher */}
         <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: 'var(--bg-root)' }}>
-          {(['url', 'search'] as const).map(m => (
+          {(['url', 'search'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className="flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all btn-spring flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all btn-spring flex items-center justify-center gap-2 focus-ring"
               style={{
                 background: mode === m ? 'var(--accent)' : 'transparent',
                 color: mode === m ? '#fff' : 'var(--text-tertiary)',
@@ -144,7 +198,15 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
                 boxShadow: mode === m ? '0 0 16px rgba(168,85,247,0.2)' : 'none',
               }}
             >
-              {m === 'url' ? <><Briefcase size={13} /> Direct Job URL</> : <><Search size={13} /> Role & Skill Search</>}
+              {m === 'url' ? (
+                <>
+                  <Briefcase size={13} aria-hidden="true" /> Direct Job URL
+                </>
+              ) : (
+                <>
+                  <Search size={13} aria-hidden="true" /> Role & Skill Search
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -153,12 +215,20 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-1.5">
             <label className="text-[11px] uppercase tracking-wider font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
-              {mode === 'url' ? <><Briefcase size={12} style={{ color: 'var(--accent)' }} /> Job Posting URL</> : <><Search size={12} style={{ color: 'var(--accent)' }} /> Role Query</>}
+              {mode === 'url' ? (
+                <>
+                  <Briefcase size={12} style={{ color: 'var(--accent)' }} aria-hidden="true" /> Job Posting URL
+                </>
+              ) : (
+                <>
+                  <Search size={12} style={{ color: 'var(--accent)' }} aria-hidden="true" /> Role Query
+                </>
+              )}
             </label>
             <input
               type="text"
               value={mode === 'url' ? targetUrl : query}
-              onChange={e => mode === 'url' ? handleUrlChange(e.target.value) : setQuery(e.target.value)}
+              onChange={(e) => (mode === 'url' ? handleUrlChange(e.target.value) : setQuery(e.target.value))}
               placeholder={mode === 'url' ? 'e.g. https://www.glassdoor.com/job/... or https://akshat-lakhera.vercel.app/' : 'e.g. Senior Python Developer remote'}
               className="w-full px-4 py-3 rounded-xl mono text-xs focus-ring transition-all"
               style={{ background: 'var(--bg-root)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
@@ -174,7 +244,7 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
             <input
               type="text"
               value={targetDomain}
-              onChange={e => setTargetDomain(e.target.value)}
+              onChange={(e) => setTargetDomain(e.target.value)}
               placeholder="e.g. glassdoor.com or indeed.com"
               className="w-full px-4 py-3 rounded-xl mono text-xs focus-ring"
               style={{ background: 'var(--bg-root)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
@@ -187,16 +257,16 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
           <span className="text-[10px] uppercase tracking-wider mono font-semibold" style={{ color: 'var(--text-tertiary)' }}>
             Quick Portals:
           </span>
-          {popularDomains.map(d => (
+          {popularDomains.map((d) => (
             <button
               key={d}
               onClick={() => setTargetDomain(d)}
-              className="px-2.5 py-1 rounded-lg mono text-[11px] transition-all btn-spring"
+              className="px-2.5 py-1 rounded-lg mono text-[11px] transition-all btn-spring focus-ring"
               style={{
                 background: targetDomain === d ? 'var(--accent-muted)' : 'var(--bg-elevated)',
                 border: `1px solid ${targetDomain === d ? 'var(--accent)' : 'var(--border-default)'}`,
                 color: targetDomain === d ? 'var(--accent)' : 'var(--text-secondary)',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               {d}
@@ -210,13 +280,13 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
             Extraction Schema Attributes
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {fields.map(f => {
+            {fields.map((f) => {
               const active = selectedFields.includes(f.name);
               return (
                 <button
                   key={f.name}
                   onClick={() => toggleField(f.name)}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 btn-spring"
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-150 btn-spring focus-ring"
                   style={{
                     background: active ? 'var(--accent-muted)' : 'var(--bg-root)',
                     border: `1px solid ${active ? 'var(--accent)' : 'var(--border-default)'}`,
@@ -224,8 +294,9 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
                     cursor: 'pointer',
                   }}
                 >
-                  {active && <Check size={11} className="inline mr-1" />}
-                  {f.label}{f.req ? ' *' : ''}
+                  {active && <Check size={11} className="inline mr-1" aria-hidden="true" />}
+                  {f.label}
+                  {f.req ? ' *' : ''}
                 </button>
               );
             })}
@@ -236,7 +307,7 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
         <button
           onClick={handleRun}
           disabled={loading}
-          className={`w-full py-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 btn-spring transition-all ${loading ? 'shimmer-loading' : ''}`}
+          className="w-full py-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 btn-spring transition-all focus-ring"
           style={{
             background: loading ? 'var(--bg-elevated)' : 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
             color: '#fff',
@@ -245,14 +316,26 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
             boxShadow: loading ? 'none' : '0 4px 24px rgba(168,85,247,0.3)',
           }}
         >
-          <Play size={15} className={loading ? 'animate-spin' : ''} />
+          <Play size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           {loading ? 'Executing Bright Data Job Extractor…' : 'Extract Job Record'}
         </button>
-      </div>
+      </section>
+
+      {/* Real Progress Stepper during active request */}
+      {(loading || result || errorMsg) && (
+        <ScrapeProgressTimeline
+          isActive={loading}
+          isCompleted={Boolean(result && !loading)}
+          error={errorMsg}
+          targetUrl={targetUrl}
+          workflowType="jobs"
+          qualityScore={result?.quality_score}
+        />
+      )}
 
       {/* Empty State */}
       {!result && searchResults.length === 0 && !loading && (
-        <div className="flex flex-col items-center justify-center py-16 rounded-2xl stagger-in" style={{ ...stagger(2), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+        <div className="flex flex-col items-center justify-center py-16 rounded-2xl stagger-in text-center px-4" style={{ ...stagger(2), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
           <div className="empty-orb mb-4" />
           <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Job Collector Ready</p>
           <p className="text-xs mt-1 text-center max-w-sm" style={{ color: 'var(--text-tertiary)' }}>
@@ -278,29 +361,29 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
                 <div key={i} className="p-5 rounded-xl glow-hover card-reveal space-y-3" style={{ ...stagger(i), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
                   <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.job_title}</div>
                   <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    <span>{item.company}</span>
-                    <span>{item.location}</span>
+                    <span>{item.company || 'Not provided'}</span>
+                    <span>{item.location || 'Not provided'}</span>
                   </div>
                   <button
                     onClick={() => handleSelect(item)}
                     disabled={loading}
-                    className="w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 btn-spring"
+                    className="w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 btn-spring focus-ring"
                     style={{
                       background: isThisSelecting ? 'var(--accent)' : 'var(--accent-muted)',
                       color: isThisSelecting ? '#fff' : 'var(--accent)',
                       border: '1px solid rgba(168,85,247,0.3)',
-                      cursor: loading ? 'wait' : 'pointer'
+                      cursor: loading ? 'wait' : 'pointer',
                     }}
                   >
                     {isThisSelecting ? (
                       <>
-                        <Play size={13} className="animate-spin" />
+                        <Play size={13} className="animate-spin" aria-hidden="true" />
                         <span>Scraping Job Details…</span>
                       </>
                     ) : (
                       <>
                         <span>Select & Scrape This Job</span>
-                        <ExternalLink size={13} />
+                        <ExternalLink size={13} aria-hidden="true" />
                       </>
                     )}
                   </button>
@@ -313,21 +396,13 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
 
       {/* Scrape Result Output */}
       {result && (
-        <div id="job-scrape-result" className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(4), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+        <section id="job-scrape-result" className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(4), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} aria-label="Job Extraction Results">
           {/* Status Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
             <div className="flex items-center gap-3">
-              <div className="pulse-dot" style={{ color: result.status === 'success' ? 'var(--success)' : 'var(--warning)', backgroundColor: result.status === 'success' ? 'var(--success)' : 'var(--warning)' }} />
+              <StatusBadge status={result.status} size="md" />
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                    Job Extraction {result.status}
-                  </span>
-                  <span className="text-[10px] mono px-2 py-0.5 rounded font-semibold" style={{ background: 'var(--bg-root)', color: 'var(--accent)' }}>
-                    200 OK
-                  </span>
-                </div>
-                <div className="mono text-xs mt-0.5 truncate max-w-lg" style={{ color: 'var(--text-tertiary)' }}>{result.target_url}</div>
+                <div className="mono text-xs truncate max-w-lg" style={{ color: 'var(--text-tertiary)' }}>{result.target_url}</div>
               </div>
             </div>
 
@@ -339,36 +414,27 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={copyResultJson}
-                  className="p-2.5 rounded-xl btn-spring flex items-center gap-1 text-xs"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
-                  title="Copy Extracted JSON"
-                >
-                  {copied ? <CheckCheck size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
-                </button>
-                <button
-                  onClick={() => setShowRawJson(!showRawJson)}
-                  className="p-2.5 rounded-xl btn-spring flex items-center gap-1 text-xs"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: showRawJson ? 'var(--accent)' : 'var(--text-secondary)' }}
-                  title="Toggle Raw JSON"
-                >
-                  <Code2 size={14} />
-                </button>
-              </div>
+              <button
+                onClick={copyResultJson}
+                className="p-2.5 rounded-xl btn-spring flex items-center gap-1 text-xs focus-ring"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+                title="Copy Extracted JSON"
+                aria-label="Copy JSON"
+              >
+                {copied ? <CheckCheck size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
+              </button>
             </div>
           </div>
 
-          <div className="progress-bar">
+          <div className="progress-bar" aria-hidden="true">
             <div style={{ width: `${result.quality_score || 0}%`, background: (result.quality_score || 0) >= 80 ? 'var(--success)' : (result.quality_score || 0) >= 50 ? 'var(--warning)' : 'var(--danger)' }} />
           </div>
 
           {/* Degraded Alert */}
           {isDegraded && (
-            <div className="p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <div role="alert" className="p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <div className="flex items-center gap-2.5">
-                <AlertTriangle size={16} style={{ color: 'var(--warning)' }} />
+                <AlertTriangle size={16} style={{ color: 'var(--warning)' }} aria-hidden="true" />
                 <div>
                   <div className="text-xs font-bold" style={{ color: 'var(--warning)' }}>Schema Degradation Detected</div>
                   <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Target job posting missing required fields or DOM format changed.</div>
@@ -376,10 +442,10 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
               </div>
               <button
                 onClick={() => setActiveTab('repair')}
-                className="px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 btn-spring"
+                className="px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 btn-spring focus-ring"
                 style={{ background: 'var(--warning)', color: '#000' }}
               >
-                <Wrench size={13} />
+                <Wrench size={13} aria-hidden="true" />
                 <span>Open Repair Center</span>
               </button>
             </div>
@@ -390,16 +456,20 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
             <div className="p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4" style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)' }}>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                  <Building2 size={13} />
-                  <span>{extracted.company || 'Hiring Organization'}</span>
+                  <Building2 size={13} aria-hidden="true" />
+                  <span>{extracted.company || 'Not provided'}</span>
                 </div>
                 <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{extracted.job_title}</div>
                 <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <span className="flex items-center gap-1"><MapPin size={12} /> {extracted.location || 'Remote'}</span>
-                  <span className="px-2 py-0.5 rounded font-semibold text-[11px]" style={{ background: 'rgba(168,85,247,0.15)', color: 'var(--accent-soft)' }}>
-                    {extracted.employment_type || 'Full-time'}
-                  </span>
-                  <span className="flex items-center gap-1"><Calendar size={12} /> {extracted.posted_date || 'Recently'}</span>
+                  <span className="flex items-center gap-1"><MapPin size={12} aria-hidden="true" /> {extracted.location || 'Not provided'}</span>
+                  {extracted.employment_type && (
+                    <span className="px-2 py-0.5 rounded font-semibold text-[11px]" style={{ background: 'rgba(168,85,247,0.15)', color: 'var(--accent-soft)' }}>
+                      {extracted.employment_type}
+                    </span>
+                  )}
+                  {extracted.posted_date && (
+                    <span className="flex items-center gap-1"><Calendar size={12} aria-hidden="true" /> {extracted.posted_date}</span>
+                  )}
                 </div>
               </div>
 
@@ -414,15 +484,16 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
             </div>
           )}
 
-          {/* Raw JSON View (if toggled) */}
-          {showRawJson && (
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase font-semibold mono" style={{ color: 'var(--accent)' }}>Raw Extracted Payload JSON</div>
-              <pre className="p-4 rounded-xl text-xs mono overflow-x-auto leading-relaxed" style={{ background: 'var(--bg-root)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                {JSON.stringify(extracted, null, 2)}
-              </pre>
-            </div>
-          )}
+          {/* Field Completeness Visualization */}
+          <FieldCompletenessBar fields={fieldCompletenessData} workflow="Jobs" />
+
+          {/* Raw vs Normalized Diff View */}
+          <JsonDiffViewer
+            beforeData={result.raw_result}
+            afterData={extracted}
+            singleData={extracted}
+            title="Job Extraction Payload & Normalization"
+          />
 
           {/* Normalized Attributes Table */}
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
@@ -436,7 +507,7 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
                 className="flex items-center justify-between px-4 py-3 text-xs"
                 style={{
                   background: i % 2 === 0 ? 'var(--bg-root)' : 'var(--bg-surface)',
-                  borderBottom: '1px solid var(--border-subtle)'
+                  borderBottom: '1px solid var(--border-subtle)',
                 }}
               >
                 <span className="mono text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>{key}</span>
@@ -446,7 +517,7 @@ export const JobDiscovery: React.FC<JobDiscoveryProps> = ({ setActiveTab }) => {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

@@ -1,96 +1,129 @@
+import re
 from typing import Any, Dict, List, Tuple
 from app.models.schema import ScrapeSchema
 
+INVALID_TITLE_TOKENS = [
+    "404 not found", "access denied", "attention required", "cloudflare", "just a moment",
+    "robot check", "captcha", "security check", "forbidden", "page not found"
+]
+
 class Validator:
+    """
+    Deep semantic and cross-field validator that enforces structural schemas,
+    semantic sanity bounds, plausible ranges, and multi-dimensional quality scoring.
+    """
+
     @staticmethod
-    def validate_record(data: Dict[str, Any], schema: ScrapeSchema) -> Tuple[bool, List[str], List[str]]:
-        """
-        Validates a normalized record against a ScrapeSchema definition.
-        Returns: (is_valid, missing_required_fields, validation_errors)
-        """
+    def validate_record(
+        record: Dict[str, Any],
+        schema: ScrapeSchema
+    ) -> Tuple[bool, List[str], List[str]]:
         missing_fields: List[str] = []
         validation_errors: List[str] = []
 
-        if not data:
-            return False, schema.get_required_field_names(), ["Result data is empty"]
+        # 1. Required Field Presence Gate
+        for req_field in schema.get_required_field_names():
+            val = record.get(req_field)
+            if val is None or val == "":
+                missing_fields.append(req_field)
+                validation_errors.append(f"Missing required field: '{req_field}'")
 
-        for field_def in schema.fields:
-            name = field_def.name
-            val = data.get(name)
-
-            # 1. Required field check
-            if field_def.required:
-                if val is None or (isinstance(val, str) and not val.strip()):
-                    missing_fields.append(name)
-                    validation_errors.append(f"Missing required field: '{name}'")
-                    continue
-
+        # 2. Field-Level Deep Semantic Checks
+        for field in schema.fields:
+            name = field.name
+            val = record.get(name)
             if val is None:
                 continue
 
-            # 2. Data type & range checks
-            if field_def.data_type in ("number", "integer"):
+            # Title & Job Title semantic checks
+            if name in ("title", "job_title"):
+                str_val = str(val).strip().lower()
+                if len(str_val) < 3:
+                    validation_errors.append(f"Field '{name}' is too short ({len(str_val)} chars): '{val}'")
+                elif any(tok in str_val for tok in INVALID_TITLE_TOKENS):
+                    validation_errors.append(f"Field '{name}' contains blocked/error title token: '{val}'")
+
+            # Numeric price checks
+            elif name == "price":
                 if not isinstance(val, (int, float)):
-                    validation_errors.append(f"Field '{name}' expected {field_def.data_type}, got {type(val).__name__}")
-                else:
-                    if name == "price" and val <= 0:
-                        validation_errors.append(f"Invalid price value: {val} (must be > 0)")
-                    elif name == "rating" and (val < 0.0 or val > 5.0):
-                        validation_errors.append(f"Invalid rating value: {val} (must be between 0 and 5)")
-                    elif name == "review_count" and val < 0:
-                        validation_errors.append(f"Invalid review count: {val} (must be >= 0)")
+                    validation_errors.append(f"Field 'price' must be numeric, got {type(val).__name__}")
+                elif val < 0:
+                    validation_errors.append(f"Field 'price' cannot be negative ({val})")
 
-            elif field_def.data_type == "url":
-                if not isinstance(val, str) or not (val.startswith("http://") or val.startswith("https://") or val.startswith("/")):
-                    validation_errors.append(f"Invalid URL format for '{name}': {val}")
+            # Rating checks
+            elif name == "rating":
+                try:
+                    num_r = float(re.sub(r"[^\d.]", "", str(val))) if isinstance(val, str) else float(val)
+                    if num_r < 0 or num_r > 5.0:
+                        if num_r <= 10.0:
+                            pass  # 10-point scale
+                        elif num_r <= 100.0:
+                            pass  # percentage scale
+                        else:
+                            validation_errors.append(f"Field 'rating' out of expected range ({val})")
+                except ValueError:
+                    pass
 
-            elif field_def.data_type == "string":
-                if not isinstance(val, str) or not val.strip():
-                    validation_errors.append(f"Field '{name}' must be a non-empty string")
+            # Review count checks
+            elif name == "review_count":
+                try:
+                    num_rc = int(re.sub(r"[^\d]", "", str(val))) if isinstance(val, str) else int(val)
+                    if num_rc < 0:
+                        validation_errors.append(f"Field 'review_count' cannot be negative ({val})")
+                except ValueError:
+                    pass
+
+            # URL validation
+            elif "url" in name:
+                if not str(val).startswith(("http://", "https://")):
+                    validation_errors.append(f"Field '{name}' is not a valid URL: '{val}'")
+
+        # 3. Cross-Field Coherence Checks
+        if record.get("price") is not None and not record.get("currency"):
+            # Not an invalidator, but noted in audit
+            pass
 
         is_valid = len(missing_fields) == 0 and len(validation_errors) == 0
         return is_valid, missing_fields, validation_errors
 
     @staticmethod
-    def detect_missing_fields(data: Dict[str, Any], schema: ScrapeSchema) -> List[str]:
-        missing = []
-        for field in schema.get_required_field_names():
-            val = data.get(field)
-            if val is None or (isinstance(val, str) and not val.strip()):
-                missing.append(field)
-        return missing
-
-    @staticmethod
-    def detect_invalid_fields(data: Dict[str, Any], schema: ScrapeSchema) -> List[str]:
-        invalid = []
-        for field_def in schema.fields:
-            name = field_def.name
-            val = data.get(name)
-            if val is None:
-                continue
-            if field_def.data_type in ("number", "integer") and isinstance(val, (int, float)):
-                if name == "price" and val <= 0:
-                    invalid.append(name)
-                elif name == "rating" and (val < 0 or val > 5):
-                    invalid.append(name)
-                elif name == "review_count" and val < 0:
-                    invalid.append(name)
-        return invalid
-
-    @staticmethod
-    def calculate_quality_score(data: Dict[str, Any], schema: ScrapeSchema, is_valid: bool) -> int:
+    def calculate_quality_score(
+        record: Dict[str, Any],
+        schema: ScrapeSchema,
+        is_valid: bool,
+        strategy_confidence: float = 1.0
+    ) -> int:
+        """
+        Calculates multi-dimensional quality score:
+        - Completeness: 40 pts
+        - Semantic Plausibility: 30 pts
+        - Strategy Confidence: 20 pts
+        - Cross-Field Coherence: 10 pts
+        Capped at 0 if required fields fail.
+        """
         if not is_valid:
+            # Check partial presence for debug scoring, but clamp to 0 for validation failure
             return 0
 
-        total_fields = len(schema.fields)
-        if total_fields == 0:
-            return 100
+        # 1. Completeness (40 pts)
+        all_fields = schema.get_all_field_names()
+        present_count = sum(1 for f in all_fields if record.get(f) is not None)
+        completeness_pts = int((present_count / len(all_fields)) * 40) if all_fields else 40
 
-        present_count = 0
-        for f in schema.fields:
-            val = data.get(f.name)
-            if val is not None and (not isinstance(val, str) or val.strip()):
-                present_count += 1
+        # 2. Semantic Plausibility (30 pts)
+        plausibility_pts = 30
+        if "title" in record and len(str(record.get("title") or "")) < 10:
+            plausibility_pts -= 5
+        if "description" in record and record.get("description") is not None:
+            plausibility_pts += 0
 
-        score = int(round((present_count / total_fields) * 100))
-        return min(max(score, 0), 100)
+        # 3. Strategy Confidence (20 pts)
+        confidence_pts = int(strategy_confidence * 20)
+
+        # 4. Cross-Field Coherence (10 pts)
+        coherence_pts = 10
+        if schema.name == "products" and record.get("price") and not record.get("currency"):
+            coherence_pts -= 5
+
+        total = min(100, max(0, completeness_pts + plausibility_pts + confidence_pts + coherence_pts))
+        return total

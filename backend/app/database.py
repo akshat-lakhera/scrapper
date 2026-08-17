@@ -19,16 +19,29 @@ def get_db():
         db.close()
 
 def init_db():
+    # Import all models to register with Base.metadata
+    from app.models.scraper import ScraperDB
+    from app.models.scrape_run import ScrapeRunDB
+    from app.models.repair_attempt import RepairAttemptDB
+    from app.models.field_change import FieldChangeDB
+    from app.models.search_run import SearchRunDB
+    from app.models.extractor_rule_db import ExtractorRuleBundleDB, CandidateRulePatchDB
+
     Base.metadata.create_all(bind=engine)
-    # Check for missing columns in existing SQLite database
+    # Check and migrate missing columns in existing SQLite database
     if settings.DATABASE_URL.startswith("sqlite"):
         try:
             with engine.connect() as conn:
                 cursor = conn.connection.cursor()
                 cursor.execute("PRAGMA table_info(scrape_runs)")
                 columns = [row[1] for row in cursor.fetchall()]
-                if columns and "record_count" not in columns:
-                    cursor.execute("ALTER TABLE scrape_runs ADD COLUMN record_count INTEGER DEFAULT 1")
+                if columns:
+                    if "record_count" not in columns:
+                        cursor.execute("ALTER TABLE scrape_runs ADD COLUMN record_count INTEGER DEFAULT 1")
+                    if "template_signature" not in columns:
+                        cursor.execute("ALTER TABLE scrape_runs ADD COLUMN template_signature TEXT DEFAULT 'default'")
+                    if "field_traces" not in columns:
+                        cursor.execute("ALTER TABLE scrape_runs ADD COLUMN field_traces TEXT")
                     conn.connection.commit()
         except Exception:
             pass

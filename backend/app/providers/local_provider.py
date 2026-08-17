@@ -1,22 +1,26 @@
-import asyncio
+import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import httpx
 from app.config import settings
 from app.models.schema import ScrapeSchema
 from app.providers.base import ScraperProvider
 from app.extraction.dom_extractor import DOMExtractor
 
+logger = logging.getLogger("marketscout.local")
+
 OFFLINE_MODE_LABEL = "Offline test mode — not live Bright Data data"
 
 class LocalProvider(ScraperProvider):
     """
-    Offline test provider for unit tests and local development.
-    Extracts real data from local HTML fixtures via DOMExtractor.
+    Offline Test Provider executing strictly against local HTML fixtures in fixtures/.
+    Provides real HTML snapshots for MultiStrategyEngine, repair synthesis, and regression testing.
+    Zero synthetic fallbacks, zero direct HTTP bypassing, and zero fabricated values.
     """
 
     def __init__(self):
         self.fixtures_dir = Path(settings.FIXTURES_DIR)
+        self.mode_label = OFFLINE_MODE_LABEL
 
     async def search(
         self,
@@ -24,33 +28,25 @@ class LocalProvider(ScraperProvider):
         workflow_type: str = "products",
         target_domain: Optional[str] = None
     ) -> Dict[str, Any]:
+        """Offline fixture-based search simulation."""
         results = []
         if workflow_type == "jobs":
-            results = [
-                {
-                    "job_title": f"{query.title()} Engineer",
-                    "company": target_domain or "Hiring Company",
-                    "location": "Remote / Hybrid",
-                    "employment_type": "Full-time",
-                    "salary": None,
-                    "description": f"Role matching query '{query}' in {target_domain or 'market'}.",
-                    "posted_date": "Recently",
-                    "application_url": f"https://{target_domain or 'demo.local'}/jobs/{query.lower().replace(' ', '-')}"
-                }
-            ]
+            fixture_file = self.fixtures_dir / "jobs_v1.html"
+            if fixture_file.exists():
+                raw = DOMExtractor.extract_from_fixture(fixture_file, "jobs", "https://demo.local/jobs/python-dev-123")
+                if raw:
+                    results.append(raw)
         else:
-            # Parse all real HTML fixtures in fixtures_dir dynamically
-            for fixture_path in self.fixtures_dir.glob("*.html"):
-                if "broken" in fixture_path.name:
-                    continue
-                extracted = DOMExtractor.extract_from_fixture(fixture_path, "products", f"https://demo.local/{fixture_path.name}")
-                if extracted and extracted.get("title"):
-                    results.append(extracted)
+            fixture_file = self.fixtures_dir / "product_v1.html"
+            if fixture_file.exists():
+                raw = DOMExtractor.extract_from_fixture(fixture_file, "products", "https://demo.local/product_v1.html")
+                if raw:
+                    results.append(raw)
 
         return {
             "provider": "local",
             "mode_label": OFFLINE_MODE_LABEL,
-            "status": "success",
+            "status": "success" if results else "empty_result",
             "query": query,
             "workflow_type": workflow_type,
             "results": results
@@ -64,9 +60,13 @@ class LocalProvider(ScraperProvider):
     ) -> Dict[str, Any]:
         return {
             "status": "success",
-            "scraper_id": f"local_{schema.name}_scraper",
-            "provider": "local",
-            "mode_label": OFFLINE_MODE_LABEL
+            "scraper_id": f"local_{schema.name}_collector",
+            "mode_label": OFFLINE_MODE_LABEL,
+            "raw_response": {
+                "message": "Local fixture collector initialized (offline mode).",
+                "workflow": schema.name,
+                "target": target
+            }
         }
 
     async def run_scraper(
@@ -75,97 +75,77 @@ class LocalProvider(ScraperProvider):
         target: str,
         schema: ScrapeSchema
     ) -> Dict[str, Any]:
-        # 1. Job workflow
+        """
+        Executes an offline scrape strictly against local HTML fixtures in fixtures/.
+        Returns raw HTML snapshot for MultiStrategyEngine extraction and validation.
+        """
+        target_lower = target.lower()
+
+        # 1. Resolve Job Workflow Fixtures
         if schema.name == "jobs":
-            if "repaired" in target:
-                raw = {
-                    "job_title": "Senior Python Developer",
-                    "company": "TechCorp India",
-                    "location": "Remote, India",
-                    "employment_type": "Full-time",
-                    "salary": "₹2,500,000 / yr",
-                    "description": "Building high-throughput backend services.",
-                    "posted_date": "2026-08-15",
-                    "application_url": target
+            fixture_file = None
+            if "jobs_v2.html" in target_lower:
+                fixture_file = self.fixtures_dir / "jobs_v2.html"
+                if not fixture_file.exists():
+                    fixture_file = self.fixtures_dir / "jobs_v1.html"
+            elif "jobs_degraded.html" in target_lower or "degraded" in target_lower:
+                fixture_file = self.fixtures_dir / "jobs_degraded.html"
+            elif "jobs_v1.html" in target_lower or "python-dev" in target_lower or "demo.local" in target_lower or "localhost" in target_lower:
+                fixture_file = self.fixtures_dir / "jobs_v1.html"
+
+            if fixture_file and fixture_file.exists():
+                html_text = fixture_file.read_text(encoding="utf-8", errors="ignore")
+                raw = DOMExtractor.extract_from_html(html_text, "jobs", target)
+                return {
+                    "status": "success",
+                    "provider_run_id": f"local_run_jobs_{fixture_file.stem}",
+                    "provider": "local",
+                    "mode_label": OFFLINE_MODE_LABEL,
+                    "fixture_name": fixture_file.name,
+                    "raw_html": html_text,
+                    "raw_result": raw
                 }
-            elif "degraded" in target or "broken" in target:
-                raw = {
-                    "job_title": "Senior Python Developer",
-                    "company": None,
-                    "location": "Remote, India",
-                    "employment_type": "Full-time",
-                    "salary": "₹2,500,000 / yr",
-                    "description": None,
-                    "posted_date": "2026-08-15",
-                    "application_url": target
-                }
-            elif "demo.local" in target or "localhost" in target:
-                raw = {
-                    "job_title": "Senior Python Developer",
-                    "company": "TechCorp India",
-                    "location": "Remote, India",
-                    "employment_type": "Full-time",
-                    "salary": "₹2,500,000 - ₹3,500,000 / yr",
-                    "description": "Building high-throughput backend services and web data extraction pipelines.",
-                    "posted_date": "2026-08-15",
-                    "application_url": target
-                }
-            else:
-                # Live web scrape fallback for jobs
-                try:
-                    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                        resp = await client.get(target, headers={"User-Agent": "MarketScout/1.0 (Web Scraping Agent)"})
-                        if resp.status_code == 200:
-                            raw = DOMExtractor.extract_from_html(resp.text, "jobs", target)
-                        else:
-                            raw = {"job_title": target, "application_url": target}
-                except Exception:
-                    raw = {"job_title": target, "application_url": target}
 
             return {
-                "status": "success",
-                "provider_run_id": f"local_run_{schema.name}_1",
+                "status": "provider_error",
+                "provider_run_id": "local_run_jobs_error",
                 "provider": "local",
                 "mode_label": OFFLINE_MODE_LABEL,
+                "error": f"Target '{target}' is not an available local fixture.",
+                "raw_html": None,
+                "raw_result": {}
+            }
+
+        # 2. Resolve Product Workflow Fixtures
+        fixture_file = None
+        if "product_broken.html" in target_lower or "broken" in target_lower:
+            fixture_file = self.fixtures_dir / "product_broken.html"
+        elif "product_v2.html" in target_lower or "v2" in target_lower or "degraded" in target_lower:
+            fixture_file = self.fixtures_dir / "product_v2.html"
+        elif "product_v1.html" in target_lower or "v1" in target_lower or "headphones" in target_lower or "demo.local" in target_lower or "localhost" in target_lower:
+            fixture_file = self.fixtures_dir / "product_v1.html"
+
+        if fixture_file and fixture_file.exists():
+            html_text = fixture_file.read_text(encoding="utf-8", errors="ignore")
+            raw = DOMExtractor.extract_from_html(html_text, "products", target)
+            return {
+                "status": "success",
+                "provider_run_id": f"local_run_products_{fixture_file.stem}",
+                "provider": "local",
+                "mode_label": OFFLINE_MODE_LABEL,
+                "fixture_name": fixture_file.name,
+                "raw_html": html_text,
                 "raw_result": raw
             }
 
-        # 2. Product workflow
-        fixture_file = None
-        if "product_broken.html" in target or "broken" in target:
-            fixture_file = self.fixtures_dir / "product_broken.html"
-        elif "product_v2.html" in target or "v2" in target:
-            fixture_file = self.fixtures_dir / "product_v2.html"
-        elif "product_v1.html" in target or "v1" in target or "headphones-123" in target or "demo.local" in target:
-            fixture_file = self.fixtures_dir / "product_v1.html"
-
-        # If fixture file exists, parse real HTML DOM directly
-        if fixture_file and fixture_file.exists():
-            if ("v2" in target or "product_v2.html" in target) and "repaired" not in target:
-                raw = DOMExtractor.extract_from_fixture(fixture_file, "products", target)
-                raw["price"] = None
-                raw["currency"] = None
-                raw["availability"] = None
-            else:
-                raw = DOMExtractor.extract_from_fixture(fixture_file, "products", target)
-        else:
-            # Live web scrape fallback for local provider
-            try:
-                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                    resp = await client.get(target, headers={"User-Agent": "MarketScout/1.0 (Web Scraping Agent)"})
-                    if resp.status_code == 200:
-                        raw = DOMExtractor.extract_from_html(resp.text, "products", target)
-                    else:
-                        raw = {"title": target, "product_url": target}
-            except Exception:
-                raw = {"title": target, "product_url": target}
-
         return {
-            "status": "success",
-            "provider_run_id": f"local_run_{schema.name}_1",
+            "status": "provider_error",
+            "provider_run_id": "local_run_products_error",
             "provider": "local",
             "mode_label": OFFLINE_MODE_LABEL,
-            "raw_result": raw
+            "error": f"Target '{target}' is not an available local fixture.",
+            "raw_html": None,
+            "raw_result": {}
         }
 
     async def heal_scraper(
@@ -175,13 +155,17 @@ class LocalProvider(ScraperProvider):
         schema: ScrapeSchema,
         failure_context: Dict[str, Any]
     ) -> Dict[str, Any]:
+        missing = failure_context.get("missing_fields", [])
         return {
             "status": "repair_requested",
-            "repair_id": "rep_local_123",
-            "provider": "local",
-            "mode_label": OFFLINE_MODE_LABEL,
-            "instruction": failure_context.get("repair_instruction", "Repair missing fields"),
-            "provider_response": {"message": "Bright Data Scraper Studio refactor_template triggered"}
+            "repair_id": f"rep_local_{schema.name}_{scraper_id or 1}",
+            "instruction": f"Offline Fixture Diagnostic Plan: Analyze markup and synthesize replacement selectors for missing fields: {missing}.",
+            "provider_response": {
+                "action": "offline_fixture_diagnosis",
+                "target": target,
+                "missing_fields": missing,
+                "schema": schema.name
+            }
         }
 
     async def approve_repair(
@@ -192,7 +176,8 @@ class LocalProvider(ScraperProvider):
         return {
             "status": "repair_approved",
             "repair_id": repair_id,
-            "provider": "local",
-            "mode_label": OFFLINE_MODE_LABEL,
-            "provider_response": {"status": "approved"}
+            "provider_response": {
+                "status": "approved",
+                "action": "offline_repair_verification_ready"
+            }
         }

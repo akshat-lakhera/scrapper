@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
-import { Globe, Search, Play, AlertTriangle, Wrench, ExternalLink, Sparkles, Check, Copy, CheckCheck, Code2 } from 'lucide-react';
+import { Globe, Search, Play, AlertTriangle, Wrench, ExternalLink, Sparkles, Check, Copy, CheckCheck } from 'lucide-react';
 import { executeScrape, executeSearch, selectSearchResult } from '../api';
 import { useScrambleText, stagger } from '../hooks';
+import { StatusBadge } from './StatusBadge';
+import { ScrapeProgressTimeline } from './ScrapeProgressTimeline';
+import { FieldCompletenessBar } from './DataVisualizations';
+import { JsonDiffViewer } from './JsonDiffViewer';
+import { useToast } from './ToastContext';
 
-interface ProductDiscoveryProps { setActiveTab: (tab: string) => void; }
+interface ProductDiscoveryProps {
+  setActiveTab: (tab: string) => void;
+}
 
 export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab }) => {
   const [mode, setMode] = useState<'url' | 'search'>('url');
@@ -16,11 +23,12 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
   const [loading, setLoading] = useState(false);
   const [selectingUrl, setSelectingUrl] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchExecuted, setSearchExecuted] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showRawJson, setShowRawJson] = useState(false);
   const title = useScrambleText('Product Discovery & Intelligence', true);
+  const { showToast, showCopyToast } = useToast();
 
   const popularDomains = ['amazon.in', 'flipkart.com', 'myntra.com', 'ebay.com', 'walmart.com'];
 
@@ -57,17 +65,37 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
     if (mode === 'url' && !targetUrl.trim()) return alert('Please enter a target URL or select a test fixture');
     if (mode === 'search' && !query.trim()) return alert('Please enter a search query');
     try {
-      setLoading(true); setResult(null); setSearchResults([]); setSearchExecuted(false);
+      setLoading(true);
+      setResult(null);
+      setErrorMsg(null);
+      setSearchResults([]);
+      setSearchExecuted(false);
+      showToast('info', 'Extraction Started', `Target: ${mode === 'url' ? targetUrl : query}`);
+
       if (mode === 'url') {
         const scrapePayloadUrl = targetUrl.trim().startsWith('http') ? targetUrl.trim() : `https://${targetUrl.trim()}`;
         const res = await executeScrape({ target_url: scrapePayloadUrl, workflow_type: 'products', schema_name: 'products' });
         setResult(res);
+
+        if (res.status === 'success') {
+          showToast('success', 'Extraction Succeeded', `Quality score: ${res.quality_score || 0}%`);
+        } else if (res.status === 'degraded') {
+          showToast('degraded', 'Degradation Detected', 'Missing required schema fields');
+        } else if (res.status === 'provider_error') {
+          showToast('error', 'Provider Error', 'Upstream provider could not fetch target page');
+        }
       } else {
         const s = await executeSearch({ query: query.trim(), workflow_type: 'products', target_domain: targetDomain.trim() });
         setSearchResults(s.results || []);
         setSearchExecuted(true);
+        showToast('info', 'Search Completed', `Found ${s.results?.length || 0} product candidates`);
       }
-    } catch (e: any) { alert(`Extraction error: ${e.message}`); } finally { setLoading(false); }
+    } catch (e: any) {
+      setErrorMsg(e.message);
+      showToast('error', 'Extraction Failed', e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelect = async (item: any) => {
@@ -77,14 +105,23 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
       setSelectingUrl(url);
       setTargetUrl(url);
       setLoading(true);
+      setErrorMsg(null);
+      showToast('info', 'Scraping Discovered Item', url);
+
       const res = await selectSearchResult(0, url, 'products');
       setResult(res);
+
+      if (res.status === 'success') {
+        showToast('success', 'Scrape Completed', `Quality: ${res.quality_score || 0}%`);
+      }
+
       setTimeout(() => {
         const el = document.getElementById('product-scrape-result');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } catch (e: any) {
-      alert(`Scrape failed: ${e.message}`);
+      setErrorMsg(e.message);
+      showToast('error', 'Scrape Failed', e.message);
     } finally {
       setLoading(false);
       setSelectingUrl(null);
@@ -95,40 +132,53 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
     if (!result) return;
     navigator.clipboard.writeText(JSON.stringify(result.extracted_data || result, null, 2));
     setCopied(true);
+    showCopyToast('Extracted JSON copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleField = (n: string) => setSelectedFields(p => p.includes(n) ? p.filter(f => f !== n) : [...p, n]);
+  const toggleField = (n: string) => setSelectedFields((p) => (p.includes(n) ? p.filter((f) => f !== n) : [...p, n]));
   const extracted = result?.extracted_data || {};
   const isDegraded = result?.status === 'degraded' || result?.repair_triggered;
+
+  // Compute field completeness info
+  const fieldCompletenessData = fields.map((f) => ({
+    name: f.name,
+    required: f.req,
+    present: extracted[f.name] !== undefined && extracted[f.name] !== null && extracted[f.name] !== '',
+    value: extracted[f.name],
+  }));
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="stagger-in" style={stagger(0)}>
+      <section className="stagger-in" style={stagger(0)} aria-labelledby="product-discovery-title">
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={14} style={{ color: 'var(--accent)' }} />
+          <Sparkles size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
           <span className="text-[11px] mono uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--accent)' }}>
             Collector Studio
           </span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        <h1 id="product-discovery-title" className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
           <span className="text-gradient">{title}</span>
         </h1>
         <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           Extract normalized product pricing, specifications, and availability from Amazon, Flipkart, or any custom website.
         </p>
-      </div>
+      </section>
 
       {/* Main Extraction Form Box */}
-      <div className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+      <section
+        className="rounded-2xl glow-hover stagger-in p-6 space-y-6"
+        style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+        aria-label="Extraction Form"
+      >
         {/* Mode Switcher */}
         <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: 'var(--bg-root)' }}>
-          {(['url', 'search'] as const).map(m => (
+          {(['url', 'search'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className="flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all btn-spring flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 text-xs font-semibold rounded-lg transition-all btn-spring flex items-center justify-center gap-2 focus-ring"
               style={{
                 background: mode === m ? 'var(--accent)' : 'transparent',
                 color: mode === m ? '#fff' : 'var(--text-tertiary)',
@@ -137,7 +187,15 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                 boxShadow: mode === m ? '0 0 16px rgba(168,85,247,0.2)' : 'none',
               }}
             >
-              {m === 'url' ? <><Globe size={13} /> Direct Public URL</> : <><Search size={13} /> Natural Language Search</>}
+              {m === 'url' ? (
+                <>
+                  <Globe size={13} aria-hidden="true" /> Direct Public URL
+                </>
+              ) : (
+                <>
+                  <Search size={13} aria-hidden="true" /> Natural Language Search
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -146,12 +204,20 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-1.5">
             <label className="text-[11px] uppercase tracking-wider font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
-              {mode === 'url' ? <><Globe size={12} style={{ color: 'var(--accent)' }} /> Target Website / Product URL</> : <><Search size={12} style={{ color: 'var(--accent)' }} /> Search Query</>}
+              {mode === 'url' ? (
+                <>
+                  <Globe size={12} style={{ color: 'var(--accent)' }} aria-hidden="true" /> Target Website / Product URL
+                </>
+              ) : (
+                <>
+                  <Search size={12} style={{ color: 'var(--accent)' }} aria-hidden="true" /> Search Query
+                </>
+              )}
             </label>
             <input
               type="text"
               value={mode === 'url' ? targetUrl : query}
-              onChange={e => mode === 'url' ? handleUrlChange(e.target.value) : setQuery(e.target.value)}
+              onChange={(e) => (mode === 'url' ? handleUrlChange(e.target.value) : setQuery(e.target.value))}
               placeholder={mode === 'url' ? 'e.g. https://www.amazon.in/dp/... or https://akshat-lakhera.vercel.app/' : 'e.g. wireless headphones under ₹5000'}
               className="w-full px-4 py-3 rounded-xl mono text-xs focus-ring transition-all"
               style={{ background: 'var(--bg-root)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
@@ -167,7 +233,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
             <input
               type="text"
               value={targetDomain}
-              onChange={e => setTargetDomain(e.target.value)}
+              onChange={(e) => setTargetDomain(e.target.value)}
               placeholder="e.g. amazon.in or custom domain"
               className="w-full px-4 py-3 rounded-xl mono text-xs focus-ring"
               style={{ background: 'var(--bg-root)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
@@ -180,16 +246,16 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
           <span className="text-[10px] uppercase tracking-wider mono font-semibold" style={{ color: 'var(--text-tertiary)' }}>
             Quick Domains:
           </span>
-          {popularDomains.map(d => (
+          {popularDomains.map((d) => (
             <button
               key={d}
               onClick={() => setTargetDomain(d)}
-              className="px-2.5 py-1 rounded-lg mono text-[11px] transition-all btn-spring"
+              className="px-2.5 py-1 rounded-lg mono text-[11px] transition-all btn-spring focus-ring"
               style={{
                 background: targetDomain === d ? 'var(--accent-muted)' : 'var(--bg-elevated)',
                 border: `1px solid ${targetDomain === d ? 'var(--accent)' : 'var(--border-default)'}`,
                 color: targetDomain === d ? 'var(--accent)' : 'var(--text-secondary)',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               {d}
@@ -203,13 +269,13 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
             Extraction Schema Attributes
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {fields.map(f => {
+            {fields.map((f) => {
               const active = selectedFields.includes(f.name);
               return (
                 <button
                   key={f.name}
                   onClick={() => toggleField(f.name)}
-                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 btn-spring"
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-150 btn-spring focus-ring"
                   style={{
                     background: active ? 'var(--accent-muted)' : 'var(--bg-root)',
                     border: `1px solid ${active ? 'var(--accent)' : 'var(--border-default)'}`,
@@ -217,8 +283,9 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                     cursor: 'pointer',
                   }}
                 >
-                  {active && <Check size={11} className="inline mr-1" />}
-                  {f.label}{f.req ? ' *' : ''}
+                  {active && <Check size={11} className="inline mr-1" aria-hidden="true" />}
+                  {f.label}
+                  {f.req ? ' *' : ''}
                 </button>
               );
             })}
@@ -229,7 +296,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
         <button
           onClick={handleRun}
           disabled={loading}
-          className={`w-full py-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 btn-spring transition-all ${loading ? 'shimmer-loading' : ''}`}
+          className="w-full py-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 btn-spring transition-all focus-ring"
           style={{
             background: loading ? 'var(--bg-elevated)' : 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
             color: '#fff',
@@ -238,23 +305,35 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
             boxShadow: loading ? 'none' : '0 4px 24px rgba(168,85,247,0.3)',
           }}
         >
-          <Play size={15} className={loading ? 'animate-spin' : ''} />
+          <Play size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           {loading ? 'Executing Bright Data Scraper Engine…' : 'Execute Product Scraper'}
         </button>
-      </div>
+      </section>
+
+      {/* Real Progress Stepper during active request */}
+      {(loading || result || errorMsg) && (
+        <ScrapeProgressTimeline
+          isActive={loading}
+          isCompleted={Boolean(result && !loading)}
+          error={errorMsg}
+          targetUrl={targetUrl}
+          workflowType="products"
+          qualityScore={result?.quality_score}
+        />
+      )}
 
       {/* Empty State / SERP Notice */}
       {!result && searchResults.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-16 rounded-2xl stagger-in px-4 text-center" style={{ ...stagger(2), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
           {searchExecuted ? (
             <>
-              <AlertTriangle size={32} className="mb-3" style={{ color: 'var(--warning)' }} />
+              <AlertTriangle size={32} className="mb-3" style={{ color: 'var(--warning)' }} aria-hidden="true" />
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Search is unavailable until the Bright Data SERP zone is configured. Use Direct URL mode instead.
               </p>
               <button
                 onClick={() => setMode('url')}
-                className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold btn-spring"
+                className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold btn-spring focus-ring"
                 style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid rgba(168,85,247,0.3)' }}
               >
                 Switch to Direct URL Mode
@@ -297,23 +376,23 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                   <button
                     onClick={() => handleSelect(item)}
                     disabled={loading}
-                    className="w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 btn-spring"
+                    className="w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 btn-spring focus-ring"
                     style={{
                       background: isThisSelecting ? 'var(--accent)' : 'var(--accent-muted)',
                       color: isThisSelecting ? '#fff' : 'var(--accent)',
                       border: '1px solid rgba(168,85,247,0.3)',
-                      cursor: loading ? 'wait' : 'pointer'
+                      cursor: loading ? 'wait' : 'pointer',
                     }}
                   >
                     {isThisSelecting ? (
                       <>
-                        <Play size={13} className="animate-spin" />
+                        <Play size={13} className="animate-spin" aria-hidden="true" />
                         <span>Scraping Live Product…</span>
                       </>
                     ) : (
                       <>
                         <span>Select & Scrape This Product</span>
-                        <ExternalLink size={13} />
+                        <ExternalLink size={13} aria-hidden="true" />
                       </>
                     )}
                   </button>
@@ -326,23 +405,13 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
 
       {/* Scrape Result Output */}
       {result && (
-        <div id="product-scrape-result" className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(4), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+        <section id="product-scrape-result" className="rounded-2xl glow-hover stagger-in p-6 space-y-6" style={{ ...stagger(4), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} aria-label="Extraction Results">
           {/* Status Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
             <div className="flex items-center gap-3">
-              <div className="pulse-dot" style={{ color: result.status === 'success' ? 'var(--success)' : 'var(--warning)', backgroundColor: result.status === 'success' ? 'var(--success)' : 'var(--warning)' }} />
+              <StatusBadge status={result.status} size="md" />
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                    Extraction {result.status}
-                  </span>
-                  {result.status === 'provider_error' && (
-                    <span className="text-[10px] mono px-2 py-0.5 rounded font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>
-                      PROVIDER ERROR
-                    </span>
-                  )}
-                </div>
-                <div className="mono text-xs mt-0.5 truncate max-w-lg" style={{ color: 'var(--text-tertiary)' }}>{result.target_url}</div>
+                <div className="mono text-xs truncate max-w-lg" style={{ color: 'var(--text-tertiary)' }}>{result.target_url}</div>
               </div>
             </div>
 
@@ -354,36 +423,27 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={copyResultJson}
-                  className="p-2.5 rounded-xl btn-spring flex items-center gap-1 text-xs"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
-                  title="Copy Extracted JSON"
-                >
-                  {copied ? <CheckCheck size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
-                </button>
-                <button
-                  onClick={() => setShowRawJson(!showRawJson)}
-                  className="p-2.5 rounded-xl btn-spring flex items-center gap-1 text-xs"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: showRawJson ? 'var(--accent)' : 'var(--text-secondary)' }}
-                  title="Toggle Raw JSON"
-                >
-                  <Code2 size={14} />
-                </button>
-              </div>
+              <button
+                onClick={copyResultJson}
+                className="p-2.5 rounded-xl btn-spring flex items-center gap-1 text-xs focus-ring"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+                title="Copy Extracted JSON"
+                aria-label="Copy JSON"
+              >
+                {copied ? <CheckCheck size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
+              </button>
             </div>
           </div>
 
-          <div className="progress-bar">
+          <div className="progress-bar" aria-hidden="true">
             <div style={{ width: `${result.quality_score || 0}%`, background: (result.quality_score || 0) >= 80 ? 'var(--success)' : (result.quality_score || 0) >= 50 ? 'var(--warning)' : 'var(--danger)' }} />
           </div>
 
           {/* Degraded Alert */}
           {isDegraded && (
-            <div className="p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <div role="alert" className="p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <div className="flex items-center gap-2.5">
-                <AlertTriangle size={16} style={{ color: 'var(--warning)' }} />
+                <AlertTriangle size={16} style={{ color: 'var(--warning)' }} aria-hidden="true" />
                 <div>
                   <div className="text-xs font-bold" style={{ color: 'var(--warning)' }}>Schema Degradation Detected</div>
                   <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Target page markup changed or missing required fields.</div>
@@ -391,10 +451,10 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
               </div>
               <button
                 onClick={() => setActiveTab('repair')}
-                className="px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 btn-spring"
+                className="px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 btn-spring focus-ring"
                 style={{ background: 'var(--warning)', color: '#000' }}
               >
-                <Wrench size={13} />
+                <Wrench size={13} aria-hidden="true" />
                 <span>Open Repair Center</span>
               </button>
             </div>
@@ -419,7 +479,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
               {extracted.price != null && (
                 <div className="text-right">
                   <div className="text-2xl font-bold mono" style={{ color: 'var(--success)' }}>
-                    {extracted.currency && extracted.currency !== 'USD' ? '' : '$'}{extracted.currency === 'INR' ? '₹' : ''}{extracted.currency === 'EUR' ? '€' : ''}{extracted.currency === 'GBP' ? '£' : ''}{!['USD','INR','EUR','GBP'].includes(extracted.currency) && extracted.currency ? '' : ''}{extracted.price?.toLocaleString()}
+                    {extracted.currency === 'INR' ? '₹' : extracted.currency === 'EUR' ? '€' : extracted.currency === 'GBP' ? '£' : '$'}{extracted.price?.toLocaleString()}
                   </div>
                   <span className="text-[10px] mono uppercase" style={{ color: 'var(--text-tertiary)' }}>{extracted.currency || 'Not provided'}</span>
                 </div>
@@ -427,15 +487,16 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
             </div>
           )}
 
-          {/* Raw JSON View (if toggled) */}
-          {showRawJson && (
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase font-semibold mono" style={{ color: 'var(--accent)' }}>Raw Extracted Payload JSON</div>
-              <pre className="p-4 rounded-xl text-xs mono overflow-x-auto leading-relaxed" style={{ background: 'var(--bg-root)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                {JSON.stringify(extracted, null, 2)}
-              </pre>
-            </div>
-          )}
+          {/* Field Completeness Visualization */}
+          <FieldCompletenessBar fields={fieldCompletenessData} workflow="Products" />
+
+          {/* Raw vs Normalized Diff View */}
+          <JsonDiffViewer
+            beforeData={result.raw_result}
+            afterData={extracted}
+            singleData={extracted}
+            title="Extraction Payload & DOM Normalization"
+          />
 
           {/* Normalized Attributes Table */}
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
@@ -449,7 +510,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                 className="flex items-center justify-between px-4 py-3 text-xs"
                 style={{
                   background: i % 2 === 0 ? 'var(--bg-root)' : 'var(--bg-surface)',
-                  borderBottom: '1px solid var(--border-subtle)'
+                  borderBottom: '1px solid var(--border-subtle)',
                 }}
               >
                 <span className="mono text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>{key}</span>
@@ -459,7 +520,7 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

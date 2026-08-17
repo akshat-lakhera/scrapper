@@ -1,25 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { History, Eye, RotateCcw, X, Copy, CheckCheck, Trash2 } from 'lucide-react';
+import { History, Eye, RotateCcw, X, Trash2 } from 'lucide-react';
 import type { ScrapeRun, ScrapeRunDetails } from '../types';
 import { fetchRuns, fetchRunDetails, clearRuns } from '../api';
 import { useScrambleText, stagger } from '../hooks';
+import { StatusBadge } from './StatusBadge';
+import { JsonDiffViewer } from './JsonDiffViewer';
+import { TableRowSkeleton } from './SkeletonLoader';
+import { useToast } from './ToastContext';
 
 export const RunHistory: React.FC = () => {
   const [runs, setRuns] = useState<ScrapeRun[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<ScrapeRunDetails | null>(null);
-  const [activeJsonTab, setActiveJsonTab] = useState<'normalized' | 'raw' | 'errors'>('normalized');
   const [filterWorkflow, setFilterWorkflow] = useState<string>('all');
-  const [copied, setCopied] = useState(false);
   const title = useScrambleText('Execution Timeline & Audit Log', true);
+  const { showToast } = useToast();
 
   const loadRuns = async () => {
     try {
       setLoading(true);
       const data = await fetchRuns();
       setRuns(data);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      showToast('error', 'Failed to Load Runs', e.message);
     } finally {
       setLoading(false);
     }
@@ -35,51 +38,26 @@ export const RunHistory: React.FC = () => {
       const details = await fetchRunDetails(id);
       setSelectedDetails(details);
     } catch (e: any) {
-      alert(`Fetch run details failed: ${e.message}`);
+      showToast('error', 'Fetch Run Details Failed', e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const copyModalPayload = () => {
-    if (!selectedDetails) return;
-    const content = activeJsonTab === 'normalized' 
-      ? selectedDetails.normalized_result 
-      : activeJsonTab === 'raw' 
-      ? selectedDetails.raw_result 
-      : selectedDetails.validation_errors;
-    navigator.clipboard.writeText(JSON.stringify(content, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const filteredRuns = runs.filter(r => filterWorkflow === 'all' || r.workflow_type === filterWorkflow);
-
-  const statusBadge = (s: string) => {
-    switch (s) {
-      case 'success': return { label: 'SUCCESS', color: 'var(--success)', bg: 'rgba(16,185,129,0.1)' };
-      case 'repaired': return { label: 'REPAIRED', color: 'var(--healed)', bg: 'rgba(139,92,246,0.1)' };
-      case 'degraded': return { label: 'DEGRADED', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
-      case 'repair_requested': return { label: 'PENDING REPAIR', color: 'var(--accent)', bg: 'rgba(168,85,247,0.1)' };
-      case 'manual_review': return { label: 'MANUAL REVIEW', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
-      case 'provider_error': return { label: 'PROVIDER ERROR', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
-      case 'provider_timeout': return { label: 'TIMEOUT', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
-      default: return { label: s.toUpperCase(), color: 'var(--text-secondary)', bg: 'var(--bg-elevated)' };
-    }
-  };
+  const filteredRuns = runs.filter((r) => filterWorkflow === 'all' || r.workflow_type === filterWorkflow);
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="stagger-in flex flex-col md:flex-row md:items-center justify-between gap-4" style={stagger(0)}>
+      <section className="stagger-in flex flex-col md:flex-row md:items-center justify-between gap-4" style={stagger(0)} aria-labelledby="history-title">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <History size={14} style={{ color: 'var(--accent)' }} />
+            <History size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
             <span className="text-[11px] mono uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--accent)' }}>
               Audit & Provenance
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <h1 id="history-title" className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
             <span className="text-gradient">{title}</span>
           </h1>
           <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -90,16 +68,16 @@ export const RunHistory: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           {/* Workflow Filter */}
           <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
-            {['all', 'products', 'jobs'].map(w => (
+            {['all', 'products', 'jobs'].map((w) => (
               <button
                 key={w}
                 onClick={() => setFilterWorkflow(w)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold uppercase mono transition-all btn-spring"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold uppercase mono transition-all btn-spring focus-ring"
                 style={{
                   background: filterWorkflow === w ? 'var(--accent)' : 'transparent',
                   color: filterWorkflow === w ? '#fff' : 'var(--text-tertiary)',
                   border: 'none',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 {w}
@@ -111,30 +89,31 @@ export const RunHistory: React.FC = () => {
             onClick={async () => {
               if (confirm('Permanently delete all execution audit records?')) {
                 await clearRuns();
+                showToast('info', 'Audit Log Cleared', 'All execution records removed');
                 loadRuns();
               }
             }}
-            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-400 hover:text-red-400"
+            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-400 hover:text-red-400 focus-ring"
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
           >
-            <Trash2 size={13} />
+            <Trash2 size={13} aria-hidden="true" />
             <span>Clear Log</span>
           </button>
 
           <button
             onClick={loadRuns}
             disabled={loading}
-            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
+            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 focus-ring"
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
           >
-            <RotateCcw size={13} className={loading ? 'animate-spin' : ''} />
+            <RotateCcw size={13} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
             <span>Refresh</span>
           </button>
         </div>
-      </div>
+      </section>
 
       {/* Runs Monospace Table */}
-      <div className="rounded-2xl overflow-hidden stagger-in" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+      <section className="rounded-2xl overflow-hidden stagger-in" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} aria-label="Execution Audit Records">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs mono">
             <thead>
@@ -148,140 +127,123 @@ export const RunHistory: React.FC = () => {
                 <th className="py-3 px-4 font-semibold text-right">ACTION</th>
               </tr>
             </thead>
-            <tbody className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            <tbody className="divide-y divide-white/5">
+              {loading && runs.length === 0 && (
+                Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} />)
+              )}
+
               {filteredRuns.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center" style={{ color: 'var(--text-tertiary)' }}>
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     No audit records match the current filter.
                   </td>
                 </tr>
               )}
 
-              {filteredRuns.map((r, idx) => {
-                const badge = statusBadge(r.status);
-                return (
-                  <tr
-                    key={r.id}
-                    className="transition-colors hover:bg-white/[0.02]"
-                    style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}
+              {filteredRuns.map((r, idx) => (
+                <tr
+                  key={r.id}
+                  className="transition-colors hover:bg-white/[0.02]"
+                  style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}
+                >
+                  <td className="py-3.5 px-4 font-bold text-white">#{r.id}</td>
+                  <td className="py-3.5 px-4 uppercase text-purple-400">{r.workflow_type}</td>
+                  <td className="py-3.5 px-4 max-w-[280px] truncate text-slate-300" title={r.target_url}>
+                    {r.target_url}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <StatusBadge status={r.status} size="sm" />
+                  </td>
+                  <td
+                    className="py-3.5 px-4 font-bold"
+                    style={{
+                      color:
+                        r.data_quality_score >= 80
+                          ? 'var(--success)'
+                          : r.data_quality_score >= 50
+                          ? 'var(--warning)'
+                          : 'var(--danger)',
+                    }}
                   >
-                    <td className="py-3.5 px-4 font-bold" style={{ color: 'var(--text-primary)' }}>
-                      #{r.id}
-                    </td>
-                    <td className="py-3.5 px-4 uppercase" style={{ color: 'var(--accent)' }}>
-                      {r.workflow_type}
-                    </td>
-                    <td className="py-3.5 px-4 max-w-[280px] truncate" style={{ color: 'var(--text-secondary)' }} title={r.target_url}>
-                      {r.target_url}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: badge.bg, color: badge.color }}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold" style={{ color: r.data_quality_score >= 80 ? 'var(--success)' : r.data_quality_score >= 50 ? 'var(--warning)' : 'var(--danger)' }}>
-                      {r.data_quality_score}%
-                    </td>
-                    <td className="py-3.5 px-4" style={{ color: 'var(--text-tertiary)' }}>
-                      {r.duration_ms || 0}ms
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => openDetails(r.id)}
-                        className="p-2 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 btn-spring"
-                        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
-                      >
-                        <Eye size={12} />
-                        <span>Inspect</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                    {r.data_quality_score}%
+                  </td>
+                  <td className="py-3.5 px-4 text-slate-400">{r.duration_ms || 0}ms</td>
+                  <td className="py-3.5 px-4 text-right">
+                    <button
+                      onClick={() => openDetails(r.id)}
+                      className="p-2 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 btn-spring focus-ring"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+                      aria-label={`Inspect Run #${r.id}`}
+                    >
+                      <Eye size={12} aria-hidden="true" />
+                      <span>Inspect</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       {/* Apple-Style Glass Modal Payload Inspector */}
       {selectedDetails && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-run-title"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-          style={{ background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(16px)' }}
+          style={{ background: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(16px)' }}
+          onClick={() => setSelectedDetails(null)}
         >
           <div
             className="w-full max-w-3xl rounded-2xl p-6 space-y-5 overflow-hidden flex flex-col max-h-[90vh] stagger-in"
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <div className="flex items-center justify-between pb-4 border-b border-white/5">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="mono font-bold text-base text-white">Execution Run #{selectedDetails.id}</span>
-                  <span className="text-[10px] mono px-2 py-0.5 rounded font-bold uppercase" style={{ background: statusBadge(selectedDetails.status).bg, color: statusBadge(selectedDetails.status).color }}>
-                    {selectedDetails.status}
-                  </span>
+                  <h2 id="modal-run-title" className="mono font-bold text-base text-white">
+                    Execution Run #{selectedDetails.id}
+                  </h2>
+                  <StatusBadge status={selectedDetails.status} size="sm" />
                 </div>
-                <div className="mono text-xs mt-1 truncate max-w-lg" style={{ color: 'var(--text-secondary)' }}>
+                <div className="mono text-xs mt-1 truncate max-w-lg text-slate-400">
                   {selectedDetails.target_url}
                 </div>
               </div>
 
               <button
                 onClick={() => setSelectedDetails(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white btn-spring"
+                className="p-2 rounded-xl text-slate-400 hover:text-white btn-spring focus-ring"
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}
+                aria-label="Close run inspection dialog"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div className="flex items-center justify-between">
-              <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: 'var(--bg-root)' }}>
-                {(['normalized', 'raw', 'errors'] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveJsonTab(tab)}
-                    className="px-3.5 py-1.5 rounded-lg text-xs mono font-semibold uppercase transition-all btn-spring"
-                    style={{
-                      background: activeJsonTab === tab ? 'var(--accent)' : 'transparent',
-                      color: activeJsonTab === tab ? '#fff' : 'var(--text-tertiary)',
-                      border: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {tab === 'normalized' ? 'Normalized Result' : tab === 'raw' ? 'Raw DOM Payload' : 'Validation Errors'}
-                  </button>
-                ))}
-              </div>
+            {/* Modal Content: JsonDiffViewer comparing Raw DOM vs Normalized Output */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              <JsonDiffViewer
+                beforeData={selectedDetails.raw_result}
+                afterData={selectedDetails.normalized_result}
+                singleData={selectedDetails.normalized_result}
+                title="DOM Payload & Normalized Attributes"
+              />
 
-              <button
-                onClick={copyModalPayload}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold mono flex items-center gap-1.5 btn-spring"
-                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
-              >
-                {copied ? <CheckCheck size={13} style={{ color: 'var(--success)' }} /> : <Copy size={13} />}
-                <span>{copied ? 'Copied' : 'Copy JSON'}</span>
-              </button>
-            </div>
-
-            {/* Modal Code Viewer */}
-            <div className="flex-1 overflow-y-auto">
-              <pre
-                className="p-4 rounded-xl text-xs mono leading-relaxed overflow-x-auto"
-                style={{ background: 'var(--bg-root)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
-              >
-                {JSON.stringify(
-                  activeJsonTab === 'normalized'
-                    ? selectedDetails.normalized_result
-                    : activeJsonTab === 'raw'
-                    ? selectedDetails.raw_result
-                    : selectedDetails.validation_errors,
-                  null,
-                  2
-                )}
-              </pre>
+              {selectedDetails.validation_errors && selectedDetails.validation_errors.length > 0 && (
+                <div className="p-4 rounded-xl space-y-2 bg-red-500/10 border border-red-500/20 text-xs font-mono">
+                  <div className="font-bold text-red-400 uppercase tracking-wider">Validation Errors</div>
+                  <ul className="list-disc list-inside space-y-1 text-red-300">
+                    {selectedDetails.validation_errors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>

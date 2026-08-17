@@ -1,6 +1,6 @@
 import json
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,19 @@ from app.services.metrics_service import MetricsService
 
 router = APIRouter(prefix="/api")
 
+def verify_reset_permission(x_admin_key: Optional[str] = Header(None)):
+    """Guards operational data wipe and demo reset endpoints."""
+    if not settings.ALLOW_DEMO_RESET:
+        raise HTTPException(
+            status_code=403,
+            detail="Operational data deletion and demo reset endpoints are disabled in this environment (ALLOW_DEMO_RESET=false)."
+        )
+    if settings.DEMO_ADMIN_KEY and x_admin_key != settings.DEMO_ADMIN_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: invalid or missing x-admin-key header."
+        )
+
 @router.get("/health")
 def health_check():
     return {
@@ -25,7 +38,8 @@ def health_check():
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "provider_mode": settings.SCRAPER_PROVIDER,
-        "brightdata_configured": settings.is_brightdata_enabled()
+        "brightdata_configured": settings.is_brightdata_enabled(),
+        "allow_demo_reset": settings.ALLOW_DEMO_RESET
     }
 
 @router.get("/config/mode")
@@ -47,6 +61,46 @@ def list_schemas():
         for s in SCHEMA_REGISTRY.values()
     ]
 
+@router.get("/rules")
+def list_rule_bundles(db: Session = Depends(get_db)):
+    from app.models.extractor_rule_db import ExtractorRuleBundleDB
+    bundles = db.query(ExtractorRuleBundleDB).order_by(ExtractorRuleBundleDB.id.desc()).all()
+    return [
+        {
+            "id": b.id,
+            "domain": b.domain,
+            "template_signature": b.template_signature,
+            "workflow_type": b.workflow_type,
+            "version": b.version,
+            "description": b.description,
+            "field_rules": json.loads(b.field_rules) if b.field_rules else {},
+            "is_active": b.is_active,
+            "created_at": b.created_at,
+            "updated_at": b.updated_at
+        } for b in bundles
+    ]
+
+@router.get("/rules/patches")
+def list_rule_patches(db: Session = Depends(get_db)):
+    from app.models.extractor_rule_db import CandidateRulePatchDB
+    patches = db.query(CandidateRulePatchDB).order_by(CandidateRulePatchDB.id.desc()).all()
+    return [
+        {
+            "id": p.id,
+            "scrape_run_id": p.scrape_run_id,
+            "domain": p.domain,
+            "from_version": p.from_version,
+            "to_version": p.to_version,
+            "broken_fields": json.loads(p.broken_fields) if p.broken_fields else [],
+            "selector_diff": json.loads(p.selector_diff) if p.selector_diff else {},
+            "confidence_score": p.confidence_score,
+            "field_recovery_rate": p.field_recovery_rate,
+            "non_regression_rate": p.non_regression_rate,
+            "status": p.status,
+            "created_at": p.created_at
+        } for p in patches
+    ]
+
 @router.get("/scrapers", response_model=List[ScraperResponse])
 def list_scrapers(db: Session = Depends(get_db)):
     scrapers = db.query(ScraperDB).all()
@@ -58,20 +112,20 @@ def list_scrapers(db: Session = Depends(get_db)):
                 fields = json.loads(fields)
             except Exception:
                 fields = []
-        results.append({
-            "id": s.id,
-            "provider": s.provider,
-            "external_scraper_id": s.external_scraper_id,
-            "name": s.name,
-            "workflow_type": s.workflow_type,
-            "target_domain": s.target_domain,
-            "schema_name": s.schema_name,
-            "requested_fields": fields if isinstance(fields, list) else [],
-            "instructions": s.instructions or "",
-            "status": s.status,
-            "created_at": s.created_at,
-            "updated_at": s.updated_at
-        })
+            results.append({
+                "id": s.id,
+                "provider": s.provider,
+                "external_scraper_id": s.external_scraper_id,
+                "name": s.name,
+                "workflow_type": s.workflow_type,
+                "target_domain": s.target_domain,
+                "schema_name": s.schema_name,
+                "requested_fields": fields if isinstance(fields, list) else [],
+                "instructions": s.instructions or "",
+                "status": s.status,
+                "created_at": s.created_at,
+                "updated_at": s.updated_at
+            })
     return results
 
 @router.post("/scrapers", response_model=ScraperResponse)
@@ -139,33 +193,86 @@ async def direct_scrape(req: RunScraperRequest, db: Session = Depends(get_db)):
         "quality_score": run_db.data_quality_score
     }
 
-@router.post("/scrapers/{id}/heal")
-async def heal_scraper(id: int, run_id: int = Query(...), db: Session = Depends(get_db)):
-    attempt = await ScrapeService.heal_scrape_run(db, run_id=run_id)
-    return {
-        "attempt_id": attempt.id,
-        "scrape_run_id": attempt.scrape_run_id,
-        "external_repair_id": attempt.external_repair_id,
-        "instruction": attempt.instruction,
-        "approval_status": attempt.approval_status,
-        "missing_fields": json.loads(attempt.missing_fields) if attempt.missing_fields else []
-    }
-
 class ApproveRepairRequest(BaseModel):
     repair_attempt_id: int
+    run_id: Optional[int] = None
+
+# Run-centric repair endpoints
+@router.post("/runs/{id}/heal")
+async def heal_run(id: int, db: Session = Depends(get_db)):
+    try:
+        attempt = await ScrapeService.heal_scrape_run(db, run_id=id)
+        return {
+            "attempt_id": attempt.id,
+            "scrape_run_id": attempt.scrape_run_id,
+            "external_repair_id": attempt.external_repair_id,
+            "instruction": attempt.instruction,
+            "approval_status": attempt.approval_status,
+            "missing_fields": json.loads(attempt.missing_fields) if attempt.missing_fields else []
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Heal run {id} error: {e}")
+        raise HTTPException(status_code=500, detail=f"Autonomous repair generation failed: {str(e)}")
+
+@router.post("/runs/{id}/approve-repair")
+async def approve_run_repair(id: int, req: ApproveRepairRequest, db: Session = Depends(get_db)):
+    try:
+        res = await ScrapeService.approve_repair_attempt(db, run_id=id, attempt_id=req.repair_attempt_id)
+        run = res["scrape_run"]
+        attempt = res["repair_attempt"]
+        return {
+            "status": run.status,
+            "selected_strategy": run.selected_strategy,
+            "quality_score": run.data_quality_score,
+            "repaired_data": res["repaired_result"],
+            "attempt_result": attempt.result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Approve repair error: {e}")
+        raise HTTPException(status_code=500, detail=f"Repair approval failed: {str(e)}")
+
+# Scraper-centric repair endpoints (backwards-compatible with run_id safety lookup)
+@router.post("/scrapers/{id}/heal")
+async def heal_scraper(id: int, run_id: int = Query(...), db: Session = Depends(get_db)):
+    try:
+        attempt = await ScrapeService.heal_scrape_run(db, run_id=run_id)
+        return {
+            "attempt_id": attempt.id,
+            "scrape_run_id": attempt.scrape_run_id,
+            "external_repair_id": attempt.external_repair_id,
+            "instruction": attempt.instruction,
+            "approval_status": attempt.approval_status,
+            "missing_fields": json.loads(attempt.missing_fields) if attempt.missing_fields else []
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Heal scraper error: {e}")
+        raise HTTPException(status_code=500, detail=f"Autonomous repair generation failed: {str(e)}")
 
 @router.post("/scrapers/{id}/approve-repair")
 async def approve_repair(id: int, req: ApproveRepairRequest, db: Session = Depends(get_db)):
-    res = await ScrapeService.approve_repair_attempt(db, run_id=id, attempt_id=req.repair_attempt_id)
-    run = res["scrape_run"]
-    attempt = res["repair_attempt"]
-    return {
-        "status": run.status,
-        "selected_strategy": run.selected_strategy,
-        "quality_score": run.data_quality_score,
-        "repaired_data": res["repaired_result"],
-        "attempt_result": attempt.result
-    }
+    target_run_id = req.run_id or id
+    try:
+        res = await ScrapeService.approve_repair_attempt(db, run_id=target_run_id, attempt_id=req.repair_attempt_id)
+        run = res["scrape_run"]
+        attempt = res["repair_attempt"]
+        return {
+            "status": run.status,
+            "selected_strategy": run.selected_strategy,
+            "quality_score": run.data_quality_score,
+            "repaired_data": res["repaired_result"],
+            "attempt_result": attempt.result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Approve repair error: {e}")
+        raise HTTPException(status_code=500, detail=f"Repair approval failed: {str(e)}")
 
 @router.get("/scrapers/{id}/history")
 def scraper_history(id: int, db: Session = Depends(get_db)):
@@ -259,8 +366,8 @@ def list_runs(db: Session = Depends(get_db)):
         })
     return results
 
-@router.post("/runs/clear")
-@router.delete("/runs")
+@router.post("/runs/clear", dependencies=[Depends(verify_reset_permission)])
+@router.delete("/runs", dependencies=[Depends(verify_reset_permission)])
 def clear_all_runs(db: Session = Depends(get_db)):
     db.query(FieldChangeDB).delete()
     db.query(RepairAttemptDB).delete()
@@ -343,7 +450,7 @@ def get_run_repair_attempts(id: int, db: Session = Depends(get_db)):
         } for a in attempts
     ]
 
-@router.post("/demo/reset")
+@router.post("/demo/reset", dependencies=[Depends(verify_reset_permission)])
 def reset_demo(db: Session = Depends(get_db)):
     return ScrapeService.reset_demo_data(db)
 

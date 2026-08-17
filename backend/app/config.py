@@ -10,7 +10,7 @@ else:
 
 class Settings:
     PROJECT_NAME: str = "MarketScout"
-    VERSION: str = "1.0.0"
+    VERSION: str = "1.1.0"
     
     SCRAPER_PROVIDER: str = os.getenv("SCRAPER_PROVIDER", "local").lower()
     
@@ -18,10 +18,21 @@ class Settings:
     BRIGHTDATA_SCRAPER_ID: str = os.getenv("BRIGHTDATA_SCRAPER_ID", "")
     BRIGHTDATA_WORKSPACE_ID: str = os.getenv("BRIGHTDATA_WORKSPACE_ID", "")
     BRIGHTDATA_BASE_URL: str = os.getenv("BRIGHTDATA_BASE_URL", "https://api.brightdata.com")
+    BRIGHTDATA_SERP_ZONE: str = os.getenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
     
     # Datasets v3 Workflow Configurations
     BRIGHTDATA_PRODUCT_DATASET_ID: str = os.getenv("BRIGHTDATA_PRODUCT_DATASET_ID", "")
     BRIGHTDATA_JOB_DATASET_ID: str = os.getenv("BRIGHTDATA_JOB_DATASET_ID", "")
+    BRIGHTDATA_X_DATASET_ID: str = os.getenv("BRIGHTDATA_X_DATASET_ID", "gd_lwxkxvnf1cynvib9co")
+    BRIGHTDATA_LINKEDIN_DATASET_ID: str = os.getenv("BRIGHTDATA_LINKEDIN_DATASET_ID", "gd_l1viktl72bvl7bjuj0")
+    BRIGHTDATA_FACEBOOK_DATASET_ID: str = os.getenv("BRIGHTDATA_FACEBOOK_DATASET_ID", "gd_lkaxegm826bjpoo9m5")
+    BRIGHTDATA_INSTAGRAM_DATASET_ID: str = os.getenv("BRIGHTDATA_INSTAGRAM_DATASET_ID", "gd_l1vikfch901nx3by4")
+    BRIGHTDATA_GOOGLE_MAPS_DATASET_ID: str = os.getenv("BRIGHTDATA_GOOGLE_MAPS_DATASET_ID", "gd_m8ebnr0q2qlklc02fz")
+    BRIGHTDATA_REDDIT_DATASET_ID: str = os.getenv("BRIGHTDATA_REDDIT_DATASET_ID", "gd_lvz8ah06191smkebj4")
+
+    # Security & Environment Governance
+    ALLOW_DEMO_RESET: bool = os.getenv("ALLOW_DEMO_RESET", "true").lower() in ("true", "1", "yes")
+    DEMO_ADMIN_KEY: str = os.getenv("DEMO_ADMIN_KEY", "")
 
     # CORS Configuration
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://127.0.0.1:8000,http://localhost:5173,http://localhost:3000")

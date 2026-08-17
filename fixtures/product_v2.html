@@ -3,45 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>Wireless Headphones Redesign - Example Store</title>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": "Wireless Headphones",
-    "image": "https://example.com/images/headphones.jpg",
-    "description": "High performance noise cancelling wireless headphones",
-    "brand": {
-      "@type": "Brand",
-      "name": "Example Store"
-    },
-    "offers": {
-      "@type": "Offer",
-      "price": "4999",
-      "priceCurrency": "INR",
-      "availability": "https://schema.org/InStock",
-      "url": "https://demo.local/products/wireless-headphones"
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.4",
-      "reviewCount": "1280"
-    }
-  }
-  </script>
 </head>
 <body>
   <main class="v2-layout">
     <section class="hero">
       <h1 data-testid="product-title" itemprop="name">Wireless Headphones</h1>
-      <div data-testid="price-wrapper">
-        <meta itemprop="price" content="4999" />
-        <span data-testid="price">₹4,999</span>
-        <meta itemprop="priceCurrency" content="INR" />
+      <!-- Redesigned layout: Custom amount container -->
+      <div class="cost-breakdown">
+        <span class="amount-val">₹4,999</span>
+        <span class="currency-tag">INR</span>
       </div>
       <div data-testid="stock-badge">
         <span data-testid="availability" itemprop="availability">In stock</span>
       </div>
-      <div class="reviews" data-testid="rating-container" itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+      <div class="reviews" data-testid="rating-container" itemprop="aggregateRating">
         <span data-testid="rating" itemprop="ratingValue">4.4</span>
         <span data-testid="review-count" itemprop="reviewCount">1280 reviews</span>
       </div>

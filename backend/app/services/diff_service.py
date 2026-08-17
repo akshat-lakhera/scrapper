@@ -1,7 +1,13 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from app.models.field_change import FieldChangeDB
+from app.models.schema import ScrapeSchema
 
 class DiffService:
+    """
+    Advanced drift and root-cause classifier that analyzes field-level value deltas,
+    selector-level breakdowns, template signature changes, and type mutations.
+    """
+
     @staticmethod
     def calculate_diffs(scrape_run_id: int, previous: Dict[str, Any], current: Dict[str, Any]) -> List[FieldChangeDB]:
         changes: List[FieldChangeDB] = []
@@ -39,14 +45,43 @@ class DiffService:
     def classify_drift(
         previous: Dict[str, Any],
         current: Dict[str, Any],
-        validation_errors: List[str]
+        validation_errors: List[str],
+        previous_template: Optional[str] = None,
+        current_template: Optional[str] = None,
+        broken_fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Classifies runtime changes between runs into:
-        - data_changed: Natural source data variance (price update, date changed)
-        - extraction_degraded: Core selector breakdown, missing required attributes
-        - schema_drift: Structural schema divergence or type mutation
+        Classifies runtime changes into actionable failure classes:
+        - selector_failure: A critical selector broke or stopped returning data
+        - template_redesign: Structural HTML skeleton changed
+        - extraction_degraded: Schema validation failed on required attributes
+        - schema_drift: Type mutation or structural divergence
+        - data_changed: Natural source data variance
+        - stable: Perfectly consistent
         """
+        # 1. Structural template redesign
+        if previous_template and current_template and previous_template != current_template:
+            return {
+                "category": "template_redesign",
+                "severity": "critical",
+                "reason": f"DOM structure signature changed from {previous_template} to {current_template}. Full template refactor recommended."
+            }
+
+        # 2. Selector failure on previously working fields
+        disappeared_fields = []
+        for k in previous:
+            if previous[k] is not None and current.get(k) is None:
+                disappeared_fields.append(k)
+
+        if disappeared_fields:
+            return {
+                "category": "selector_failure",
+                "severity": "high",
+                "broken_fields": disappeared_fields,
+                "reason": f"Active selectors failed to extract previously available fields: {', '.join(disappeared_fields)}"
+            }
+
+        # 3. Validation failure
         if validation_errors:
             return {
                 "category": "extraction_degraded",
@@ -54,21 +89,7 @@ class DiffService:
                 "reason": f"Validation failures detected: {', '.join(validation_errors)}"
             }
 
-        # Check for missing critical fields that were previously present
-        critical_fields = ["title", "job_title", "price", "company", "seller"]
-        missing_fields = []
-        for field in critical_fields:
-            if previous.get(field) is not None and current.get(field) is None:
-                missing_fields.append(field)
-
-        if missing_fields:
-            return {
-                "category": "extraction_degraded",
-                "severity": "high",
-                "reason": f"Critical fields disappeared: {', '.join(missing_fields)}"
-            }
-
-        # Check for type mutation
+        # 4. Type mutation
         type_mutations = []
         for k in set(previous.keys()).intersection(current.keys()):
             if previous[k] is not None and current[k] is not None:
@@ -82,13 +103,13 @@ class DiffService:
                 "reason": f"Type mutation observed: {', '.join(type_mutations)}"
             }
 
-        # Value differences
+        # 5. Natural value updates
         val_diffs = [k for k in set(previous.keys()).intersection(current.keys()) if previous[k] != current[k] and k not in ["scraped_at", "source_url"]]
         if val_diffs:
             return {
                 "category": "data_changed",
                 "severity": "low",
-                "reason": f"Values updated for fields: {', '.join(val_diffs)}"
+                "reason": f"Natural data update for fields: {', '.join(val_diffs)}"
             }
 
         return {

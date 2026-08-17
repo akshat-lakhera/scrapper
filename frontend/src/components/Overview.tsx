@@ -4,6 +4,10 @@ import type { Metrics, ConfigModeResponse, ScrapeRun } from '../types';
 import { fetchMetrics, fetchRuns, resetDemo, clearRuns } from '../api';
 import { useScrambleText, useCounter, stagger } from '../hooks';
 import { SpotlightCard } from './SpotlightCard';
+import { StatusBadge } from './StatusBadge';
+import { ScraperHealthRing, StatusDistributionBar } from './DataVisualizations';
+import { MetricCardSkeleton, ChartSkeleton } from './SkeletonLoader';
+import { useToast } from './ToastContext';
 
 interface OverviewProps {
   configMode: ConfigModeResponse | null;
@@ -19,6 +23,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
   const [metricsLoading, setMetricsLoading] = useState(true);
   const title = useScrambleText('Web Intelligence & Scraping OS', ready);
   const isLive = configMode?.provider === 'brightdata';
+  const { showToast } = useToast();
 
   const scrapers = useCounter(metrics?.total_scrapers ?? 0);
   const totalRuns = useCounter(metrics?.total_runs ?? 0);
@@ -43,14 +48,21 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
   useEffect(() => {
     loadData();
-    setTimeout(() => setReady(true), 200);
+    const timer = setTimeout(() => setReady(true), 200);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleReset = async () => {
     setResetting(true);
-    await resetDemo().catch(() => {});
-    await loadData();
-    setResetting(false);
+    try {
+      await resetDemo();
+      showToast('success', 'Reset Complete', 'Demo database restored to initial clean baseline state');
+      await loadData();
+    } catch (e: any) {
+      showToast('error', 'Reset Failed', e.message);
+    } finally {
+      setResetting(false);
+    }
   };
 
   const metricCards = [
@@ -65,102 +77,114 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
   return (
     <div className="space-y-10">
       {/* Hero Section */}
-      <div className="stagger-in pt-2" style={stagger(0)}>
+      <section className="stagger-in pt-2" style={stagger(0)} aria-labelledby="hero-title">
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles size={14} style={{ color: 'var(--accent)' }} />
+          <Sparkles size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
           <span className="text-[11px] mono uppercase tracking-[0.25em] font-semibold" style={{ color: 'var(--accent)' }}>
             Schema-Driven Autonomous Scraping
           </span>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1]" style={{ color: 'var(--text-primary)' }}>
+        <h1 id="hero-title" className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1]" style={{ color: 'var(--text-primary)' }}>
           <span className="text-gradient">{title}</span>
         </h1>
         <p className="text-xs sm:text-sm mt-3 max-w-xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           Automated web extraction, real DOM parsing, self-healing scraper maintenance, and verified schema compliance — powered by Bright Data.
         </p>
 
-        {/* Quick Launch Buttons (Apple-style pill actions) */}
+        {/* Quick Launch Buttons */}
         <div className="flex flex-wrap items-center gap-3 mt-7">
           <button
             onClick={() => setActiveTab('products')}
-            className="btn-spring flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider"
+            className="btn-spring flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider focus-ring"
             style={{
               background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
               color: '#fff',
               border: 'none',
               boxShadow: '0 4px 20px rgba(168,85,247,0.3)',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
-            <ShoppingBag size={14} />
+            <ShoppingBag size={14} aria-hidden="true" />
             <span>Product Intelligence</span>
-            <ArrowRight size={14} />
+            <ArrowRight size={14} aria-hidden="true" />
           </button>
 
           <button
             onClick={() => setActiveTab('jobs')}
-            className="btn-spring flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold"
+            className="btn-spring flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold focus-ring"
             style={{
               background: 'var(--bg-elevated)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border-default)',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
-            <Briefcase size={14} style={{ color: 'var(--accent)' }} />
+            <Briefcase size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
             <span>Talent & Jobs</span>
           </button>
 
           <button
             onClick={() => setActiveTab('repair')}
-            className="btn-spring flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold"
+            className="btn-spring flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold focus-ring"
             style={{
               background: 'var(--bg-elevated)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border-default)',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
-            <Wrench size={14} style={{ color: 'var(--warning)' }} />
+            <Wrench size={14} style={{ color: 'var(--warning)' }} aria-hidden="true" />
             <span>Self-Healing Center</span>
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* Metrics Bento Grid using React-Bits SpotlightCard */}
-      <div className="stagger-in" style={stagger(1)}>
+      {/* Metrics Bento Grid */}
+      <section className="stagger-in" style={stagger(1)} aria-label="System Metrics">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {metricCards.map((m, i) => {
-            const Icon = m.icon;
-            return (
-              <SpotlightCard
-                key={m.label}
-                spotlightColor="rgba(168, 85, 247, 0.2)"
-                className="p-5 flex flex-col justify-between"
-                style={{ minHeight: 110, ...stagger(i) }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-[0.15em] font-semibold mono" style={{ color: 'var(--text-tertiary)' }}>
-                    {m.label}
-                  </span>
-                  <Icon size={14} style={{ color: m.color, opacity: 0.8 }} />
-                </div>
-                <div className="text-2xl sm:text-3xl font-extrabold mono count-roll mt-2" style={{ color: m.color }}>
-                  {metricsLoading ? '—' : metricsError ? 'N/A' : m.value}
-                </div>
-              </SpotlightCard>
-            );
-          })}
+          {metricsLoading
+            ? Array.from({ length: 6 }).map((_, i) => <MetricCardSkeleton key={i} />)
+            : metricCards.map((m, i) => {
+                const Icon = m.icon;
+                return (
+                  <SpotlightCard
+                    key={m.label}
+                    spotlightColor="rgba(168, 85, 247, 0.2)"
+                    className="p-5 flex flex-col justify-between"
+                    style={{ minHeight: 110, ...stagger(i) }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-[0.15em] font-semibold mono" style={{ color: 'var(--text-tertiary)' }}>
+                        {m.label}
+                      </span>
+                      <Icon size={14} style={{ color: m.color, opacity: 0.8 }} aria-hidden="true" />
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-extrabold mono count-roll mt-2" style={{ color: m.color }}>
+                      {metricsError ? 'N/A' : m.value}
+                    </div>
+                  </SpotlightCard>
+                );
+              })}
         </div>
-      </div>
+      </section>
+
+      {/* Visualizations Row */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 stagger-in" style={stagger(1.5)} aria-label="Visual Insights">
+        <div className="lg:col-span-6">
+          <ScraperHealthRing metrics={metrics} loading={metricsLoading} />
+        </div>
+        <div className="lg:col-span-6">
+          <StatusDistributionBar runs={recentRuns} loading={metricsLoading} />
+        </div>
+      </section>
 
       {/* Recent Execution Audit Bento */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 stagger-in" style={stagger(2)}>
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 stagger-in" style={stagger(2)} aria-label="Execution Pipeline and Specs">
         {/* Left 8 cols: Recent Runs */}
         <div className="lg:col-span-8 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <Zap size={14} style={{ color: 'var(--accent)' }} />
+              <Zap size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
               <span>Real-Time Scraping Pipeline</span>
             </h2>
             <div className="flex items-center gap-3">
@@ -168,47 +192,55 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 onClick={async () => {
                   if (confirm('Clear all execution audit records?')) {
                     await clearRuns();
+                    showToast('info', 'Audit Log Cleared', 'All execution records cleared');
                     loadData();
                   }
                 }}
-                className="text-xs mono font-semibold text-slate-500 hover:text-red-400 transition-colors btn-spring"
+                className="text-xs mono font-semibold text-slate-500 hover:text-red-400 transition-colors btn-spring focus-ring rounded-lg px-2 py-1"
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
               >
                 Clear Log
               </button>
               <button
                 onClick={() => setActiveTab('runs')}
-                className="text-xs mono font-semibold flex items-center gap-1 btn-spring"
+                className="text-xs mono font-semibold flex items-center gap-1 btn-spring focus-ring rounded-lg px-2 py-1"
                 style={{ color: 'var(--accent)', background: 'transparent', border: 'none', cursor: 'pointer' }}
               >
-                <span>View Audit Log</span>
-                <ArrowRight size={12} />
+                <span>View Full Log</span>
+                <ArrowRight size={12} aria-hidden="true" />
               </button>
             </div>
           </div>
 
           <div className="space-y-2">
-            {recentRuns.length === 0 ? (
+            {metricsLoading ? (
+              <ChartSkeleton />
+            ) : recentRuns.length === 0 ? (
               <div className="p-8 rounded-2xl text-center space-y-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
                 <div className="empty-orb mx-auto mb-2" />
                 <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>No runs recorded yet</p>
                 <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Execute your first scrape to populate live metrics.</p>
               </div>
             ) : (
-              recentRuns.map((r, i) => (
+              recentRuns.slice(0, 6).map((r, i) => (
                 <SpotlightCard
                   key={r.id}
                   spotlightColor="rgba(168, 85, 247, 0.12)"
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer"
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer focus-ring"
                   onClick={() => setActiveTab('runs')}
                   style={stagger(i)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setActiveTab('runs');
+                  }}
+                  aria-label={`Run #${r.id} for ${r.workflow_type}: ${r.status}, quality ${r.data_quality_score}%`}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className="pulse-dot"
                       style={{
                         color: r.status === 'success' ? 'var(--success)' : r.status === 'repaired' ? 'var(--healed)' : 'var(--warning)',
-                        backgroundColor: r.status === 'success' ? 'var(--success)' : r.status === 'repaired' ? 'var(--healed)' : 'var(--warning)'
+                        backgroundColor: r.status === 'success' ? 'var(--success)' : r.status === 'repaired' ? 'var(--healed)' : 'var(--warning)',
                       }}
                     />
                     <div>
@@ -227,19 +259,21 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                   <div className="flex items-center justify-between sm:justify-end gap-4">
                     <div className="text-right">
                       <div className="text-[10px] uppercase font-semibold" style={{ color: 'var(--text-tertiary)' }}>Quality</div>
-                      <div className="mono text-xs font-bold" style={{ color: r.data_quality_score >= 80 ? 'var(--success)' : r.data_quality_score >= 50 ? 'var(--warning)' : 'var(--danger)' }}>
+                      <div
+                        className="mono text-xs font-bold"
+                        style={{
+                          color:
+                            r.data_quality_score >= 80
+                              ? 'var(--success)'
+                              : r.data_quality_score >= 50
+                              ? 'var(--warning)'
+                              : 'var(--danger)',
+                        }}
+                      >
                         {r.data_quality_score}%
                       </div>
                     </div>
-                    <span
-                      className="text-[10px] mono font-bold px-2.5 py-1 rounded-lg uppercase"
-                      style={{
-                        background: r.status === 'success' ? 'rgba(16,185,129,0.15)' : r.status === 'repaired' ? 'rgba(139,92,246,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: r.status === 'success' ? 'var(--success)' : r.status === 'repaired' ? 'var(--healed)' : 'var(--warning)'
-                      }}
-                    >
-                      {r.status}
-                    </span>
+                    <StatusBadge status={r.status} size="sm" />
                   </div>
                 </SpotlightCard>
               ))
@@ -250,7 +284,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
         {/* Right 4 cols: Architecture & Diagnostics */}
         <div className="lg:col-span-4 space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <ShieldCheck size={14} style={{ color: 'var(--success)' }} />
+            <ShieldCheck size={14} style={{ color: 'var(--success)' }} aria-hidden="true" />
             <span>Engine Specs</span>
           </h2>
 
@@ -279,16 +313,17 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
               <button
                 onClick={handleReset}
                 disabled={resetting}
-                className="w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 btn-spring"
+                className="w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 btn-spring focus-ring"
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                aria-label="Reset demo database records"
               >
-                <RotateCcw size={12} className={resetting ? 'animate-spin' : ''} />
+                <RotateCcw size={12} className={resetting ? 'animate-spin' : ''} aria-hidden="true" />
                 <span>{resetting ? 'Resetting…' : 'Reset Demo Records'}</span>
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
