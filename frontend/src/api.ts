@@ -9,24 +9,50 @@ import type {
 
 const API_BASE = '/api';
 
+class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    if (!res.ok) {
+      let detail = `Request failed with status ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body?.detail) detail = String(body.detail);
+        else if (body?.error) detail = String(body.error);
+        else if (body?.message) detail = String(body.message);
+      } catch { /* ignore parse errors */ }
+      throw new ApiError(detail, res.status);
+    }
+    return res.json() as Promise<T>;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export async function fetchHealth() {
-  const res = await fetch(`${API_BASE}/health`);
-  return res.json();
+  return request<Record<string, unknown>>(`${API_BASE}/health`);
 }
 
 export async function fetchConfigMode(): Promise<ConfigModeResponse> {
-  const res = await fetch(`${API_BASE}/config/mode`);
-  return res.json();
+  return request<ConfigModeResponse>(`${API_BASE}/config/mode`);
 }
 
 export async function fetchSchemas(): Promise<ScrapeSchema[]> {
-  const res = await fetch(`${API_BASE}/schemas`);
-  return res.json();
+  return request<ScrapeSchema[]>(`${API_BASE}/schemas`);
 }
 
 export async function fetchScrapers(): Promise<Scraper[]> {
-  const res = await fetch(`${API_BASE}/scrapers`);
-  return res.json();
+  return request<Scraper[]>(`${API_BASE}/scrapers`);
 }
 
 export async function createScraper(data: {
@@ -37,12 +63,11 @@ export async function createScraper(data: {
   requested_fields?: string[];
   instructions?: string;
 }): Promise<Scraper> {
-  const res = await fetch(`${API_BASE}/scrapers`, {
+  return request<Scraper>(`${API_BASE}/scrapers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
 export async function executeScrape(data: {
@@ -50,28 +75,25 @@ export async function executeScrape(data: {
   workflow_type?: string;
   schema_name?: string;
 }) {
-  const res = await fetch(`${API_BASE}/scrape`, {
+  return request<Record<string, any>>(`${API_BASE}/scrape`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
 export async function healScrapeRun(scraperId: number, runId: number) {
-  const res = await fetch(`${API_BASE}/scrapers/${scraperId}/heal?run_id=${runId}`, {
+  return request<Record<string, any>>(`${API_BASE}/scrapers/${scraperId}/heal?run_id=${runId}`, {
     method: 'POST',
   });
-  return res.json();
 }
 
 export async function approveRepair(scraperId: number, repairAttemptId: number) {
-  const res = await fetch(`${API_BASE}/scrapers/${scraperId}/approve-repair`, {
+  return request<Record<string, any>>(`${API_BASE}/scrapers/${scraperId}/approve-repair`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repair_attempt_id: repairAttemptId }),
   });
-  return res.json();
 }
 
 export async function executeSearch(data: {
@@ -79,44 +101,37 @@ export async function executeSearch(data: {
   workflow_type?: string;
   target_domain?: string;
 }): Promise<{ search_id: number; query: string; workflow_type: string; provider: string; results: any[] }> {
-  const res = await fetch(`${API_BASE}/search`, {
+  return request(`${API_BASE}/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
 export async function selectSearchResult(searchId: number, selectedUrl: string, workflowType?: string) {
-  const res = await fetch(`${API_BASE}/search/${searchId}/select`, {
+  return request<Record<string, any>>(`${API_BASE}/search/${searchId}/select`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ selected_url: selectedUrl, workflow_type: workflowType }),
   });
-  return res.json();
 }
 
 export async function fetchRuns(): Promise<ScrapeRun[]> {
-  const res = await fetch(`${API_BASE}/runs`);
-  return res.json();
+  return request<ScrapeRun[]>(`${API_BASE}/runs`);
 }
 
 export async function clearRuns(): Promise<{ status: string; message: string }> {
-  const res = await fetch(`${API_BASE}/runs/clear`, { method: 'POST' });
-  return res.json();
+  return request(`${API_BASE}/runs/clear`, { method: 'POST' });
 }
 
 export async function fetchRunDetails(id: number): Promise<ScrapeRunDetails> {
-  const res = await fetch(`${API_BASE}/runs/${id}`);
-  return res.json();
+  return request<ScrapeRunDetails>(`${API_BASE}/runs/${id}`);
 }
 
 export async function fetchMetrics(): Promise<Metrics> {
-  const res = await fetch(`${API_BASE}/metrics`);
-  return res.json();
+  return request<Metrics>(`${API_BASE}/metrics`);
 }
 
 export async function resetDemo() {
-  const res = await fetch(`${API_BASE}/demo/reset`, { method: 'POST' });
-  return res.json();
+  return request<Record<string, any>>(`${API_BASE}/demo/reset`, { method: 'POST' });
 }

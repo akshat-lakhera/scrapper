@@ -60,8 +60,10 @@ export const RunHistory: React.FC = () => {
       case 'success': return { label: 'SUCCESS', color: 'var(--success)', bg: 'rgba(16,185,129,0.1)' };
       case 'repaired': return { label: 'REPAIRED', color: 'var(--healed)', bg: 'rgba(139,92,246,0.1)' };
       case 'degraded': return { label: 'DEGRADED', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
-      case 'repair_requested': return { label: 'PENDING', color: 'var(--accent)', bg: 'rgba(168,85,247,0.1)' };
-      case 'manual_review': return { label: 'MANUAL', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
+      case 'repair_requested': return { label: 'PENDING REPAIR', color: 'var(--accent)', bg: 'rgba(168,85,247,0.1)' };
+      case 'manual_review': return { label: 'MANUAL REVIEW', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
+      case 'provider_error': return { label: 'PROVIDER ERROR', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
+      case 'provider_timeout': return { label: 'TIMEOUT', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
       default: return { label: s.toUpperCase(), color: 'var(--text-secondary)', bg: 'var(--bg-elevated)' };
     }
   };

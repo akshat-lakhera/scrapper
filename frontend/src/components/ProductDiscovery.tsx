@@ -336,9 +336,11 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                   <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                     Extraction {result.status}
                   </span>
-                  <span className="text-[10px] mono px-2 py-0.5 rounded font-semibold" style={{ background: 'var(--bg-root)', color: 'var(--accent)' }}>
-                    200 OK
-                  </span>
+                  {result.status === 'provider_error' && (
+                    <span className="text-[10px] mono px-2 py-0.5 rounded font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>
+                      PROVIDER ERROR
+                    </span>
+                  )}
                 </div>
                 <div className="mono text-xs mt-0.5 truncate max-w-lg" style={{ color: 'var(--text-tertiary)' }}>{result.target_url}</div>
               </div>
@@ -408,18 +410,18 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
                 <div className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{extracted.title}</div>
                 <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   <span className="px-2 py-0.5 rounded font-semibold text-[11px]" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)' }}>
-                    {extracted.availability || 'Available'}
+                    {extracted.availability || 'Not provided'}
                   </span>
-                  {extracted.rating && <span>★ {extracted.rating} ({extracted.review_count || 100} reviews)</span>}
+                  {extracted.rating != null && <span>★ {extracted.rating}{extracted.review_count != null ? ` (${Number(extracted.review_count).toLocaleString()} reviews)` : ''}</span>}
                 </div>
               </div>
 
-              {extracted.price && (
+              {extracted.price != null && (
                 <div className="text-right">
                   <div className="text-2xl font-bold mono" style={{ color: 'var(--success)' }}>
-                    {extracted.currency === 'INR' ? '₹' : '$'}{extracted.price?.toLocaleString()}
+                    {extracted.currency && extracted.currency !== 'USD' ? '' : '$'}{extracted.currency === 'INR' ? '₹' : ''}{extracted.currency === 'EUR' ? '€' : ''}{extracted.currency === 'GBP' ? '£' : ''}{!['USD','INR','EUR','GBP'].includes(extracted.currency) && extracted.currency ? '' : ''}{extracted.price?.toLocaleString()}
                   </div>
-                  <span className="text-[10px] mono uppercase" style={{ color: 'var(--text-tertiary)' }}>{extracted.currency || 'INR'}</span>
+                  <span className="text-[10px] mono uppercase" style={{ color: 'var(--text-tertiary)' }}>{extracted.currency || 'Not provided'}</span>
                 </div>
               )}
             </div>

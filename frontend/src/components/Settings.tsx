@@ -60,7 +60,7 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
             <div className="flex justify-between items-center">
               <span style={{ color: 'var(--text-tertiary)' }}>Provider Mode:</span>
               <span className="font-bold uppercase px-2 py-0.5 rounded text-[11px]" style={{ background: isLive ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: isLive ? 'var(--success)' : 'var(--warning)' }}>
-                {configMode?.provider || 'brightdata'}
+                {configMode?.provider || 'loading…'}
               </span>
             </div>
             <div className="flex justify-between items-center">

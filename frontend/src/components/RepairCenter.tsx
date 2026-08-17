@@ -116,12 +116,16 @@ export const RepairCenter: React.FC = () => {
         return { label: 'PENDING APPROVAL', color: 'var(--accent)', bg: 'rgba(168,85,247,0.1)' };
       case 'manual_review':
         return { label: 'MANUAL REVIEW', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
+      case 'provider_error':
+        return { label: 'PROVIDER ERROR', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
+      case 'provider_timeout':
+        return { label: 'TIMEOUT', color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)' };
       default:
         return { label: s.toUpperCase(), color: 'var(--text-secondary)', bg: 'var(--bg-elevated)' };
     }
   };
 
-  // Parse missing fields dynamically
+  // Parse missing fields dynamically — never fabricate
   const parseMissingFields = (run: ScrapeRun): string[] => {
     try {
       if (run.validation_errors) {
@@ -130,11 +134,13 @@ export const RepairCenter: React.FC = () => {
           .filter(e => e.includes("Missing required field") || e.includes("missing"))
           .map(e => e.replace(/.*Missing required field: '([^']+)'.*/, '$1').replace(/.*missing.*/, '$&'));
         if (missing.length > 0) return missing;
+        // Return all validation errors as-is if no specific field extraction worked
+        if (errs.length > 0) return errs;
       }
     } catch {
       // ignore
     }
-    return run.workflow_type === 'jobs' ? ['company', 'description'] : ['price', 'currency', 'availability'];
+    return [];
   };
 
   return (

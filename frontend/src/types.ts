@@ -96,6 +96,6 @@ export interface Metrics {
   degraded_runs: number;
   repaired_runs: number;
   manual_review_runs: number;
-  avg_quality_score: number;
-  avg_duration_ms: number;
+  avg_repair_duration_ms: number;
+  scraper_health: string;
 }

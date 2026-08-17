@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, configM
               }}
             />
             <span className="text-[11px] mono font-semibold tracking-wide" style={{ color: isLive ? 'var(--success)' : 'var(--warning)' }}>
-              {isLive ? 'Bright Data Live' : 'Offline Mode'}
+              {isLive ? 'Bright Data live mode' : 'Offline test mode'}
             </span>
           </div>
         </div>

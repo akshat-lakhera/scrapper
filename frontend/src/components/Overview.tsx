@@ -10,12 +10,15 @@ interface OverviewProps {
   setActiveTab: (tab: string) => void;
 }
 
-export const Overview: React.FC<OverviewProps> = ({ setActiveTab }) => {
+export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) => {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentRuns, setRecentRuns] = useState<ScrapeRun[]>([]);
   const [resetting, setResetting] = useState(false);
   const [ready, setReady] = useState(false);
+  const [metricsError, setMetricsError] = useState(false);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const title = useScrambleText('Web Intelligence & Scraping OS', ready);
+  const isLive = configMode?.provider === 'brightdata';
 
   const scrapers = useCounter(metrics?.total_scrapers ?? 0);
   const totalRuns = useCounter(metrics?.total_runs ?? 0);
@@ -26,11 +29,15 @@ export const Overview: React.FC<OverviewProps> = ({ setActiveTab }) => {
 
   const loadData = async () => {
     try {
+      setMetricsLoading(true);
+      setMetricsError(false);
       const [m, r] = await Promise.all([fetchMetrics(), fetchRuns()]);
       if (m) setMetrics(m);
       if (r) setRecentRuns(r.slice(0, 6));
     } catch {
-      // ignore
+      setMetricsError(true);
+    } finally {
+      setMetricsLoading(false);
     }
   };
 
@@ -139,7 +146,7 @@ export const Overview: React.FC<OverviewProps> = ({ setActiveTab }) => {
                   <Icon size={14} style={{ color: m.color, opacity: 0.8 }} />
                 </div>
                 <div className="text-2xl sm:text-3xl font-extrabold mono count-roll mt-2" style={{ color: m.color }}>
-                  {m.value}
+                  {metricsLoading ? '—' : metricsError ? 'N/A' : m.value}
                 </div>
               </SpotlightCard>
             );
@@ -250,7 +257,7 @@ export const Overview: React.FC<OverviewProps> = ({ setActiveTab }) => {
           <div className="p-5 rounded-2xl space-y-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
             <div className="space-y-1">
               <div className="text-[10px] uppercase mono font-bold tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Provider Architecture</div>
-              <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Bright Data DCA & SERP API</div>
+              <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{isLive ? 'Bright Data Datasets v3' : 'Offline Test Provider'}</div>
             </div>
 
             <div className="space-y-2 text-xs pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
