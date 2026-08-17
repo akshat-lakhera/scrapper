@@ -21,6 +21,7 @@ class ScrapeRunDB(Base):
     selected_strategy = Column(String(100), nullable=True)
     repair_triggered = Column(Boolean, default=False)
     data_quality_score = Column(Integer, default=0)
+    record_count = Column(Integer, default=1)
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     duration_ms = Column(Integer, default=0)
@@ -39,6 +40,7 @@ class ScrapeRunResponse(BaseModel):
     selected_strategy: Optional[str] = None
     repair_triggered: bool = False
     data_quality_score: int = 0
+    record_count: int = 1
     started_at: datetime
     completed_at: Optional[datetime] = None
     duration_ms: int = 0

@@ -20,3 +20,15 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Check for missing columns in existing SQLite database
+    if settings.DATABASE_URL.startswith("sqlite"):
+        try:
+            with engine.connect() as conn:
+                cursor = conn.connection.cursor()
+                cursor.execute("PRAGMA table_info(scrape_runs)")
+                columns = [row[1] for row in cursor.fetchall()]
+                if columns and "record_count" not in columns:
+                    cursor.execute("ALTER TABLE scrape_runs ADD COLUMN record_count INTEGER DEFAULT 1")
+                    conn.connection.commit()
+        except Exception:
+            pass

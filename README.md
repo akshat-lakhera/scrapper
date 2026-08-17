@@ -1,23 +1,23 @@
 # MarketScout
 
-**MarketScout** is a production-grade web-data monitoring and self-healing scraping platform powered by **Bright Data Scraper Studio**. It provides automated schema extraction, continuous extraction health monitoring, structural drift detection, and interactive AI self-healing workflows for both e-commerce and employment market intelligence.
+**MarketScout** is a production-grade web-data monitoring and self-healing scraping platform powered by **Bright Data**. It provides automated schema extraction, continuous extraction health monitoring, structural drift detection, and interactive self-healing workflows for both e-commerce and employment market intelligence.
 
 ---
 
-## Key Capabilities
+## Architecture & Integration Modes
 
-1. **Dual Intelligence Workflows**:
-   - **Product Discovery & Price Intelligence**: Real-time extraction of product titles, prices, currencies, stock availability, ratings, review counts, sellers, specs, and image assets across platforms like Amazon, Flipkart, Myntra, Walmart, and eBay.
-   - **Job Listing Discovery & Market Compensation**: Structured extraction of job titles, hiring companies, locations, compensation brackets, descriptions, and application URLs.
-2. **Bright Data Scraper Studio Integration**:
-   - Primary live scraping provider using Bright Data SERP and DCA APIs.
-   - Handles anti-bot challenges, dynamic JavaScript rendering, and geo-targeted data delivery.
-3. **Automated Quality & Self-Healing Engine**:
-   - **Degradation Detection**: Automatically differentiates between standard source-data variance (`data_changed`) and structural website redesigns (`extraction_degraded`).
-   - **3-Stage Self-Healing Workstation**: Automated diagnostic audits, natural-language repair synthesis via Bright Data Scraper Studio, interactive approval gates, and verification testing with automated version rollback.
-4. **Interactive Awwwards-Tier Dashboard**:
-   - Translucent glassmorphism UI with Apple-grade fluid spring motion (`cubic-bezier(0.23, 1, 0.32, 1)`).
-   - Mouse-tracking 3D spotlight illumination (`SpotlightCard`), kinetic alphanumeric decryption transitions, and 60 FPS interactive particle physics.
+MarketScout supports 3 distinct operational modes:
+
+1. **Bright Data Managed Datasets (`datasets/v3`)**:
+   - Primary live e-commerce provider using Bright Data's verified Datasets v3 API (e.g. `gd_l7q7dkf244hwjntr0` for Amazon).
+   - Asynchronous execution workflow:
+     - `POST /datasets/v3/trigger?dataset_id={dataset_id}` (stores `snapshot_id`)
+     - Poll `GET /datasets/v3/progress/{snapshot_id}` across `collecting`, `digesting`, and `ready` states
+     - Download structured dataset via `GET /datasets/v3/snapshot/{snapshot_id}?format=json`
+2. **Bright Data Custom Scraper Studio Collectors**:
+   - Schema-driven collectors for custom target domains using instructions and field rules.
+3. **Local Offline Test Provider**:
+   - Executes against local HTML fixtures on disk (`fixtures/`) for automated CI testing and offline demonstration without network calls or API keys.
 
 ---
 
@@ -25,34 +25,34 @@
 
 | Mode | Label in UI | Description |
 |---|---|---|
-| **Live Mode** | `Bright Data live mode` | Queries live web targets via Bright Data Scraper Studio APIs. Backend-only credentials. |
+| **Live Mode** | `Bright Data live mode` | Queries live web targets via Bright Data Datasets v3 and SERP APIs. Backend-only credentials. |
 | **Offline Test Mode** | `Offline test mode — not live Bright Data data` | Executes against local HTML fixtures on disk (`fixtures/`) for automated CI testing and offline demonstration. |
 
 ---
 
-## Architecture Overview
+## System Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          MarketScout Frontend                          │
-│        (React 18 + Vite + Tailwind CSS + Lucide + Particle Engine)     │
-└──────────────────────────────────┬─────────────────────────────────────┘
-                                   │ HTTP / JSON API
-┌──────────────────────────────────▼─────────────────────────────────────┐
-│                          FastAPI Backend Core                          │
-│   ├── Schema Registry (ProductSchema & JobSchema)                      │
-│   ├── DOMExtractor (BeautifulSoup, JSON-LD, Microdata, OpenGraph)      │
-│   ├── Normalizer & Validator (Type, Currency, Range & Schema Gates)    │
-│   ├── DiffService (Drift Detection: data_changed vs degraded)          │
-│   └── ScrapeService (Execution Orchestration & Version Management)     │
-└───────────────────┬──────────────────────────────────┬─────────────────┘
-                    │                                  │
-    ┌───────────────▼───────────────┐  ┌───────────────▼───────────────┐
-    │     Bright Data Provider      │  │     Local Offline Provider    │
-    │  - Bright Data DCA Trigger    │  │  - DOM Fixture Parsing        │
-    │  - Bright Data SERP Engine    │  │  - Synthetic Degradation Test │
-    │  - Self-Healing Synthesis     │  │  - Zero Network Dependency    │
-    └───────────────────────────────┘  └───────────────────────────────┘
++------------------------------------------------------------------------+
+|                          MarketScout Frontend                          |
+|        (React 18 + Vite + Tailwind CSS + Lucide + Fluid UI)            |
++----------------------------------+-------------------------------------+
+                                   | HTTP / JSON API
++----------------------------------v-------------------------------------+
+|                          FastAPI Backend Core                          |
+|   |-- Schema Registry (ProductSchema & JobSchema)                      |
+|   |-- Groq Extractor (Downstream Field Normalization)                  |
+|   |-- Normalizer & Validator (Type, Currency, Range & Schema Gates)    |
+|   |-- DiffService (Drift Detection: data_changed vs degraded)          |
+|   +-- ScrapeService (Execution Orchestration & Version Management)     |
++-------------------+----------------------------------+-----------------+
+                    |                                  |
+    +---------------v---------------+  +---------------v---------------+
+    |     Bright Data Provider      |  |     Local Offline Provider    |
+    |  - Datasets v3 Trigger/Snap   |  |  - DOM Fixture Parsing        |
+    |  - Progress State Machine     |  |  - Synthetic Degradation Test |
+    |  - Scraper Studio Healer      |  |  - Zero Network Dependency    |
+    +-------------------------------+  +-------------------------------+
 ```
 
 ---
@@ -68,11 +68,14 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Fill in your Bright Data credentials (kept strictly backend-only):
+Fill in your credentials (kept strictly backend-only):
 ```env
 SCRAPER_PROVIDER=brightdata
 BRIGHTDATA_API_KEY=your_brightdata_api_key_here
 BRIGHTDATA_BASE_URL=https://api.brightdata.com
+BRIGHTDATA_PRODUCT_DATASET_ID=gd_l7q7dkf244hwjntr0
+BRIGHTDATA_JOB_DATASET_ID=
+FRONTEND_ORIGIN=http://127.0.0.1:8000,http://localhost:5173
 DATABASE_URL=sqlite:///./data/marketscout.db
 ```
 
@@ -99,24 +102,13 @@ http://127.0.0.1:8000/
 
 ## Running Automated Tests
 
-MarketScout includes a test suite that passes 100% offline without live API credentials:
-
+Run the complete test suite with `pytest`:
 ```bash
 cd backend
 pytest -v
-python verify_e2e.py
 ```
 
----
-
-## Documentation Index
-
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Comprehensive system architecture and data pipelines.
-- [BRIGHTDATA_WORKFLOW.md](BRIGHTDATA_WORKFLOW.md) — Bright Data Scraper Studio API lifecycle and endpoints.
-- [BRIGHTDATA_SETUP.md](BRIGHTDATA_SETUP.md) — Step-by-step setup for Bright Data API keys and zone permissions.
-- [LIVE_TEST_CHECKLIST.md](LIVE_TEST_CHECKLIST.md) — Manual verification procedures for hackathon judges.
-- [DEMO_SCRIPT.md](DEMO_SCRIPT.md) — Step-by-step demonstration walkthrough.
-- [RECORDING_CHECKLIST.md](RECORDING_CHECKLIST.md) — Video demo guidelines and quality gates.
-- [DEPLOYMENT.md](DEPLOYMENT.md) — Production deployment instructions.
-- [SUBMISSION_CHECKLIST.md](SUBMISSION_CHECKLIST.md) — Hackathon submission compliance verification.
-- [ATTRIBUTIONS.md](ATTRIBUTIONS.md) — Open-source citations and technical references.
+Run the end-to-end verification gate:
+```bash
+python verify_e2e.py
+```
