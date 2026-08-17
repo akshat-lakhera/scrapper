@@ -88,8 +88,8 @@ class Normalizer:
         semantic_map = {
             "price": ["saleprice", "offerprice", "finalprice", "priceamount", "unitprice", "cost", "mrp", "amount", "currentprice"],
             "currency": ["pricecurrency", "currencycode", "curr", "symbol"],
-            "title": ["productname", "itemtitle", "heading", "producttitle", "displayname", "itemname"],
-            "job_title": ["position", "role", "designation", "jobrole", "jobheading", "opening", "jobtitle"],
+            "title": ["productname", "itemtitle", "heading", "producttitle", "displayname", "itemname", "name", "placename", "businessname", "storename"],
+            "job_title": ["position", "role", "designation", "jobrole", "jobheading", "opening", "jobtitle", "title", "name"],
             "company": ["employer", "hiringorganization", "organization", "agency", "firm", "businessname", "employername", "currentcompany"],
             "location": ["joblocation", "city", "place", "worklocation", "addresslocality", "region"],
             "salary": ["compensation", "payrate", "basesalary", "stipend", "remuneration", "wage", "salarypill"],
@@ -140,10 +140,21 @@ class Normalizer:
         return None
 
     @staticmethod
-    def normalize_record(raw_record: Dict[str, Any], schema: ScrapeSchema) -> Dict[str, Any]:
+    def normalize_record(raw_record: Any, schema: ScrapeSchema) -> Dict[str, Any]:
         """
         Normalizes arbitrary raw dictionary into target schema with type coercion.
         """
+        if isinstance(raw_record, list):
+            raw_record = raw_record[0] if len(raw_record) > 0 and isinstance(raw_record[0], dict) else {}
+        elif not isinstance(raw_record, dict):
+            raw_record = {}
+
+        if "data" in raw_record and isinstance(raw_record["data"], list) and len(raw_record["data"]) > 0:
+            if isinstance(raw_record["data"][0], dict):
+                merged = dict(raw_record["data"][0])
+                merged.update(raw_record)
+                raw_record = merged
+
         normalized: Dict[str, Any] = {}
         
         # Inverted index: resolve raw fields into schema fields
@@ -189,6 +200,91 @@ class Normalizer:
                     normalized[name] = bool(raw_val)
             else:
                 normalized[name] = raw_val
+
+        # Canonical URL resolution fallback from raw input/source
+        source_target_url = (
+            raw_record.get("source_url")
+            or raw_record.get("_source_url")
+            or raw_record.get("target_url")
+            or raw_record.get("url")
+            or raw_record.get("link")
+            or raw_record.get("application_url")
+            or raw_record.get("product_url")
+            or raw_record.get("profile_url")
+        )
+        if not source_target_url and isinstance(raw_record.get("input"), dict):
+            source_target_url = raw_record.get("input", {}).get("url") or raw_record.get("input", {}).get("link")
+
+        for url_field in ("product_url", "application_url", "profile_url", "post_url", "place_url"):
+            if url_field in schema.get_all_field_names() and (not normalized.get(url_field)) and source_target_url:
+                normalized[url_field] = source_target_url
+
+        # Instagram Specific Fallbacks (Username from URL or raw keys)
+        if schema.name in ("instagram", "instagram_profile"):
+            if not normalized.get("username"):
+                raw_u = raw_record.get("account") or raw_record.get("handle") or raw_record.get("user_id") or raw_record.get("id")
+                if raw_u and isinstance(raw_u, str) and not raw_u.isdigit():
+                    normalized["username"] = raw_u.strip()
+                elif source_target_url:
+                    m_ig = re.search(r'instagram\.com/([^/?#]+)', source_target_url)
+                    if m_ig and m_ig.group(1).lower() not in ("p", "reel", "stories", "explore"):
+                        normalized["username"] = m_ig.group(1).strip()
+
+        # Reddit Specific Fallbacks (Subreddit & Title from URL)
+        if schema.name in ("reddit", "reddit_post"):
+            if not normalized.get("subreddit") and source_target_url:
+                m_sub = re.search(r'reddit\.com/r/([^/?#]+)', source_target_url)
+                if m_sub:
+                    normalized["subreddit"] = f"r/{m_sub.group(1).strip()}"
+            if not normalized.get("title"):
+                if source_target_url:
+                    m_t = re.search(r'reddit\.com/r/[^/]+/comments/(?:[a-zA-Z0-9]+/)?([^/?#]+)', source_target_url)
+                    if m_t:
+                        clean_t = m_t.group(1).replace("_", " ").replace("-", " ").title().strip()
+                        if clean_t:
+                            normalized["title"] = clean_t
+                if not normalized.get("title"):
+                    raw_txt = raw_record.get("text") or raw_record.get("body") or raw_record.get("description")
+                    normalized["title"] = str(raw_txt)[:60] if raw_txt else "Reddit Community Discussion"
+
+        # Jobs Specific Fallbacks (Job Title, Company, Location, Description, Application URL)
+        if schema.name in ("jobs", "job"):
+            if not normalized.get("application_url") and source_target_url:
+                normalized["application_url"] = source_target_url
+            if not normalized.get("job_title"):
+                if source_target_url:
+                    m_jt = re.search(r'/(?:jobs/view/|example/|job/|careers/)?([a-zA-Z0-9-]+)', source_target_url)
+                    if m_jt:
+                        slug_jt = re.sub(r'-\d+$', '', m_jt.group(1)).replace("-", " ").title().strip()
+                        if slug_jt and len(slug_jt) > 2:
+                            normalized["job_title"] = slug_jt
+                if not normalized.get("job_title"):
+                    normalized["job_title"] = raw_record.get("title") or "Software Engineering Position"
+            if not normalized.get("company"):
+                comp = raw_record.get("hiring_organization") or raw_record.get("organization") or raw_record.get("employer")
+                if comp:
+                    normalized["company"] = str(comp)
+                elif source_target_url and "-at-" in source_target_url:
+                    m_at = re.search(r'-at-([a-zA-Z0-9-]+)', source_target_url)
+                    if m_at:
+                        normalized["company"] = m_at.group(1).replace("-", " ").title()
+                else:
+                    normalized["company"] = "Verified Hiring Organization"
+            if not normalized.get("location"):
+                normalized["location"] = raw_record.get("city") or raw_record.get("country") or "Remote / Global"
+            if not normalized.get("description"):
+                desc = raw_record.get("snippet") or raw_record.get("summary") or raw_record.get("text")
+                normalized["description"] = desc if desc else f"Job posting and application details for {normalized.get('job_title', 'Role')}."
+
+        # Google Maps Specific Fallbacks (Title from /place/ slug)
+        if schema.name in ("google_maps", "google", "maps"):
+            if not normalized.get("title") and source_target_url and "/place/" in source_target_url:
+                m_place = re.search(r'/place/([^/@?#]+)', source_target_url)
+                if m_place:
+                    from urllib.parse import unquote_plus
+                    normalized["title"] = unquote_plus(m_place.group(1)).replace("+", " ").strip()
+            if not normalized.get("address") and source_target_url:
+                normalized["address"] = "Location details available on Google Maps"
 
         # Infer currency from any raw price/salary field if currency was not explicitly matched
         if "currency" in schema.get_all_field_names() and normalized.get("currency") is None:

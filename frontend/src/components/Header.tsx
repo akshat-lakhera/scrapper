@@ -1,219 +1,124 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React from 'react';
 import { 
-  LayoutDashboard, 
-  Sparkles,
+  Sparkles, 
+  Layers, 
   Wrench, 
   History, 
-  Settings as SettingsIcon, 
-  Menu,
-  X
+  Settings as SettingsIcon,
+  RotateCcw,
+  Search,
+  CheckCircle2,
+  Cpu
 } from 'lucide-react';
 import type { ConfigModeResponse } from '../types';
-import { TypewriterText, ShimmerText } from './TextEffects';
+import { Button } from './ui/Button';
 
 interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   configMode: ConfigModeResponse | null;
-  isRequestActive?: boolean;
+  onOpenCommandPalette?: () => void;
+  onReset?: () => void;
+  resetting?: boolean;
 }
 
-const tabs = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'studio', label: 'Studio', icon: Sparkles },
-  { id: 'repair', label: 'Self-Healing', icon: Wrench },
-  { id: 'runs', label: 'Runs', icon: History },
+const TABS = [
+  { id: 'overview', label: 'Command Center', icon: Sparkles },
+  { id: 'studio', label: 'Extraction Studio', icon: Layers },
+  { id: 'repair', label: 'Self-Healing Lab', icon: Wrench, badge: 'v2' },
+  { id: 'runs', label: 'Audit Timeline', icon: History },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-export const Header: React.FC<HeaderProps> = ({ 
-  activeTab, 
-  setActiveTab, 
+export const Header: React.FC<HeaderProps> = ({
+  activeTab,
+  setActiveTab,
   configMode,
-  isRequestActive = false,
+  onOpenCommandPalette,
+  onReset,
+  resetting = false,
 }) => {
-  const navRef = useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isLive = configMode?.provider === 'brightdata';
 
-  useEffect(() => {
-    if (!navRef.current) return;
-    const el = navRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement;
-    if (el) {
-      setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
-    }
-  }, [activeTab]);
-
-  const handleTabClick = (tabId: string) => {
-    setActiveTab(tabId);
-    setMobileMenuOpen(false);
-  };
-
   return (
-    <header
-      role="banner"
-      aria-label="Application Header"
-      className="sticky top-0 z-30 w-full border-b backdrop-blur-xl transition-colors duration-200"
-      style={{
-        backgroundColor: 'rgba(3, 7, 18, 0.82)',
-        borderColor: 'rgba(255, 255, 255, 0.08)',
-      }}
-    >
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Top Header Row */}
-        <div className="flex items-center justify-between h-16">
-          {/* Brand Logo & Telemetry */}
-          <div
-            onClick={() => handleTabClick('overview')}
-            role="button"
-            tabIndex={0}
-            aria-label="MarketScout Home"
-            className="flex items-center gap-3 cursor-pointer group focus-ring rounded-lg p-1"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleTabClick('overview');
-              }
-            }}
-          >
-            <div
-              className="rounded-xl p-[1px] w-9 h-9 flex items-center justify-center transition-transform duration-200 group-hover:scale-105"
-              style={{
-                background: 'linear-gradient(135deg, #06b6d4, #10b981)',
-                boxShadow: '0 0 20px rgba(6, 182, 212, 0.25)',
-              }}
-            >
-              <div
-                className="w-full h-full rounded-[11px] flex items-center justify-center"
-                style={{ background: 'var(--bg-root)' }}
-              >
-                <Sparkles size={16} className="text-cyan-400" aria-hidden="true" />
-              </div>
-            </div>
-            <div>
-              <div className="font-extrabold text-[15px] tracking-tight flex items-center gap-1 leading-none text-white">
-                <TypewriterText text="MarketScout" speed={40} className="text-white font-extrabold" />
-              </div>
-              <span className="text-[9px] mono uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                <ShimmerText text="Bright Data OS" />
-              </span>
-            </div>
-          </div>
-
-          {/* Right Header Status Pill */}
-          <div className="flex items-center gap-3">
-            <div
-              role="status"
-              aria-label={`Provider Status: ${isLive ? 'Bright Data live mode' : 'Offline test mode'}${isRequestActive ? ', request active' : ''}`}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all"
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                borderColor: isLive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)',
-                boxShadow: isLive ? '0 0 16px rgba(16, 185, 129, 0.1)' : '0 0 16px rgba(245, 158, 11, 0.1)',
-              }}
-            >
-              <div
-                className={`pulse-dot ${isRequestActive ? 'active-pulsing' : ''}`}
-                style={{
-                  color: isLive ? 'var(--success)' : 'var(--warning)',
-                  backgroundColor: isLive ? 'var(--success)' : 'var(--warning)',
-                  width: 6,
-                  height: 6,
-                }}
-              />
-              <span className="text-[11px] mono font-semibold tracking-wide" style={{ color: isLive ? 'var(--success)' : 'var(--warning)' }}>
-                {isLive ? 'Bright Data live mode' : 'Offline test mode'}
-              </span>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 border border-white/10 btn-spring focus-ring"
-              aria-expanded={mobileMenuOpen}
-              aria-controls="mobile-navigation"
-              aria-label="Toggle navigation menu"
-            >
-              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-          </div>
+    <header className="h-16 sticky top-0 z-40 bg-[#09090b]/85 backdrop-blur-xl border-b border-white/[0.07] px-4 sm:px-8 flex items-center justify-between select-none">
+      {/* Left: Brand Identity */}
+      <div 
+        onClick={() => setActiveTab('overview')}
+        className="flex items-center gap-3 cursor-pointer group shrink-0"
+      >
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+          <Sparkles size={16} className="text-white" />
         </div>
-
-        {/* Desktop Sliding Tabs */}
-        <nav
-          id="desktop-navigation"
-          aria-label="Main Navigation"
-          className="hidden md:block relative pb-1"
-          ref={navRef}
-        >
-          <div className="flex gap-1 no-scrollbar overflow-x-auto">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  data-tab={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  aria-current={active ? 'page' : undefined}
-                  className="flex items-center gap-2 px-3.5 py-2.5 text-[12px] font-semibold whitespace-nowrap rounded-lg transition-all duration-150 btn-spring focus-ring"
-                  style={{
-                    color: active ? '#fff' : 'var(--text-tertiary)',
-                    background: active ? 'var(--bg-elevated)' : 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Icon size={14} strokeWidth={active ? 2.2 : 1.8} style={{ color: active ? 'var(--accent)' : 'inherit' }} aria-hidden="true" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Spring Tab Indicator */}
-          {indicator.width > 0 && (
-            <div
-              className="absolute bottom-0 h-[2px] transition-all duration-200 ease-out pointer-events-none"
-              style={{
-                left: indicator.left,
-                width: indicator.width,
-                background: 'linear-gradient(90deg, #06b6d4, #10b981)',
-                boxShadow: '0 0 12px #06b6d4',
-              }}
-            />
-          )}
-        </nav>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-sm text-white tracking-tight">MarketScout</span>
+          <span className="text-[10px] mono font-bold px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-400 border border-white/10">
+            v2.4
+          </span>
+        </div>
       </div>
 
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div
-          id="mobile-navigation"
-          className="md:hidden border-t px-4 py-3 space-y-1 bg-[#030712]/95 backdrop-blur-2xl"
-          style={{ borderColor: 'var(--border-subtle)' }}
+      {/* Center: Sleek Segmented Control Tabs (Linear Style) */}
+      <nav className="hidden md:flex items-center p-1 rounded-xl bg-[#111218] border border-white/[0.08] shadow-inner">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                isActive
+                  ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 shadow-sm shadow-indigo-500/10'
+                  : 'text-slate-400 hover:text-white border border-transparent'
+              }`}
+            >
+              <Icon size={14} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Right Controls */}
+      <div className="flex items-center gap-3 shrink-0">
+        {/* Command Palette Trigger */}
+        <button
+          onClick={onOpenCommandPalette}
+          className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 text-xs text-slate-400 hover:text-white transition-all cursor-pointer"
         >
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabClick(tab.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-left transition-colors"
-                style={{
-                  background: active ? 'var(--bg-elevated)' : 'transparent',
-                  color: active ? '#fff' : 'var(--text-secondary)',
-                }}
-              >
-                <Icon size={16} style={{ color: active ? 'var(--accent)' : 'var(--text-tertiary)' }} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          <Search size={13} className="text-slate-500" />
+          <span className="font-mono text-[11px]">Search</span>
+          <kbd className="px-1 py-0.5 rounded bg-white/10 text-[9px] font-mono text-slate-400 border border-white/10">
+            ⌘K
+          </kbd>
+        </button>
+
+        {/* Live Provider Status */}
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/10 text-xs mono">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-slate-300 font-semibold text-[11px] hidden sm:inline">
+            {isLive ? 'Bright Data Live' : 'Sandbox'}
+          </span>
         </div>
-      )}
+
+        {onReset && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onReset}
+            isLoading={resetting}
+            leftIcon={<RotateCcw size={12} />}
+          >
+            Reset
+          </Button>
+        )}
+      </div>
     </header>
   );
 };

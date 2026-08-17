@@ -1,6 +1,8 @@
 import json
 import re
+import logging
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import unquote_plus, urlparse
 from bs4 import BeautifulSoup
 from app.models.schema import ScrapeSchema
 from app.models.extractor_rule import ExtractorRuleBundle, FieldRule, FieldTrace
@@ -107,6 +109,10 @@ class MultiStrategyEngine:
                 is_valid=val is not None,
                 confidence=confidence if val is not None else 0.0
             ))
+
+        # Inject canonical URLs into raw record
+        raw_record["source_url"] = target_url
+        raw_record["target_url"] = target_url
 
         # Normalize the extracted dictionary against the schema definition
         normalized_record = Normalizer.normalize_record(raw_record, schema)
@@ -225,7 +231,7 @@ class MultiStrategyEngine:
         og_title = meta.get("og:title") or meta.get("twitter:title") or meta.get("title") or ""
         og_desc = meta.get("og:description") or meta.get("twitter:description") or meta.get("description") or ""
 
-        # Specialized Job Field Parsing
+        # Specialized Job Field Parsing (LinkedIn, Indeed, Lever, etc.)
         if field_name == "job_title":
             m_title = re.search(r'hiring\s+(.+?)(?:\s+in\s+|\s+\|\s*LinkedIn|$)', og_title, re.I)
             if m_title:
@@ -235,8 +241,11 @@ class MultiStrategyEngine:
                 if m_jt:
                     return m_jt.group(1).strip()
             if og_title:
-                clean_t = re.sub(r'\s*\|\s*LinkedIn.*$', '', og_title, flags=re.I).strip()
-                return clean_t
+                clean_t = re.sub(r'\s*\|\s*LinkedIn.*$', '', og_title, flags=re.I)
+                clean_t = re.sub(r'^(.+?)\s+hiring\s+', '', clean_t, flags=re.I)
+                clean_t = re.sub(r'\s+in\s+.+$', '', clean_t, flags=re.I).strip()
+                if clean_t:
+                    return clean_t
 
         if field_name == "company":
             m_comp = re.search(r'^(.+?)(?:\s+hiring\s+)', og_title, re.I)
@@ -246,7 +255,10 @@ class MultiStrategyEngine:
                 m_c = re.search(r'Company:\s*([^.\n]+)', og_desc, re.I)
                 if m_c:
                     return m_c.group(1).strip()
-            return meta.get("og:site_name") or meta.get("author")
+            site_n = meta.get("og:site_name")
+            if site_n and site_n.lower() not in ("linkedin", "indeed", "glassdoor", "lever", "greenhouse"):
+                return site_n
+            return None
 
         if field_name == "location":
             if 'Location:' in og_desc:
@@ -256,6 +268,28 @@ class MultiStrategyEngine:
             m_loc2 = re.search(r'\sin\s+(.+?)(?:\s+\|\s*LinkedIn|$)', og_title, re.I)
             if m_loc2:
                 return m_loc2.group(1).strip()
+
+        # Google Maps metadata parsing
+        if field_name in ("title", "place_name") and ("google" in meta.get("og:site_name", "").lower() or "maps" in meta.get("og:url", "").lower()):
+            if og_title:
+                clean_m = re.sub(r'\s*-\s*Google Maps.*$', '', og_title, flags=re.I).strip()
+                if clean_m and clean_m.lower() != "google maps":
+                    return clean_m
+            if og_desc and "·" in og_desc:
+                parts = [p.strip() for p in og_desc.split("·")]
+                if parts and not parts[0].startswith(("★", "http")):
+                    return parts[0]
+
+        if field_name == "address":
+            if og_desc:
+                # Often in Google Maps: "★★★★☆ · Restaurant · Winckelmannstraße 16, 39108 Magdeburg"
+                if "·" in og_desc:
+                    parts = [p.strip() for p in og_desc.split("·")]
+                    # Address is typically the last non-empty part
+                    for p in reversed(parts):
+                        if any(c.isdigit() for c in p) and len(p) > 5:
+                            return p
+                return og_desc.strip()
 
         # Specialized Social / LinkedIn Profile / Post Parsing
         if field_name in ("name", "user_posted", "author", "username"):
@@ -365,24 +399,64 @@ class MultiStrategyEngine:
             return elem.get(f"data-{field_name}") or elem.get_text(strip=True), f"[data-{field_name}]"
 
         # 3. HTML5 Headings for Title / Heading Fields
-        if field_name in ("title", "job_title"):
-            h1 = soup.select_one("h1")
+        if field_name in ("title", "job_title", "place_name"):
+            # Google Maps URL extraction fallback
+            if ("google.com/maps" in target_url or "maps.google." in target_url) and "/place/" in target_url:
+                m_place = re.search(r'/place/([^/@?#]+)', target_url)
+                if m_place:
+                    clean_place = unquote_plus(m_place.group(1)).replace("+", " ").strip()
+                    if clean_place:
+                        return clean_place, "google_maps_url_slug"
+
+            # LinkedIn Job URL extraction fallback
+            if "linkedin.com/jobs/view/" in target_url:
+                m_job_slug = re.search(r'/jobs/view/([a-zA-Z0-9-]+?)(?:-at-|-in-|\d|$)', target_url)
+                if m_job_slug:
+                    slug_text = m_job_slug.group(1).replace("-", " ").strip().title()
+                    if slug_text and not slug_text.isdigit() and len(slug_text) > 4:
+                        return slug_text, "linkedin_url_slug"
+
+            h1 = soup.select_one("h1, .top-card-layout__title, .job-details-jobs-unified-top-card__job-title")
             if h1 and len(h1.get_text(strip=True)) > 3:
-                return h1.get_text(strip=True), "h1"
+                clean_h1 = re.sub(r'\s*\|\s*LinkedIn.*$', '', h1.get_text(strip=True), flags=re.I).strip()
+                if clean_h1.lower() not in ("linkedin", "google maps", "sign in", "join linkedin"):
+                    return clean_h1, "h1"
+
             title_tag = soup.select_one("title")
             if title_tag and len(title_tag.get_text(strip=True)) > 3:
-                return title_tag.get_text(strip=True), "title"
+                clean_title = re.sub(r'\s*\|\s*LinkedIn.*$', '', title_tag.get_text(strip=True), flags=re.I)
+                clean_title = re.sub(r'\s*-\s*Google Maps.*$', '', clean_title, flags=re.I).strip()
+                if clean_title.lower() not in ("linkedin", "google maps", "sign in", "join linkedin"):
+                    return clean_title, "title_tag"
 
-        # 4. Social & X / Twitter Author & Text Semantic Extractors
-        if field_name in ("user_posted", "author", "name", "username"):
-            m_x_user = re.search(r'(?:x|twitter)\.com/([^/?#]+)(?:/status/(\d+))?', target_url, re.I)
-            if m_x_user and m_x_user.group(1).lower() not in ('home', 'explore', 'notifications', 'messages', 'i', 'search', 'settings'):
-                return m_x_user.group(1), "url_slug_author"
+        # LinkedIn Company DOM Heuristics
+        if field_name == "company":
+            comp_elem = soup.select_one(".topcard__org-name-link, [data-tracking-control-name='public_jobs_topcard-org-name'], .sub-nav-cta__sub-title, .job-details-jobs-unified-top-card__company-name")
+            if comp_elem and comp_elem.get_text(strip=True):
+                return comp_elem.get_text(strip=True), "linkedin_company_class"
+            if "linkedin.com/jobs" in target_url:
+                m_comp_url = re.search(r'-at-([a-zA-Z0-9-]+?)(?:-in-|-|\d|$)', target_url)
+                if m_comp_url:
+                    comp_name = m_comp_url.group(1).replace("-", " ").strip().title()
+                    if comp_name:
+                        return comp_name, "linkedin_company_slug"
+            title_tag = soup.select_one("title")
+            if title_tag:
+                m_hiring = re.search(r'^(.+?)\s+hiring\s+', title_tag.get_text(strip=True), re.I)
+                if m_hiring:
+                    return m_hiring.group(1).strip(), "title_hiring_company"
 
-        if field_name in ("description", "post_text", "body_text"):
-            tweet_text = soup.select_one("[data-testid='tweetText'], [data-testid='tweet'], article p")
-            if tweet_text and len(tweet_text.get_text(strip=True)) > 5:
-                return tweet_text.get_text(strip=True), "[data-testid='tweetText']"
+        # LinkedIn Location DOM Heuristics
+        if field_name == "location":
+            loc_elem = soup.select_one(".topcard__flavor--bullet, .job-details-jobs-unified-top-card__bullet, [data-tracking-control-name='public_jobs_topcard-location']")
+            if loc_elem and loc_elem.get_text(strip=True):
+                return loc_elem.get_text(strip=True), "linkedin_location_class"
+
+        # LinkedIn & General Description DOM Heuristics
+        if field_name in ("description", "job_description", "post_text", "body_text"):
+            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], article p")
+            if desc_elem and len(desc_elem.get_text(strip=True)) > 5:
+                return desc_elem.get_text(strip=True), "semantic_description_class"
 
         # 4. Proximity Text Anchor (find label/span/dt containing the field name)
         for label_tag in soup.find_all(["label", "dt", "span", "th"], limit=40):

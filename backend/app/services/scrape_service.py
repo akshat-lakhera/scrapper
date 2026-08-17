@@ -257,6 +257,12 @@ class ScrapeService:
                 rule_bundle=active_bundle
             )
             field_traces_list = [t.model_dump() for t in traces]
+            # Merge fields from raw_result if API/Dataset returned extra fields
+            if raw_result and (isinstance(raw_result, dict) or isinstance(raw_result, list)):
+                api_norm = Normalizer.normalize_record(raw_result, schema)
+                for k, v in api_norm.items():
+                    if v is not None and normalized.get(k) is None:
+                        normalized[k] = v
         else:
             normalized = Normalizer.normalize_record(raw_result, schema)
             normalized["source_url"] = target_url
