@@ -38,7 +38,7 @@ class BrightDataProvider(ScraperProvider):
         if self.default_scraper_id and self.default_scraper_id.startswith("gd_"):
             return self.default_scraper_id
         if schema_name == "products":
-            return settings.BRIGHTDATA_PRODUCT_DATASET_ID or "gd_l7q7dkf244hwjntr0"
+            return settings.BRIGHTDATA_PRODUCT_DATASET_ID or None
         elif schema_name == "jobs":
             return settings.BRIGHTDATA_JOB_DATASET_ID or None
         return None
@@ -174,7 +174,13 @@ class BrightDataProvider(ScraperProvider):
         dataset_id = self._resolve_dataset_id(scraper_id, schema.name)
 
         if not dataset_id:
-            if schema.name == "jobs":
+            if schema.name == "products":
+                return {
+                    "status": "provider_error",
+                    "error": "No Bright Data dataset configured for products workflow. Configure BRIGHTDATA_PRODUCT_DATASET_ID in .env.",
+                    "raw_result": {}
+                }
+            elif schema.name == "jobs":
                 return {
                     "status": "provider_error",
                     "error": "No Bright Data dataset configured for jobs workflow. Configure BRIGHTDATA_JOB_DATASET_ID in .env.",
@@ -182,7 +188,7 @@ class BrightDataProvider(ScraperProvider):
                 }
             return {
                 "status": "provider_error",
-                "error": f"No Bright Data dataset ID resolved for schema '{schema.name}'.",
+                "error": f"No Bright Data dataset ID configured for schema '{schema.name}'.",
                 "raw_result": {}
             }
 

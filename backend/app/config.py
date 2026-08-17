@@ -20,7 +20,7 @@ class Settings:
     BRIGHTDATA_BASE_URL: str = os.getenv("BRIGHTDATA_BASE_URL", "https://api.brightdata.com")
     
     # Datasets v3 Workflow Configurations
-    BRIGHTDATA_PRODUCT_DATASET_ID: str = os.getenv("BRIGHTDATA_PRODUCT_DATASET_ID", "gd_l7q7dkf244hwjntr0")
+    BRIGHTDATA_PRODUCT_DATASET_ID: str = os.getenv("BRIGHTDATA_PRODUCT_DATASET_ID", "")
     BRIGHTDATA_JOB_DATASET_ID: str = os.getenv("BRIGHTDATA_JOB_DATASET_ID", "")
 
     # CORS Configuration

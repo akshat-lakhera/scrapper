@@ -1,5 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+from fastapi.testclient import TestClient
+from app.main import app
 from app.providers.brightdata_provider import BrightDataProvider
 from app.models.schema import PRODUCT_SCHEMA, JOB_SCHEMA
 from app.extraction.normalizer import Normalizer
@@ -14,13 +16,24 @@ async def test_brightdata_missing_credentials():
             await provider.run_scraper("gd_test", "https://amazon.com/dp/B0123", PRODUCT_SCHEMA)
 
 @pytest.mark.asyncio
+async def test_brightdata_unsupported_products_without_dataset():
+    with patch("app.config.settings.BRIGHTDATA_API_KEY", "test_key_123"):
+        with patch("app.config.settings.BRIGHTDATA_PRODUCT_DATASET_ID", ""):
+            with patch("app.config.settings.BRIGHTDATA_SCRAPER_ID", ""):
+                provider = BrightDataProvider()
+                res = await provider.run_scraper("", "https://amazon.com/dp/B0123", PRODUCT_SCHEMA)
+                assert res["status"] == "provider_error"
+                assert "No Bright Data dataset configured for products workflow" in res["error"]
+
+@pytest.mark.asyncio
 async def test_brightdata_unsupported_jobs_without_dataset():
     with patch("app.config.settings.BRIGHTDATA_API_KEY", "test_key_123"):
         with patch("app.config.settings.BRIGHTDATA_JOB_DATASET_ID", ""):
-            provider = BrightDataProvider()
-            res = await provider.run_scraper("", "https://linkedin.com/jobs/123", JOB_SCHEMA)
-            assert res["status"] == "provider_error"
-            assert "No Bright Data dataset configured for jobs workflow" in res["error"]
+            with patch("app.config.settings.BRIGHTDATA_SCRAPER_ID", ""):
+                provider = BrightDataProvider()
+                res = await provider.run_scraper("", "https://linkedin.com/jobs/123", JOB_SCHEMA)
+                assert res["status"] == "provider_error"
+                assert "No Bright Data dataset configured for jobs workflow" in res["error"]
 
 @pytest.mark.asyncio
 async def test_brightdata_datasets_v3_successful_flow():
@@ -62,7 +75,7 @@ async def test_brightdata_datasets_v3_successful_flow():
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             provider = BrightDataProvider()
-            res = await provider.run_scraper("gd_l7q7dkf244hwjntr0", "https://www.amazon.com/dp/B0CRMZHDG8", PRODUCT_SCHEMA)
+            res = await provider.run_scraper("gd_test_dataset", "https://www.amazon.com/dp/B0CRMZHDG8", PRODUCT_SCHEMA)
             
             assert res["status"] == "success"
             assert res["provider_run_id"] == "sd_test_123"
@@ -99,7 +112,7 @@ async def test_brightdata_datasets_v3_failed_snapshot():
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             provider = BrightDataProvider()
-            res = await provider.run_scraper("gd_l7q7dkf244hwjntr0", "https://example.com/blocked", PRODUCT_SCHEMA)
+            res = await provider.run_scraper("gd_test_dataset", "https://example.com/blocked", PRODUCT_SCHEMA)
             
             assert res["status"] == "provider_error"
             assert "failed" in res["error"]
@@ -111,3 +124,27 @@ def test_cors_origins_configuration():
         assert "http://127.0.0.1:8000" in origins
         assert "http://localhost:5173" in origins
         assert "*" not in origins
+
+def test_api_responses_never_leak_credentials():
+    secret_key = "secret_brightdata_key_999"
+    secret_groq = "secret_groq_key_888"
+    
+    with patch("app.config.settings.BRIGHTDATA_API_KEY", secret_key):
+        with patch("app.config.settings.GROQ_API_KEY", secret_groq):
+            client = TestClient(app)
+            
+            endpoints_to_test = [
+                "/api/health",
+                "/api/config/mode",
+                "/api/schemas",
+                "/api/scrapers",
+                "/api/runs",
+                "/api/metrics"
+            ]
+            
+            for endpoint in endpoints_to_test:
+                res = client.get(endpoint)
+                assert res.status_code == 200
+                text = res.text
+                assert secret_key not in text, f"Credential leaked in {endpoint}"
+                assert secret_groq not in text, f"Credential leaked in {endpoint}"

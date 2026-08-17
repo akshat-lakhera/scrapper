@@ -190,8 +190,9 @@ class ScrapeService:
         }
 
         provider = get_scraper_provider()
+        active_scraper_id = str(run.scraper_id or settings.BRIGHTDATA_PRODUCT_DATASET_ID or settings.BRIGHTDATA_SCRAPER_ID or "")
         heal_res = await provider.heal_scraper(
-            scraper_id="c_scraper_1",
+            scraper_id=active_scraper_id,
             target=run.target_url,
             schema=schema,
             failure_context=failure_context
@@ -200,7 +201,7 @@ class ScrapeService:
         start_t = time.time()
         attempt = RepairAttemptDB(
             scrape_run_id=run.id,
-            external_repair_id=heal_res.get("repair_id", "rep_1"),
+            external_repair_id=heal_res.get("repair_id", f"rep_{run.id}"),
             strategy_name="brightdata_refactor_template",
             strategy_order=1,
             instruction=repair_instruction,
@@ -233,14 +234,15 @@ class ScrapeService:
         schema = get_schema_by_name(schema_name) or PRODUCT_SCHEMA
 
         provider = get_scraper_provider()
-        await provider.approve_repair(scraper_id="c_scraper_1", repair_id=attempt.external_repair_id or "rep_1")
+        active_scraper_id = str(run.scraper_id or settings.BRIGHTDATA_PRODUCT_DATASET_ID or settings.BRIGHTDATA_SCRAPER_ID or "")
+        await provider.approve_repair(scraper_id=active_scraper_id, repair_id=attempt.external_repair_id or f"rep_{attempt.id}")
 
         attempt.approval_status = "approved"
         db.commit()
 
         start_t = time.time()
         rerun_res = await provider.run_scraper(
-            scraper_id="c_scraper_1",
+            scraper_id=active_scraper_id,
             target=f"{run.target_url}?repaired=true",
             schema=schema
         )
@@ -306,7 +308,7 @@ class ScrapeService:
 
         default_scraper = ScraperDB(
             provider=settings.SCRAPER_PROVIDER,
-            external_scraper_id=settings.BRIGHTDATA_SCRAPER_ID or "c_default_product_scraper",
+            external_scraper_id=settings.BRIGHTDATA_PRODUCT_DATASET_ID or settings.BRIGHTDATA_SCRAPER_ID or None,
             name="E-Commerce Product Intelligence",
             workflow_type="products",
             target_domain="e-commerce",
