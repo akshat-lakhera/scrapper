@@ -1,0 +1,19 @@
+[
+  {
+    "input_url": "https://demo.local/products/wireless-headphones",
+    "title": "Wireless Headphones",
+    "price": 4999,
+    "currency": "INR",
+    "availability": "In stock",
+    "rating": 4.4,
+    "review_count": 1280,
+    "seller": "Example Store",
+    "product_url": "https://demo.local/products/wireless-headphones",
+    "image_url": "https://example.com/images/headphones.jpg",
+    "specifications": {
+      "Battery Life": "40 hours",
+      "Connectivity": "Bluetooth 5.3"
+    },
+    "scraped_at": "2026-08-16T22:00:00Z"
+  }
+]
