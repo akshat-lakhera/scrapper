@@ -19,6 +19,10 @@ class Settings:
     BRIGHTDATA_WORKSPACE_ID: str = os.getenv("BRIGHTDATA_WORKSPACE_ID", "")
     BRIGHTDATA_BASE_URL: str = os.getenv("BRIGHTDATA_BASE_URL", "https://api.brightdata.com")
     
+    # Groq Extraction & Normalization
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     BACKEND_DIR: Path = Path(__file__).resolve().parent.parent
     DATA_DIR: Path = BACKEND_DIR / "data"
@@ -28,6 +32,9 @@ class Settings:
     
     def is_brightdata_enabled(self) -> bool:
         return self.SCRAPER_PROVIDER == "brightdata" and bool(self.BRIGHTDATA_API_KEY)
+
+    def is_groq_enabled(self) -> bool:
+        return bool(self.GROQ_API_KEY)
 
 settings = Settings()
 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)

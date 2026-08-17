@@ -80,11 +80,21 @@ class ScrapeService:
         if not isinstance(raw_data, dict):
             raw_data = {}
 
-        # Generic schema normalization & validation
-        normalized = Normalizer.normalize_record(raw_data, schema)
+        # Groq API Layer: Extracts and normalizes structured schema fields from Bright Data content
+        from app.extraction.groq_extractor import GroqExtractor
+        extracted_fields = raw_data
+        if GroqExtractor.is_enabled():
+            groq_content = raw_res.get("raw_html") or json.dumps(raw_data)
+            groq_result = await GroqExtractor.extract_fields(groq_content, schema, target_url)
+            if groq_result and isinstance(groq_result, dict):
+                extracted_fields = groq_result
+
+        # Pydantic & typed normalization
+        normalized = Normalizer.normalize_record(extracted_fields, schema)
         normalized["source_url"] = target_url
         normalized["scraped_at"] = datetime.utcnow().isoformat()
 
+        # Strict validation gate
         is_valid, missing, errors = Validator.validate_record(normalized, schema)
         quality_score = Validator.calculate_quality_score(normalized, schema, is_valid)
 
@@ -236,7 +246,15 @@ class ScrapeService:
         )
         raw_data = rerun_res.get("raw_result", {})
 
-        normalized = Normalizer.normalize_record(raw_data, schema)
+        from app.extraction.groq_extractor import GroqExtractor
+        extracted_fields = raw_data
+        if GroqExtractor.is_enabled():
+            groq_content = rerun_res.get("raw_html") or json.dumps(raw_data)
+            groq_result = await GroqExtractor.extract_fields(groq_content, schema, run.target_url)
+            if groq_result and isinstance(groq_result, dict):
+                extracted_fields = groq_result
+
+        normalized = Normalizer.normalize_record(extracted_fields, schema)
         normalized["source_url"] = run.target_url
         normalized["scraped_at"] = datetime.utcnow().isoformat()
 
