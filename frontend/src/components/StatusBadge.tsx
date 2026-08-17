@@ -23,6 +23,8 @@ export type ScraperStatus =
   | 'running'
   | 'collecting'
   | 'loading'
+  | 'auto_healing'
+  | 'healing_failed'
   | 'unsupported_workflow'
   | 'idle'
   | 'ready'
@@ -153,6 +155,23 @@ const statusMap: Record<string, StatusConfig> = {
     border: 'rgba(255, 255, 255, 0.08)',
     icon: Zap,
     ariaDescription: 'Scraper in idle state.',
+  },
+  auto_healing: {
+    label: 'SELF-HEALING',
+    color: '#38bdf8',
+    bg: 'rgba(56, 189, 248, 0.14)',
+    border: 'rgba(56, 189, 248, 0.32)',
+    icon: Loader2,
+    ariaDescription: 'Autonomous self-healing in progress — synthesizing new selectors.',
+    isPulsing: true,
+  },
+  healing_failed: {
+    label: 'HEAL FAILED',
+    color: '#f97316',
+    bg: 'rgba(249, 115, 22, 0.14)',
+    border: 'rgba(249, 115, 22, 0.32)',
+    icon: ShieldAlert,
+    ariaDescription: 'Auto-healing could not recover all required fields — confidence below threshold.',
   },
 };
 

@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 
-interface Particle {
+interface MicroGrain {
   x: number;
   y: number;
   vx: number;
   vy: number;
-  size: number;
+  radius: number;
   baseAlpha: number;
+  twinkleSpeed: number;
+  phase: number;
   color: string;
 }
 
@@ -14,12 +16,10 @@ export const ParticlesCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    // Respect reduced-motion preference
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
 
-    // Skip on mobile devices to save battery and performance
-    if (window.innerWidth < 768) return;
+    if (window.innerWidth < 640) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -54,72 +54,79 @@ export const ParticlesCanvas: React.FC = () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const mouse = { x: -1000, y: -1000, radius: 100 };
+    // Mouse tracking for subtle ambient spotlight
+    const mouse = { x: width * 0.5, y: height * 0.3, targetX: width * 0.5, targetY: height * 0.3 };
     const handleMouseMove = (e: MouseEvent) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
+      mouse.targetX = e.clientX;
+      mouse.targetY = e.clientY;
     };
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
-    // Low particle count for high efficiency (max 28 particles)
-    const particleCount = Math.min(Math.floor((width * height) / 45000), 28);
-    const colors = ['rgba(168, 85, 247, ', 'rgba(192, 132, 252, ', 'rgba(245, 158, 11, '];
-    const particles: Particle[] = [];
+    // Micro data grains (delicate, non-intrusive ambient stars)
+    const grainCount = Math.min(Math.floor((width * height) / 30000), 40);
+    const grains: MicroGrain[] = [];
+    const colors = ['rgba(6, 182, 212, ', 'rgba(16, 185, 129, ', 'rgba(56, 189, 248, '];
 
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
+    for (let i = 0; i < grainCount; i++) {
+      grains.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 1.5 + 0.6,
-        baseAlpha: Math.random() * 0.3 + 0.1,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.15,
+        radius: Math.random() * 1.2 + 0.5,
+        baseAlpha: Math.random() * 0.25 + 0.08,
+        twinkleSpeed: Math.random() * 0.02 + 0.008,
+        phase: Math.random() * Math.PI * 2,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
+
+    let auroraPhase = 0;
 
     const render = () => {
       if (!isVisible) return;
       ctx.clearRect(0, 0, width, height);
 
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
+      // Smooth mouse lerp
+      mouse.x += (mouse.targetX - mouse.x) * 0.04;
+      mouse.y += (mouse.targetY - mouse.y) * 0.04;
 
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
+      auroraPhase += 0.005;
 
-        // Subtle repulsion
-        const dx = p.x - mouse.x;
-        const dy = p.y - mouse.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < mouse.radius && dist > 0) {
-          const force = (1 - dist / mouse.radius) * 1.2;
-          p.x += (dx / dist) * force;
-          p.y += (dy / dist) * force;
-        }
+      // 1. Soft Ambient Aurora Beacon behind mouse
+      const gradient = ctx.createRadialGradient(
+        mouse.x,
+        mouse.y,
+        0,
+        mouse.x,
+        mouse.y,
+        Math.max(width * 0.4, 350)
+      );
+      gradient.addColorStop(0, 'rgba(6, 182, 212, 0.06)');
+      gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.025)');
+      gradient.addColorStop(1, 'rgba(3, 7, 18, 0)');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Render delicate micro data grains
+      for (let i = 0; i < grains.length; i++) {
+        const g = grains[i];
+        g.x += g.vx;
+        g.y += g.vy;
+        g.phase += g.twinkleSpeed;
+
+        if (g.x < 0) g.x = width;
+        if (g.x > width) g.x = 0;
+        if (g.y < 0) g.y = height;
+        if (g.y > height) g.y = 0;
+
+        const alpha = g.baseAlpha + Math.sin(g.phase) * (g.baseAlpha * 0.5);
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `${p.color}${p.baseAlpha})`;
+        ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `${g.color}${Math.max(alpha, 0.03)})`;
         ctx.fill();
-
-        // Connect nearby particles with very subtle lines
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          const dist2 = Math.hypot(p.x - p2.x, p.y - p2.y);
-          if (dist2 < 90) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(168, 85, 247, ${0.06 * (1 - dist2 / 90)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
       }
 
       animationId = requestAnimationFrame(render);
@@ -139,8 +146,7 @@ export const ParticlesCanvas: React.FC = () => {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="fixed inset-0 pointer-events-none z-0 opacity-50 hidden md:block"
-      style={{ willChange: 'transform' }}
+      className="fixed inset-0 pointer-events-none z-0"
     />
   );
 };

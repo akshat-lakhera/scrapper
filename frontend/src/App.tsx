@@ -13,6 +13,10 @@ import { ToastProvider } from './components/ToastContext';
 import type { ConfigModeResponse } from './types';
 import { fetchConfigMode } from './api';
 
+import { WorkflowsStudio } from './components/WorkflowsStudio';
+import { RuleBundlesExplorer } from './components/RuleBundlesExplorer';
+import { CursorEffects } from './components/CursorEffects';
+
 export function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [configMode, setConfigMode] = useState<ConfigModeResponse | null>(null);
@@ -33,13 +37,18 @@ export function App() {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen flex flex-col relative bg-[#070709] text-[#f4f4f6]">
+      <div className="min-h-screen flex flex-col relative bg-[#030712] text-[#f8fafc]">
         {/* Dynamic Interactive Background Mesh & Optimized Particles */}
         <div className="mesh-bg" aria-hidden="true" />
         <ParticlesCanvas />
+        <CursorEffects mode="data_particles" />
 
         {/* Translucent Floating Navigation */}
-        <Header activeTab={activeTab} setActiveTab={switchTab} configMode={configMode} />
+        <Header 
+          activeTab={activeTab} 
+          setActiveTab={switchTab} 
+          configMode={configMode} 
+        />
 
         {/* Main View Shell with Fluid Crossfade */}
         <main
@@ -49,16 +58,18 @@ export function App() {
           style={{
             opacity: transitioning ? 0 : 1,
             transform: transitioning ? 'translateY(6px) scale(0.995)' : 'translateY(0) scale(1)',
-            transition: 'opacity 160ms cubic-bezier(0.23, 1, 0.32, 1), transform 160ms cubic-bezier(0.23, 1, 0.32, 1)',
+            transition: 'opacity 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1)',
             willChange: 'transform, opacity',
           }}
         >
           {activeTab === 'overview' && <Overview configMode={configMode} setActiveTab={switchTab} />}
+          {activeTab === 'studio' && <WorkflowsStudio setActiveTab={switchTab} />}
           {activeTab === 'products' && <ProductDiscovery setActiveTab={switchTab} />}
           {activeTab === 'jobs' && <JobDiscovery setActiveTab={switchTab} />}
+          {activeTab === 'repair' && <RepairCenter />}
+          {activeTab === 'rules' && <RuleBundlesExplorer />}
           {activeTab === 'scrapers' && <ScrapersList setActiveTab={switchTab} />}
           {activeTab === 'search' && <SearchHistory setActiveTab={switchTab} />}
-          {activeTab === 'repair' && <RepairCenter />}
           {activeTab === 'runs' && <RunHistory />}
           {activeTab === 'settings' && <Settings configMode={configMode} />}
         </main>

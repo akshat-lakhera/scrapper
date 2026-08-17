@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Globe, Search, Play, AlertTriangle, Wrench, ExternalLink, Sparkles, Check, Copy, CheckCheck } from 'lucide-react';
 import { executeScrape, executeSearch, selectSearchResult } from '../api';
-import { useScrambleText, stagger } from '../hooks';
+import { stagger } from '../hooks';
 import { StatusBadge } from './StatusBadge';
 import { ScrapeProgressTimeline } from './ScrapeProgressTimeline';
 import { FieldCompletenessBar } from './DataVisualizations';
@@ -27,7 +27,6 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchExecuted, setSearchExecuted] = useState(false);
   const [copied, setCopied] = useState(false);
-  const title = useScrambleText('Product Discovery & Intelligence', true);
   const { showToast, showCopyToast } = useToast();
 
   const popularDomains = ['amazon.in', 'flipkart.com', 'myntra.com', 'ebay.com', 'walmart.com'];
@@ -158,8 +157,8 @@ export const ProductDiscovery: React.FC<ProductDiscoveryProps> = ({ setActiveTab
             Collector Studio
           </span>
         </div>
-        <h1 id="product-discovery-title" className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-          <span className="text-gradient">{title}</span>
+        <h1 id="product-discovery-title" className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+          Product Discovery & Intelligence
         </h1>
         <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           Extract normalized product pricing, specifications, and availability from Amazon, Flipkart, or any custom website.

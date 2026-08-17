@@ -89,6 +89,36 @@ export interface SearchRun {
   created_at: string;
 }
 
+export interface RuleBundle {
+  id: number;
+  domain: string;
+  template_signature: string;
+  workflow_type: string;
+  version: number;
+  description: string;
+  field_rules: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CandidateRulePatch {
+  id: number;
+  scrape_run_id: number;
+  domain: string;
+  template_signature: string;
+  from_version: number;
+  to_version: number;
+  broken_fields: string[];
+  root_cause_analysis: Record<string, any>;
+  selector_diff: Record<string, any>;
+  regression_results: any[];
+  confidence_score: number;
+  field_recovery_rate: number;
+  non_regression_rate: number;
+  status: string;
+  created_at: string;
+}
+
 export interface Metrics {
   total_scrapers: number;
   total_runs: number;
@@ -98,4 +128,8 @@ export interface Metrics {
   manual_review_runs: number;
   avg_repair_duration_ms: number;
   scraper_health: string;
+  same_template_repair_success_rate?: number;
+  avg_confidence_promoted_only?: number;
+  template_count?: number;
+  rule_bundle_count_by_domain?: Record<string, number>;
 }

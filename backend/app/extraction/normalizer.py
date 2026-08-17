@@ -94,30 +94,46 @@ class Normalizer:
             "location": ["joblocation", "city", "place", "worklocation", "addresslocality", "region"],
             "salary": ["compensation", "payrate", "basesalary", "stipend", "remuneration", "wage", "salarypill"],
             "availability": ["stockstatus", "instock", "stock", "inventory", "itemavailability"],
-            "rating": ["reviewscore", "ratingvalue", "stars", "aggregaterating", "score", "reviewsrating"],
+            "rating": ["ratingscore", "reviewscore", "ratingvalue", "stars", "aggregaterating", "score", "reviewsrating"],
             "review_count": ["reviews", "numreviews", "totalreviews", "ratingscount", "reviewcount", "reviewscount"],
             "seller": ["merchant", "vendor", "soldby", "brand", "shopname"],
-            "description": ["details", "summary", "jobdescription", "productdescription", "about", "posttext", "biography"],
+            "description": ["tweettext", "text", "fulltext", "content", "postcontent", "body", "tweet", "details", "summary", "jobdescription", "productdescription", "about", "posttext", "biography"],
+            "body_text": ["text", "tweettext", "content", "body", "posttext", "description", "details"],
             "post_id": ["tweetid", "statusid", "entryid", "itemid"],
-            "author_username": ["handle", "screenname", "userhandle", "profilehandle", "userposted", "username"],
-            "author_name": ["fullname", "displayname", "creatorname", "pagename", "name"],
-            "likes": ["favorites", "hearts", "likecount", "numlikes", "likescount", "likes"],
-            "likes_count": ["favorites", "hearts", "likecount", "numlikes", "likes"],
-            "reposts": ["shares", "reposts", "retweetcount", "numshares", "retweets", "sharescount"],
-            "retweets_count": ["shares", "reposts", "retweetcount", "numshares", "retweets", "sharescount"],
-            "replies": ["comments", "commentscount", "numcomments", "replies"],
-            "replies_count": ["comments", "commentscount", "numcomments", "replies"],
-            "followers_count": ["followers", "subscribercount", "connections"],
+            "user_posted": ["author", "username", "handle", "screenname", "userhandle", "profilehandle", "authorname", "creator", "name", "userposted"],
+            "author_username": ["handle", "screenname", "userhandle", "profilehandle", "userposted", "username", "author"],
+            "author_name": ["fullname", "displayname", "creatorname", "pagename", "name", "author"],
+            "author": ["userposted", "username", "handle", "creator", "authorname", "name"],
+            "likes": ["favorites", "hearts", "likecount", "numlikes", "likescount", "likes", "favoritecount"],
+            "likes_count": ["favorites", "hearts", "likecount", "numlikes", "likes", "favoritecount"],
+            "reposts": ["shares", "reposts", "retweetcount", "numshares", "retweets", "sharescount", "repostcount"],
+            "retweets_count": ["shares", "reposts", "retweetcount", "numshares", "retweets", "sharescount", "repostcount"],
+            "replies": ["comments", "commentscount", "numcomments", "replies", "replycount"],
+            "replies_count": ["comments", "commentscount", "numcomments", "replies", "replycount"],
+            "views": ["impressions", "viewcount", "impressioncount", "views", "numviews"],
+            "date_posted": ["createdat", "timestamp", "date", "postedat", "time", "dateposted", "publishedat"],
+            "posted_date": ["createdat", "timestamp", "date", "postedat", "time", "dateposted", "publishedat"],
+            "posted_at": ["createdat", "timestamp", "date", "postedat", "time", "dateposted", "publishedat"],
+            "followers_count": ["followers", "subscribercount", "connections", "followerscount"],
+            "following_count": ["following", "followingcount"],
+            "posts_count": ["posts", "postscount", "mediacount", "totalposts"],
             "place_name": ["business", "storename", "placename", "venue"]
         }
 
+        # 3. Exact semantic token match
         for target_field, synonyms in semantic_map.items():
             if target_field in field_names:
-                if any(syn == clean_key or syn in clean_key for syn in synonyms):
+                if any(syn == clean_key for syn in synonyms):
                     return target_field
 
-        # 4. Fuzzy similarity fallback (>= 0.70 ratio)
-        matches = difflib.get_close_matches(raw_key.lower(), field_names, n=1, cutoff=0.70)
+        # 4. Partial semantic token match (require minimum length to avoid greedy substring collisions)
+        for target_field, synonyms in semantic_map.items():
+            if target_field in field_names:
+                if any(len(syn) >= 6 and syn in clean_key for syn in synonyms):
+                    return target_field
+
+        # 5. Fuzzy similarity fallback (>= 0.75 ratio)
+        matches = difflib.get_close_matches(raw_key.lower(), field_names, n=1, cutoff=0.75)
         if matches:
             return matches[0]
 

@@ -5,6 +5,8 @@ import type {
   ScrapeRun,
   ScrapeRunDetails,
   Metrics,
+  RuleBundle,
+  CandidateRulePatch,
 } from './types';
 
 const API_BASE = '/api';
@@ -101,14 +103,6 @@ export async function approveRepair(runId: number, repairAttemptId: number) {
   });
 }
 
-export async function fetchRuleBundles() {
-  return request<any[]>(`${API_BASE}/rules`);
-}
-
-export async function fetchRulePatches() {
-  return request<any[]>(`${API_BASE}/rules/patches`);
-}
-
 export async function executeSearch(data: {
   query: string;
   workflow_type?: string;
@@ -143,6 +137,14 @@ export async function fetchRunDetails(id: number): Promise<ScrapeRunDetails> {
 
 export async function fetchMetrics(): Promise<Metrics> {
   return request<Metrics>(`${API_BASE}/metrics`);
+}
+
+export async function fetchRuleBundles() {
+  return request<RuleBundle[]>(`${API_BASE}/rules/bundles`);
+}
+
+export async function fetchCandidatePatches() {
+  return request<CandidateRulePatch[]>(`${API_BASE}/rules/patches`);
 }
 
 export async function resetDemo() {

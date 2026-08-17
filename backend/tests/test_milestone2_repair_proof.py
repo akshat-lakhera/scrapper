@@ -21,36 +21,20 @@ async def test_milestone2_repair_proof_v1_v2_broken():
         assert run_v1.repair_triggered is False
         assert run_v1.data_quality_score >= 70
 
-        # 3. Run product_v2.html (Layout change -> Primary degraded)
+        # 3. Run product_v2.html (Layout change -> Autonomous Self-Healing immediately repairs it)
         run_v2 = await ScrapeService.execute_scrape(
             db, target_url="https://demo.local/product_v2.html", workflow_type="products", schema_name="products"
         )
-        assert run_v2.status == "degraded"
-        assert run_v2.repair_triggered is True
+        assert run_v2.status in ("success", "repaired")
+        assert run_v2.data_quality_score >= 70
+        assert "Wireless Headphones" in run_v2.normalized_result
 
-        # 4. Trigger Repair (Self-healing request)
-        attempt_v2 = await ScrapeService.heal_scrape_run(db, run_id=run_v2.id)
-        assert attempt_v2.scrape_run_id == run_v2.id
-        assert run_v2.status == "repair_requested"
-        assert attempt_v2.instruction is not None
-
-        # 5. Approve Repair & Rerun
-        repair_res = await ScrapeService.approve_repair_attempt(db, run_id=run_v2.id, attempt_id=attempt_v2.id)
-        repaired_run = repair_res["scrape_run"]
-        assert repaired_run.status == "repaired"
-        assert repaired_run.data_quality_score >= 70
-
-        # 6. Run product_broken.html (Corrupt fixture -> Manual review fallback)
+        # 4. Run product_broken.html (Corrupt fixture -> Autonomous Healing accurately reports healing_failed without hallucination)
         run_broken = await ScrapeService.execute_scrape(
             db, target_url="https://demo.local/product_broken.html", workflow_type="products", schema_name="products"
         )
-        assert run_broken.status == "degraded"
-        
-        attempt_broken = await ScrapeService.heal_scrape_run(db, run_id=run_broken.id)
-        repair_res_broken = await ScrapeService.approve_repair_attempt(db, run_id=run_broken.id, attempt_id=attempt_broken.id)
-        
-        assert repair_res_broken["scrape_run"].status == "manual_review"
-        assert repair_res_broken["repair_attempt"].result == "failed"
+        assert run_broken.status == "healing_failed"
+        assert run_broken.data_quality_score == 0
 
     finally:
         db.close()

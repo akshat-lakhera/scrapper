@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, RotateCcw, Sparkles, ShoppingBag, Briefcase, Cpu, Wrench, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
 import type { Metrics, ConfigModeResponse, ScrapeRun } from '../types';
 import { fetchMetrics, fetchRuns, resetDemo, clearRuns } from '../api';
-import { useScrambleText, useCounter, stagger } from '../hooks';
+import { useCounter, stagger } from '../hooks';
 import { SpotlightCard } from './SpotlightCard';
 import { StatusBadge } from './StatusBadge';
 import { ScraperHealthRing, StatusDistributionBar } from './DataVisualizations';
 import { MetricCardSkeleton, ChartSkeleton } from './SkeletonLoader';
 import { useToast } from './ToastContext';
+import { TypewriterText } from './TextEffects';
 
 interface OverviewProps {
   configMode: ConfigModeResponse | null;
@@ -18,10 +19,8 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentRuns, setRecentRuns] = useState<ScrapeRun[]>([]);
   const [resetting, setResetting] = useState(false);
-  const [ready, setReady] = useState(false);
   const [metricsError, setMetricsError] = useState(false);
   const [metricsLoading, setMetricsLoading] = useState(true);
-  const title = useScrambleText('Web Intelligence & Scraping OS', ready);
   const isLive = configMode?.provider === 'brightdata';
   const { showToast } = useToast();
 
@@ -48,8 +47,6 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
   useEffect(() => {
     loadData();
-    const timer = setTimeout(() => setReady(true), 200);
-    return () => clearTimeout(timer);
   }, []);
 
   const handleReset = async () => {
@@ -79,34 +76,46 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
       {/* Hero Section */}
       <section className="stagger-in pt-2" style={stagger(0)} aria-labelledby="hero-title">
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
-          <span className="text-[11px] mono uppercase tracking-[0.25em] font-semibold" style={{ color: 'var(--accent)' }}>
+          <Sparkles size={14} className="text-cyan-400" aria-hidden="true" />
+          <span className="text-[11px] mono uppercase tracking-[0.25em] font-semibold text-cyan-400">
             Schema-Driven Autonomous Scraping
           </span>
         </div>
-        <h1 id="hero-title" className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1]" style={{ color: 'var(--text-primary)' }}>
-          <span className="text-gradient">{title}</span>
+        <h1 id="hero-title" className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] text-white">
+          <TypewriterText text="Web Intelligence & Scraping OS" speed={28} className="text-white font-extrabold" />
         </h1>
-        <p className="text-xs sm:text-sm mt-3 max-w-xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-xs sm:text-sm mt-3 max-w-xl leading-relaxed text-slate-400">
           Automated web extraction, real DOM parsing, self-healing scraper maintenance, and verified schema compliance — powered by Bright Data.
         </p>
 
         {/* Quick Launch Buttons */}
         <div className="flex flex-wrap items-center gap-3 mt-7">
           <button
-            onClick={() => setActiveTab('products')}
-            className="btn-spring flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider focus-ring"
+            onClick={() => setActiveTab('studio')}
+            className="btn-spring scale-spring flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider focus-ring text-white shadow-lg shadow-purple-500/25"
             style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
-              color: '#fff',
+              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
               border: 'none',
-              boxShadow: '0 4px 20px rgba(168,85,247,0.3)',
               cursor: 'pointer',
             }}
           >
-            <ShoppingBag size={14} aria-hidden="true" />
-            <span>Product Intelligence</span>
+            <Sparkles size={14} className="animate-pulse" aria-hidden="true" />
+            <span>Universal Intelligence Studio (7 Datasets)</span>
             <ArrowRight size={14} aria-hidden="true" />
+          </button>
+
+          <button
+            onClick={() => setActiveTab('products')}
+            className="btn-spring flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-semibold focus-ring"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-default)',
+              cursor: 'pointer',
+            }}
+          >
+            <ShoppingBag size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
+            <span>Product Intelligence</span>
           </button>
 
           <button

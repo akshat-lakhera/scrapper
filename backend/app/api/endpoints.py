@@ -12,6 +12,7 @@ from app.models.scrape_run import ScrapeRunDB, ScrapeRunResponse
 from app.models.repair_attempt import RepairAttemptDB, RepairAttemptResponse
 from app.models.field_change import FieldChangeDB, FieldChangeResponse
 from app.models.search_run import SearchRunDB, SearchRunResponse
+from app.models.extractor_rule_db import ExtractorRuleBundleDB, CandidateRulePatchDB
 from app.services.scrape_service import ScrapeService
 from app.services.search_service import SearchService
 from app.services.metrics_service import MetricsService
@@ -180,6 +181,32 @@ async def direct_scrape(req: RunScraperRequest, db: Session = Depends(get_db)):
         workflow_type=req.workflow_type or "products",
         schema_name=req.schema_name or "products"
     )
+
+    # Attach heal_outcome from the auto-heal patch if one was created for this run
+    heal_outcome: Optional[Dict[str, Any]] = None
+    if run_db.status in ("repaired", "healing_failed"):
+        patch_rec = db.query(CandidateRulePatchDB).filter(
+            CandidateRulePatchDB.scrape_run_id == run_db.id
+        ).order_by(CandidateRulePatchDB.id.desc()).first()
+        if patch_rec:
+            selector_diff = json.loads(patch_rec.selector_diff) if patch_rec.selector_diff else {}
+            broken = json.loads(patch_rec.broken_fields) if patch_rec.broken_fields else []
+            current_norm = json.loads(run_db.normalized_result) if run_db.normalized_result else {}
+            heal_outcome = {
+                "outcome": run_db.status,                        # "repaired" | "healing_failed"
+                "confidence": round(patch_rec.confidence_score or 0, 2),
+                "from_bundle_version": patch_rec.from_version,
+                "to_bundle_version": patch_rec.to_version,
+                "fields_recovered": [f for f in broken if current_norm.get(f)],
+                "fields_still_missing": [f for f in broken if not current_norm.get(f)],
+                "new_selectors": {
+                    field: info.get("new_selector")
+                    for field, info in selector_diff.items()
+                    if info.get("new_selector")
+                },
+                "patch_status": patch_rec.status,
+            }
+
     return {
         "run_id": run_db.id,
         "status": run_db.status,
@@ -190,7 +217,8 @@ async def direct_scrape(req: RunScraperRequest, db: Session = Depends(get_db)):
         "raw_result": json.loads(run_db.raw_result) if run_db.raw_result else {},
         "validation_errors": json.loads(run_db.validation_errors) if run_db.validation_errors else [],
         "repair_triggered": run_db.repair_triggered,
-        "quality_score": run_db.data_quality_score
+        "quality_score": run_db.data_quality_score,
+        "heal_outcome": heal_outcome,
     }
 
 class ApproveRepairRequest(BaseModel):
@@ -448,6 +476,46 @@ def get_run_repair_attempts(id: int, db: Session = Depends(get_db)):
             "result": a.result,
             "duration_ms": a.duration_ms
         } for a in attempts
+    ]
+
+@router.get("/rules/bundles")
+def list_rule_bundles(db: Session = Depends(get_db)):
+    bundles = db.query(ExtractorRuleBundleDB).order_by(ExtractorRuleBundleDB.id.desc()).all()
+    return [
+        {
+            "id": b.id,
+            "domain": b.domain,
+            "template_signature": b.template_signature,
+            "workflow_type": b.workflow_type,
+            "version": b.version,
+            "description": b.description,
+            "field_rules": json.loads(b.field_rules) if b.field_rules else {},
+            "is_active": b.is_active,
+            "created_at": b.created_at
+        } for b in bundles
+    ]
+
+@router.get("/rules/patches")
+def list_candidate_patches(db: Session = Depends(get_db)):
+    patches = db.query(CandidateRulePatchDB).order_by(CandidateRulePatchDB.id.desc()).all()
+    return [
+        {
+            "id": p.id,
+            "scrape_run_id": p.scrape_run_id,
+            "domain": p.domain,
+            "template_signature": p.template_signature,
+            "from_version": p.from_version,
+            "to_version": p.to_version,
+            "broken_fields": json.loads(p.broken_fields) if p.broken_fields else [],
+            "root_cause_analysis": json.loads(p.root_cause_analysis) if p.root_cause_analysis else {},
+            "selector_diff": json.loads(p.selector_diff) if p.selector_diff else {},
+            "regression_results": json.loads(p.regression_results) if p.regression_results else [],
+            "confidence_score": p.confidence_score,
+            "field_recovery_rate": p.field_recovery_rate,
+            "non_regression_rate": p.non_regression_rate,
+            "status": p.status,
+            "created_at": p.created_at
+        } for p in patches
     ]
 
 @router.post("/demo/reset", dependencies=[Depends(verify_reset_permission)])

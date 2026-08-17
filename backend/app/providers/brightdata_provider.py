@@ -33,19 +33,25 @@ class BrightDataProvider(ScraperProvider):
             "Accept": "application/json"
         }
 
-    def _resolve_dataset_id(self, scraper_id: str, schema_name: str) -> Optional[str]:
+    def _resolve_dataset_id(self, scraper_id: str, schema_name: str, target: str = "") -> Optional[str]:
         if scraper_id and scraper_id.startswith("gd_"):
             return scraper_id
         
+        target_lower = target.lower() if target else ""
         name = schema_name.lower().strip() if schema_name else ""
+
+        if name in ("linkedin", "linkedin_profile"):
+            # Only use profile dataset if the target URL is actually a user profile (/in/)
+            if target_lower and not ("/in/" in target_lower):
+                return None
+            return settings.BRIGHTDATA_LINKEDIN_DATASET_ID or None
+
         if name in ("products", "product"):
             return settings.BRIGHTDATA_PRODUCT_DATASET_ID or (self.default_scraper_id if self.default_scraper_id.startswith("gd_") else None)
         elif name in ("jobs", "job"):
             return settings.BRIGHTDATA_JOB_DATASET_ID or None
         elif name in ("x", "twitter"):
             return settings.BRIGHTDATA_X_DATASET_ID or None
-        elif name in ("linkedin", "linkedin_profile"):
-            return settings.BRIGHTDATA_LINKEDIN_DATASET_ID or None
         elif name in ("facebook", "facebook_post"):
             return settings.BRIGHTDATA_FACEBOOK_DATASET_ID or None
         elif name in ("instagram", "instagram_profile"):
@@ -216,16 +222,47 @@ class BrightDataProvider(ScraperProvider):
             return await local_provider.run_scraper(scraper_id, target, schema)
 
         headers = self._get_headers()
-        dataset_id = self._resolve_dataset_id(scraper_id, schema.name)
+        dataset_id = self._resolve_dataset_id(scraper_id, schema.name, target)
 
+        # If dataset_id is not configured, directly fetch live page HTML using browser emulation
         if not dataset_id:
-            if schema.name == "products":
+            logger.info(f"No specific dataset_id configured for {schema.name}. Performing live extraction for {target}...")
+            try:
+                fetch_headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+                    "Sec-Ch-Ua-Mobile": "?0",
+                    "Sec-Ch-Ua-Platform": '"Windows"',
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "none",
+                    "Sec-Fetch-User": "?1",
+                    "Upgrade-Insecure-Requests": "1"
+                }
+                async with httpx.AsyncClient(timeout=25.0) as client:
+                    html_res = await client.get(target, headers=fetch_headers, follow_redirects=True)
+                    if html_res.status_code == 200 and len(html_res.text) > 100:
+                        return {
+                            "status": "success",
+                            "provider_run_id": "live_web_unlocker",
+                            "dataset_id": f"web_{schema.name}",
+                            "raw_html": html_res.text,
+                            "raw_result": {}
+                        }
+                    else:
+                        logger.warning(f"Live HTML fetch returned status {html_res.status_code} for {target}")
+            except Exception as e:
+                logger.error(f"Direct live HTML fetch failed for {target}: {e}")
+
+            if schema.name in ("products", "product"):
                 return {
                     "status": "provider_error",
                     "error": "No Bright Data dataset configured for products workflow. Configure BRIGHTDATA_PRODUCT_DATASET_ID in .env.",
                     "raw_result": {}
                 }
-            elif schema.name == "jobs":
+            elif schema.name in ("jobs", "job"):
                 return {
                     "status": "provider_error",
                     "error": "No Bright Data dataset configured for jobs workflow. Configure BRIGHTDATA_JOB_DATASET_ID in .env.",
@@ -245,9 +282,37 @@ class BrightDataProvider(ScraperProvider):
                 "limit_per_input": 1
             }
 
+            browser_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Windows"',
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1"
+            }
+
             try:
                 response = await client.post(trigger_url, json=payload, headers=headers)
                 if response.status_code not in (200, 201, 202):
+                    logger.warning(f"Bright Data trigger error ({response.status_code}). Attempting live fallback for {target}...")
+                    try:
+                        html_res = await client.get(target, headers=browser_headers, follow_redirects=True, timeout=20.0)
+                        if html_res.status_code == 200 and len(html_res.text) > 100:
+                            return {
+                                "status": "success",
+                                "provider_run_id": "direct_live_html_fallback",
+                                "dataset_id": dataset_id,
+                                "raw_html": html_res.text,
+                                "raw_result": {}
+                            }
+                    except Exception as fe:
+                        logger.warning(f"Live fallback after trigger error failed: {fe}")
+                    
                     return {
                         "status": "provider_error",
                         "error": f"Bright Data trigger error ({response.status_code}): {response.text}",
@@ -267,28 +332,65 @@ class BrightDataProvider(ScraperProvider):
                 # Poll snapshot progress & download dataset
                 poll_result = await self._poll_snapshot(client, snapshot_id, headers)
                 
-                if poll_result.get("status") == "success":
+                if poll_result.get("status") == "success" and poll_result.get("data"):
                     items = poll_result.get("data", [])
                     raw_item = items[0] if items and isinstance(items, list) else (items if isinstance(items, dict) else {})
                     html_evidence = raw_item.get("raw_html") or raw_item.get("html") or raw_item.get("dom_snapshot")
-                    return {
-                        "status": "success" if raw_item else "empty_result",
-                        "provider_run_id": snapshot_id,
-                        "dataset_id": dataset_id,
-                        "raw_html": html_evidence,
-                        "raw_result": raw_item
-                    }
-                else:
-                    return {
-                        "status": poll_result.get("status", "provider_error"),
-                        "provider_run_id": snapshot_id,
-                        "dataset_id": dataset_id,
-                        "raw_html": None,
-                        "error": poll_result.get("error", "Snapshot collection failed"),
-                        "raw_result": {}
-                    }
+                    
+                    # Only accept snapshot if it returned substantive extracted fields
+                    non_empty_keys = [k for k, v in raw_item.items() if v not in (None, "", [], {})] if isinstance(raw_item, dict) else []
+                    if raw_item and len(non_empty_keys) >= 2:
+                        return {
+                            "status": "success",
+                            "provider_run_id": snapshot_id,
+                            "dataset_id": dataset_id,
+                            "raw_html": html_evidence,
+                            "raw_result": raw_item
+                        }
+
+                # Fallback: If dataset returned empty or failed, fetch live HTML
+                logger.info(f"Bright Data dataset returned empty/error for {target}. Attempting fallback live HTML fetch...")
+                try:
+                    html_res = await client.get(target, headers=browser_headers, follow_redirects=True, timeout=20.0)
+                    if html_res.status_code == 200 and len(html_res.text) > 100:
+                        return {
+                            "status": "success",
+                            "provider_run_id": snapshot_id or "direct_html_fallback",
+                            "dataset_id": dataset_id,
+                            "raw_html": html_res.text,
+                            "raw_result": {}
+                        }
+                except Exception as fetch_err:
+                    logger.warning(f"Fallback live fetch failed: {fetch_err}")
+
+                return {
+                    "status": poll_result.get("status", "provider_error"),
+                    "provider_run_id": snapshot_id,
+                    "dataset_id": dataset_id,
+                    "raw_html": None,
+                    "error": poll_result.get("error", "Snapshot collection failed"),
+                    "raw_result": {}
+                }
 
             except httpx.TimeoutException:
+                # Attempt live HTML fallback on timeout
+                try:
+                    fetch_headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    }
+                    html_res = await client.get(target, headers=fetch_headers, follow_redirects=True, timeout=15.0)
+                    if html_res.status_code == 200 and len(html_res.text) > 100:
+                        return {
+                            "status": "success",
+                            "provider_run_id": "direct_html_fallback",
+                            "dataset_id": dataset_id,
+                            "raw_html": html_res.text,
+                            "raw_result": {}
+                        }
+                except Exception:
+                    pass
+
                 return {
                     "status": "provider_error",
                     "error": "Bright Data connection timed out while triggering scrape.",

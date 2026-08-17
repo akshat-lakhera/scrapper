@@ -12,8 +12,8 @@ import {
   FileCode2 
 } from 'lucide-react';
 import type { ScrapeRun, RepairAttempt } from '../types';
-import { fetchRuns, healScrapeRun, approveRepair, fetchRulePatches } from '../api';
-import { useScrambleText, stagger } from '../hooks';
+import { fetchRuns, healScrapeRun, approveRepair, fetchCandidatePatches } from '../api';
+import { stagger } from '../hooks';
 import { StatusBadge } from './StatusBadge';
 import { useToast } from './ToastContext';
 
@@ -36,7 +36,6 @@ export const RepairCenter: React.FC = () => {
   const [repairedData, setRepairedData] = useState<any>(null);
   const [repairStatus, setRepairStatus] = useState<string>('');
   const [copied, setCopied] = useState(false);
-  const title = useScrambleText('Self-Healing Engine & Versioned Rule Workstation', true);
   const { showToast, showCopyToast } = useToast();
 
   const loadRuns = async () => {
@@ -61,7 +60,7 @@ export const RepairCenter: React.FC = () => {
 
       // Fetch latest patches
       try {
-        const patches = await fetchRulePatches();
+        const patches = await fetchCandidatePatches();
         if (patches && patches.length > 0 && targetRun) {
           const matchingPatch = patches.find((p: any) => p.scrape_run_id === targetRun.id) || patches[0];
           setActivePatch(matchingPatch);
@@ -85,7 +84,7 @@ export const RepairCenter: React.FC = () => {
     setRepairStatus(r.status);
 
     try {
-      const patches = await fetchRulePatches();
+      const patches = await fetchCandidatePatches();
       const matchingPatch = patches.find((p: any) => p.scrape_run_id === r.id);
       setActivePatch(matchingPatch || null);
     } catch {}
@@ -160,13 +159,13 @@ export const RepairCenter: React.FC = () => {
       <section className="stagger-in flex flex-col md:flex-row md:items-center justify-between gap-4" style={stagger(0)} aria-labelledby="repair-title">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Wrench size={14} style={{ color: 'var(--accent)' }} aria-hidden="true" />
-            <span className="text-[11px] mono uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--accent)' }}>
+            <Wrench size={14} className="text-cyan-400" aria-hidden="true" />
+            <span className="text-[11px] mono uppercase tracking-[0.2em] font-semibold text-cyan-400">
               Autonomous Self-Healing
             </span>
           </div>
-          <h1 id="repair-title" className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            <span className="text-gradient">{title}</span>
+          <h1 id="repair-title" className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Self-Healing Engine & Versioned Rule Workstation
           </h1>
           <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             Root-cause selector analysis, candidate rule synthesis, multi-page regression testing, and versioned rule promotion.

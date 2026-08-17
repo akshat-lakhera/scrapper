@@ -1,9 +1,11 @@
 import json
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pathlib import Path
+import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -159,30 +161,61 @@ class ScrapeService:
         schema_name: str = "products",
         scraper_id: Optional[int] = None
     ) -> ScrapeRunDB:
-        # Auto-detect workflow from target URL if default or unspecified
+        # 1. URL Canonicalization & Redirect Resolution (e.g. lnkd.in, amzn.to, search-results?currentJobId=...)
+        resolved_url = target_url.strip()
+        
+        # Follow shortened redirects (lnkd.in, amzn.to, t.co, bit.ly, tinyurl.com)
+        if any(short in resolved_url.lower() for short in ("lnkd.in", "amzn.to", "t.co", "bit.ly", "tinyurl.com")):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    head_res = await client.get(
+                        resolved_url, 
+                        follow_redirects=True, 
+                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"}
+                    )
+                    if head_res.url and str(head_res.url) != resolved_url:
+                        resolved_url = str(head_res.url)
+            except Exception as e:
+                logger.warning(f"Short URL redirect resolution skipped: {e}")
+
+        # Convert walled LinkedIn search-results into public guest job views
+        if "linkedin.com" in resolved_url.lower():
+            m_job_id = re.search(r'[?&]currentJobId=(\d+)', resolved_url)
+            if m_job_id:
+                job_id = m_job_id.group(1)
+                resolved_url = f"https://www.linkedin.com/jobs/view/{job_id}"
+
+        target_url = resolved_url
         target_lower = target_url.lower()
-        if workflow_type == "products" and schema_name == "products":
-            if "instagram.com" in target_lower:
-                workflow_type = "instagram"
-                schema_name = "instagram"
-            elif "x.com" in target_lower or "twitter.com" in target_lower:
-                workflow_type = "x"
-                schema_name = "x"
-            elif "linkedin.com" in target_lower:
-                workflow_type = "linkedin"
-                schema_name = "linkedin"
-            elif "facebook.com" in target_lower:
-                workflow_type = "facebook"
-                schema_name = "facebook"
-            elif "reddit.com" in target_lower or "redd.it" in target_lower:
-                workflow_type = "reddit"
-                schema_name = "reddit"
-            elif "maps.google" in target_lower or "google.com/maps" in target_lower:
-                workflow_type = "google_maps"
-                schema_name = "google_maps"
-            elif "/jobs/" in target_lower or "career" in target_lower:
-                workflow_type = "jobs"
-                schema_name = "jobs"
+
+        # 2. Precise Auto-Detection of Workflow and Schema
+        if "/jobs/" in target_lower or "currentjobid" in target_lower or "career" in target_lower:
+            workflow_type = "jobs"
+            schema_name = "jobs"
+        elif "lnkd.in/p/" in target_lower or "/posts/" in target_lower or "/feed/update/" in target_lower or "/pulse/" in target_lower:
+            workflow_type = "linkedin"
+            schema_name = "linkedin"
+        elif "linkedin.com" in target_lower or "lnkd.in" in target_lower:
+            workflow_type = "linkedin"
+            schema_name = "linkedin"
+        elif "instagram.com" in target_lower:
+            workflow_type = "instagram"
+            schema_name = "instagram"
+        elif "x.com" in target_lower or "twitter.com" in target_lower:
+            workflow_type = "x"
+            schema_name = "x"
+        elif "facebook.com" in target_lower:
+            workflow_type = "facebook"
+            schema_name = "facebook"
+        elif "reddit.com" in target_lower or "redd.it" in target_lower:
+            workflow_type = "reddit"
+            schema_name = "reddit"
+        elif "maps.google" in target_lower or "google.com/maps" in target_lower:
+            workflow_type = "google_maps"
+            schema_name = "google_maps"
+        else:
+            workflow_type = workflow_type or "products"
+            schema_name = schema_name or workflow_type or "products"
 
         schema = get_schema_by_name(schema_name or workflow_type) or PRODUCT_SCHEMA
         provider = get_scraper_provider()
@@ -287,8 +320,231 @@ class ScrapeService:
             except Exception as e:
                 logger.warning(f"Failed to record field changes: {e}")
 
+        # ── AUTONOMOUS SELF-HEALING ─────────────────────────────────────────────
+        # If extraction degraded and we have real HTML, immediately attempt a
+        # full heal cycle: synthesize new selectors → validate → promote → re-extract.
+        # No user click needed.  The run is updated in-place before returning.
+        if repair_triggered and raw_html:
+            try:
+                scrape_run, _ = await ScrapeService._auto_heal_inline(
+                    db=db,
+                    scrape_run=scrape_run,
+                    schema=schema,
+                    raw_html=raw_html,
+                    active_bundle=active_bundle,
+                    target_url=target_url
+                )
+            except Exception as heal_err:
+                logger.error(f"Auto-heal pipeline crashed (run #{scrape_run.id}): {heal_err}", exc_info=True)
+                # Don't re-raise — the original degraded run is still valid
+        # ───────────────────────────────────────────────────────────────────────
+
         return scrape_run
 
+    # ── INTERNAL: AUTONOMOUS INLINE HEAL PIPELINE ──────────────────────────
+    @staticmethod
+    async def _auto_heal_inline(
+        db: Session,
+        scrape_run: ScrapeRunDB,
+        schema,
+        raw_html: str,
+        active_bundle: ExtractorRuleBundle,
+        target_url: str
+    ):
+        """
+        Fully autonomous heal cycle triggered inline during execute_scrape.
+
+        Steps:
+          1. Identify missing required fields from the failed extraction.
+          2. Call RepairEngine to scan the real HTML for candidate selectors.
+          3. Run RegressionValidator against the same real HTML.
+          4. If confidence >= AUTO_HEAL_THRESHOLD (0.70):
+               a. Persist the promoted rule bundle (version +1).
+               b. Re-run MultiStrategyEngine with the new bundle.
+               c. Update ScrapeRunDB status -> 'repaired' (or 'healing_failed').
+          5. Return (updated_run, outcome_dict) — never raises, returns
+             healing_failed outcome on any unexpected error.
+        """
+        AUTO_HEAL_THRESHOLD = 0.70
+        run_id = scrape_run.id
+        domain = TemplateFingerprinter.extract_domain(target_url)
+        schema_name = scrape_run.workflow_type or "products"
+        template_sig = scrape_run.template_signature or "default"
+
+        # 1. Identify broken fields from current normalized output
+        norm_data = json.loads(scrape_run.normalized_result) if scrape_run.normalized_result else {}
+        missing_fields = [
+            f for f in schema.get_required_field_names()
+            if not norm_data.get(f)
+        ]
+        if not missing_fields:
+            # Nothing actually broken — flip to success and exit
+            scrape_run.status = "success"
+            scrape_run.repair_triggered = False
+            db.commit()
+            return scrape_run, {"outcome": "no_action", "reason": "no missing required fields"}
+
+        # 2. Load durable field traces
+        saved_traces: List[FieldTrace] = []
+        if scrape_run.field_traces:
+            try:
+                saved_traces = [FieldTrace(**t) for t in json.loads(scrape_run.field_traces)]
+            except Exception:
+                saved_traces = []
+
+        # 3. Synthesize candidate selectors from the real HTML
+        candidate_patch = RepairEngine.diagnose_and_synthesize_patch(
+            html=raw_html,
+            target_url=target_url,
+            schema=schema,
+            active_bundle=active_bundle,
+            broken_fields=missing_fields,
+            field_traces=saved_traces,
+            scrape_run_id=run_id
+        )
+
+        # 4. Regression-validate the candidate on the real failing HTML
+        candidate_patch = RegressionValidator.validate_patch(
+            patch=candidate_patch,
+            schema=schema,
+            failing_html=raw_html,
+            failing_url=target_url
+        )
+
+        confidence = candidate_patch.confidence_score
+        selector_diff = candidate_patch.selector_diff
+        logger.info(
+            f"[AutoHeal] Run #{run_id}: confidence={confidence:.2f} "
+            f"recovery={candidate_patch.field_recovery_rate:.2f} "
+            f"non_regression={candidate_patch.non_regression_rate:.2f}"
+        )
+
+        # ── PERSIST THE CANDIDATE PATCH RECORD REGARDLESS ──────────────────
+        patch_db = CandidateRulePatchDB(
+            scrape_run_id=run_id,
+            domain=candidate_patch.domain,
+            template_signature=candidate_patch.template_signature,
+            from_version=candidate_patch.from_version,
+            to_version=candidate_patch.to_version,
+            broken_fields=json.dumps(candidate_patch.broken_fields),
+            root_cause_analysis=json.dumps(candidate_patch.root_cause_analysis),
+            selector_diff=json.dumps(selector_diff),
+            candidate_rules=json.dumps({k: v.model_dump() for k, v in candidate_patch.candidate_rules.items()}),
+            regression_tests=json.dumps([t.model_dump() for t in candidate_patch.regression_tests]),
+            field_recovery_rate=candidate_patch.field_recovery_rate,
+            non_regression_rate=candidate_patch.non_regression_rate,
+            confidence_score=confidence,
+            status="auto_pending" if confidence < AUTO_HEAL_THRESHOLD else "auto_promoting"
+        )
+        db.add(patch_db)
+        db.flush()  # get patch_db.id without full commit
+
+        if confidence < AUTO_HEAL_THRESHOLD:
+            # Not confident enough — flag run for manual review but keep candidate
+            patch_db.status = "low_confidence"
+            scrape_run.status = "healing_failed"
+            db.commit()
+            return scrape_run, {
+                "outcome": "healing_failed",
+                "reason": f"Confidence {confidence:.0%} below auto-approval threshold ({AUTO_HEAL_THRESHOLD:.0%})",
+                "confidence": confidence,
+                "missing_fields": missing_fields
+            }
+
+        # 5a. Deactivate current bundle, promote new version
+        active_bundle_db = db.query(ExtractorRuleBundleDB).filter(
+            ExtractorRuleBundleDB.domain == domain,
+            ExtractorRuleBundleDB.workflow_type == schema_name,
+            ExtractorRuleBundleDB.template_signature == template_sig,
+            ExtractorRuleBundleDB.is_active == True
+        ).first()
+
+        from_version = active_bundle_db.version if active_bundle_db else 1
+        new_version = from_version + 1
+        promoted_rules_json = json.dumps(
+            {k: v.model_dump() for k, v in candidate_patch.candidate_rules.items()}
+        )
+
+        if active_bundle_db:
+            active_bundle_db.is_active = False
+
+        new_bundle_db = ExtractorRuleBundleDB(
+            domain=domain,
+            template_signature=template_sig,
+            workflow_type=schema_name,
+            version=new_version,
+            description=(
+                f"Auto-healed rule bundle v{new_version} for {domain} "
+                f"(confidence {confidence:.0%}, recovered: {missing_fields})"
+            ),
+            field_rules=promoted_rules_json,
+            is_active=True
+        )
+        db.add(new_bundle_db)
+        db.flush()
+
+        patch_db.status = "promoted"
+
+        # 5b. Re-extract immediately using the promoted rule bundle
+        field_rules_dict = {k: FieldRule(**v) for k, v in json.loads(promoted_rules_json).items()}
+        promoted_bundle_obj = ExtractorRuleBundle(
+            domain=domain,
+            template_signature=template_sig,
+            version=new_version,
+            field_rules=field_rules_dict
+        )
+
+        healed_normalized, healed_traces = MultiStrategyEngine.extract(
+            html=raw_html,
+            schema=schema,
+            target_url=target_url,
+            rule_bundle=promoted_bundle_obj
+        )
+
+        is_valid_now, still_missing, heal_errors = Validator.validate_record(healed_normalized, schema)
+        quality_now = Validator.calculate_quality_score(healed_normalized, schema, is_valid_now)
+
+        if is_valid_now:
+            scrape_run.status = "repaired"
+        else:
+            # Promoted bundle still didn't satisfy validation — mark healing_failed
+            scrape_run.status = "healing_failed"
+
+        scrape_run.normalized_result = json.dumps(healed_normalized)
+        scrape_run.data_quality_score = quality_now
+        scrape_run.selected_strategy = f"auto_healed_v{new_version}"
+        scrape_run.field_traces = json.dumps([t.model_dump() for t in healed_traces])
+        scrape_run.validation_errors = json.dumps(heal_errors)
+
+        db.commit()
+        db.refresh(scrape_run)
+
+        outcome = {
+            "outcome": "repaired" if is_valid_now else "healing_failed",
+            "from_bundle_version": from_version,
+            "to_bundle_version": new_version,
+            "confidence": confidence,
+            "fields_recovered": [
+                f for f in missing_fields if healed_normalized.get(f)
+            ],
+            "fields_still_missing": still_missing,
+            "new_selectors": {
+                field: info.get("new_selector")
+                for field, info in selector_diff.items()
+                if info.get("new_selector")
+            },
+            "quality_score": quality_now
+        }
+
+        logger.info(
+            f"[AutoHeal] Run #{run_id}: {outcome['outcome']} | "
+            f"v{from_version}→v{new_version} | "
+            f"recovered={outcome['fields_recovered']} | "
+            f"quality={quality_now}%"
+        )
+        return scrape_run, outcome
+
+    # ── PUBLIC: MANUAL HEAL (legacy / UI-driven) ────────────────────────────
     @staticmethod
     async def heal_scrape_run(db: Session, run_id: int) -> RepairAttemptDB:
         """
@@ -606,72 +862,4 @@ class ScrapeService:
         db.query(ScrapeRunDB).delete()
         db.commit()
 
-        # Seed clean baseline
-        r1 = ScrapeRunDB(
-            target_url="https://demo.local/product_v1.html",
-            workflow_type="products",
-            fixture_name="product_v1.html",
-            template_signature="tpl_product_v1",
-            status="success",
-            selected_strategy="rule_bundle_v1",
-            repair_triggered=False,
-            raw_result=json.dumps({"title": "Pro Wireless Headphones", "price": "4999.0", "currency": "INR", "availability": "In stock", "rating": "4.5", "review_count": "1200", "seller": "AudioTech", "product_url": "https://demo.local/product_v1.html"}),
-            normalized_result=json.dumps({"title": "Pro Wireless Headphones", "price": 4999.0, "currency": "INR", "availability": "In stock", "rating": 4.5, "review_count": 1200, "seller": "AudioTech", "product_url": "https://demo.local/product_v1.html"}),
-            validation_errors="[]",
-            field_traces="[]",
-            data_quality_score=100,
-            duration_ms=120
-        )
-        r2 = ScrapeRunDB(
-            target_url="https://demo.local/product_v2.html",
-            workflow_type="products",
-            fixture_name="product_v2.html",
-            template_signature="tpl_product_v2",
-            status="repaired",
-            selected_strategy="rule_bundle_v2",
-            repair_triggered=True,
-            raw_result=json.dumps({"title": "Pro Wireless Headphones", "price": "4999.0", "currency": "INR", "availability": "In stock", "rating": "4.5", "review_count": "1200", "seller": "AudioTech", "product_url": "https://demo.local/product_v2.html"}),
-            normalized_result=json.dumps({"title": "Pro Wireless Headphones", "price": 4999.0, "currency": "INR", "availability": "In stock", "rating": 4.5, "review_count": 1200, "seller": "AudioTech", "product_url": "https://demo.local/product_v2.html"}),
-            validation_errors="[]",
-            field_traces="[]",
-            data_quality_score=100,
-            duration_ms=150
-        )
-        r3 = ScrapeRunDB(
-            target_url="https://demo.local/jobs/python-dev-123",
-            workflow_type="jobs",
-            fixture_name="jobs_v1.html",
-            template_signature="tpl_jobs_v1",
-            status="success",
-            selected_strategy="rule_bundle_v1",
-            repair_triggered=False,
-            raw_result=json.dumps({"job_title": "Senior Python Developer", "company": "TechCorp India", "location": "Remote, India", "employment_type": "Full-time", "salary": "₹2,500,000 / yr", "description": "Building high-throughput backend services and web data extraction pipelines.", "posted_date": "2026-08-15", "application_url": "https://demo.local/jobs/python-dev-123"}),
-            normalized_result=json.dumps({"job_title": "Senior Python Developer", "company": "TechCorp India", "location": "Remote, India", "employment_type": "Full-time", "salary": "₹2,500,000 / yr", "description": "Building high-throughput backend services and web data extraction pipelines.", "posted_date": "2026-08-15", "application_url": "https://demo.local/jobs/python-dev-123"}),
-            validation_errors="[]",
-            field_traces="[]",
-            data_quality_score=100,
-            duration_ms=110
-        )
-        r4 = ScrapeRunDB(
-            target_url="https://demo.local/jobs/degraded",
-            workflow_type="jobs",
-            fixture_name="jobs_degraded.html",
-            template_signature="tpl_jobs_v2",
-            status="repaired",
-            selected_strategy="rule_bundle_v2",
-            repair_triggered=True,
-            raw_result=json.dumps({"job_title": "Senior Python Developer", "company": "TechCorp India", "location": "Remote, India", "employment_type": "Full-time", "salary": "₹2,500,000 / yr", "description": "Building high-throughput backend services.", "posted_date": "2026-08-15", "application_url": "https://demo.local/jobs/degraded"}),
-            normalized_result=json.dumps({"job_title": "Senior Python Developer", "company": "TechCorp India", "location": "Remote, India", "employment_type": "Full-time", "salary": "₹2,500,000 / yr", "description": "Building high-throughput backend services.", "posted_date": "2026-08-15", "application_url": "https://demo.local/jobs/degraded"}),
-            validation_errors="[]",
-            field_traces="[]",
-            data_quality_score=100,
-            duration_ms=180
-        )
-        db.add_all([r1, r2, r3, r4])
-        db.commit()
-
-        # Seed initial rule bundles
-        ScrapeService.get_or_create_active_rule_bundle(db, "demo.local", "products", "default")
-        ScrapeService.get_or_create_active_rule_bundle(db, "demo.local", "jobs", "default")
-
-        return {"status": "success", "message": "Demo database reset and seeded with clean baseline."}
+        return {"status": "success", "message": "All operational logs and runs cleared cleanly. Ready for live extractions."}

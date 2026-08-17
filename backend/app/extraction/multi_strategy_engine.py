@@ -83,7 +83,7 @@ class MultiStrategyEngine:
                     confidence = 0.90
 
             # Strategy 4: Generic Semantic Heuristics (Microdata, Structural & Proximity)
-            if not val and not (field_rule and field_rule.primary_css):
+            if not val:
                 sem_val, sem_sel = MultiStrategyEngine._infer_generic_semantic_dom(soup, name, field.data_type, target_url)
                 if sem_val:
                     val = sem_val
@@ -222,6 +222,98 @@ class MultiStrategyEngine:
 
     @staticmethod
     def _resolve_meta_field(meta: Dict[str, str], field_name: str) -> Optional[str]:
+        og_title = meta.get("og:title") or meta.get("twitter:title") or meta.get("title") or ""
+        og_desc = meta.get("og:description") or meta.get("twitter:description") or meta.get("description") or ""
+
+        # Specialized Job Field Parsing
+        if field_name == "job_title":
+            m_title = re.search(r'hiring\s+(.+?)(?:\s+in\s+|\s+\|\s*LinkedIn|$)', og_title, re.I)
+            if m_title:
+                return m_title.group(1).strip()
+            if 'Job Title:' in og_desc:
+                m_jt = re.search(r'Job Title:\s*([^E\n]+?)(?:Experience:|Location:|Company:|\.|$)', og_desc, re.I)
+                if m_jt:
+                    return m_jt.group(1).strip()
+            if og_title:
+                clean_t = re.sub(r'\s*\|\s*LinkedIn.*$', '', og_title, flags=re.I).strip()
+                return clean_t
+
+        if field_name == "company":
+            m_comp = re.search(r'^(.+?)(?:\s+hiring\s+)', og_title, re.I)
+            if m_comp:
+                return m_comp.group(1).strip()
+            if 'Company:' in og_desc:
+                m_c = re.search(r'Company:\s*([^.\n]+)', og_desc, re.I)
+                if m_c:
+                    return m_c.group(1).strip()
+            return meta.get("og:site_name") or meta.get("author")
+
+        if field_name == "location":
+            if 'Location:' in og_desc:
+                m_loc = re.search(r'Location:\s*([^C\n]+?)(?:Company:|\.|$)', og_desc, re.I)
+                if m_loc:
+                    return m_loc.group(1).strip()
+            m_loc2 = re.search(r'\sin\s+(.+?)(?:\s+\|\s*LinkedIn|$)', og_title, re.I)
+            if m_loc2:
+                return m_loc2.group(1).strip()
+
+        # Specialized Social / LinkedIn Profile / Post Parsing
+        if field_name in ("name", "user_posted", "author", "username"):
+            # X / Twitter
+            m_x = re.search(r'^(.+?)(?:\s*\(@[a-zA-Z0-9_]+\)|\s+on\s+X|\s*/\s*X|$)', og_title, re.I)
+            if m_x and m_x.group(1).strip() and not m_x.group(1).strip().lower().startswith(('see ', 'login', 'sign in')):
+                return m_x.group(1).strip()
+            # Instagram
+            m_ig = re.search(r'^(.+?)(?:\s*\(@[a-zA-Z0-9_.]+\)|\s*•\s*Instagram|$)', og_title, re.I)
+            if m_ig and m_ig.group(1).strip() and not m_ig.group(1).strip().lower().startswith(('see ', 'login', 'sign in')):
+                return m_ig.group(1).strip()
+            # LinkedIn Post / Profile
+            m_name = re.search(r'See\s+(.+?)[’\']s activity', og_title, re.I)
+            if m_name:
+                return m_name.group(1).strip()
+            m_author = re.search(r'^(.+?)(?:\s+on\s+LinkedIn|\s+posted\s+|\s*-\s*)', og_title, re.I)
+            if m_author and not m_author.group(1).strip().lower().startswith(('see ', 'login', 'sign in')):
+                return m_author.group(1).strip()
+            return meta.get("author") or meta.get("twitter:creator") or meta.get("profile:first_name")
+
+        if field_name == "headline":
+            if og_title:
+                return re.sub(r'\s*\|\s*LinkedIn.*$', '', og_title, flags=re.I).strip()
+
+        if field_name in ("about", "biography", "post_text", "body_text"):
+            if og_desc:
+                return og_desc.strip()
+
+        if field_name == "subreddit":
+            m_sub = re.search(r'r/([a-zA-Z0-9_]+)', og_title, re.I)
+            if m_sub:
+                return m_sub.group(1).strip()
+
+        if field_name == "title":
+            clean_t = re.sub(r'\s*:\s*r/[a-zA-Z0-9_]+.*$', '', og_title, flags=re.I)
+            clean_t = re.sub(r'\s*-\s*Google Maps.*$', '', clean_t, flags=re.I)
+            clean_t = re.sub(r'\s*\|\s*LinkedIn.*$', '', clean_t, flags=re.I)
+            if clean_t.strip():
+                return clean_t.strip()
+
+        # Follower & Engagement metrics parsed from OpenGraph summaries
+        if field_name == "followers_count":
+            m_f = re.search(r'([0-9.,]+[KMBkmb]?)\s+Followers', og_desc, re.I)
+            if m_f:
+                return m_f.group(1)
+        if field_name == "following_count":
+            m_fg = re.search(r'([0-9.,]+[KMBkmb]?)\s+Following', og_desc, re.I)
+            if m_fg:
+                return m_fg.group(1)
+        if field_name == "posts_count":
+            m_p = re.search(r'([0-9.,]+[KMBkmb]?)\s+Posts', og_desc, re.I)
+            if m_p:
+                return m_p.group(1)
+        if field_name in ("likes", "likes_count"):
+            m_l = re.search(r'([0-9.,]+[KMBkmb]?)\s+Likes', og_desc, re.I)
+            if m_l:
+                return m_l.group(1)
+
         lookup: Dict[str, List[str]] = {
             "title": ["og:title", "twitter:title", "title"],
             "job_title": ["og:title", "twitter:title", "job:title"],
@@ -232,7 +324,11 @@ class MultiStrategyEngine:
             "company": ["og:site_name", "author"],
             "image_url": ["og:image", "twitter:image"],
             "product_url": ["og:url", "canonical"],
-            "application_url": ["og:url", "canonical"]
+            "application_url": ["og:url", "canonical"],
+            "profile_url": ["og:url", "canonical"],
+            "post_url": ["og:url", "canonical"],
+            "place_url": ["og:url", "canonical"],
+            "address": ["og:description", "place:location:address", "description"]
         }
         candidates = lookup.get(field_name, [field_name])
         for cand in candidates:
@@ -273,6 +369,20 @@ class MultiStrategyEngine:
             h1 = soup.select_one("h1")
             if h1 and len(h1.get_text(strip=True)) > 3:
                 return h1.get_text(strip=True), "h1"
+            title_tag = soup.select_one("title")
+            if title_tag and len(title_tag.get_text(strip=True)) > 3:
+                return title_tag.get_text(strip=True), "title"
+
+        # 4. Social & X / Twitter Author & Text Semantic Extractors
+        if field_name in ("user_posted", "author", "name", "username"):
+            m_x_user = re.search(r'(?:x|twitter)\.com/([^/?#]+)(?:/status/(\d+))?', target_url, re.I)
+            if m_x_user and m_x_user.group(1).lower() not in ('home', 'explore', 'notifications', 'messages', 'i', 'search', 'settings'):
+                return m_x_user.group(1), "url_slug_author"
+
+        if field_name in ("description", "post_text", "body_text"):
+            tweet_text = soup.select_one("[data-testid='tweetText'], [data-testid='tweet'], article p")
+            if tweet_text and len(tweet_text.get_text(strip=True)) > 5:
+                return tweet_text.get_text(strip=True), "[data-testid='tweetText']"
 
         # 4. Proximity Text Anchor (find label/span/dt containing the field name)
         for label_tag in soup.find_all(["label", "dt", "span", "th"], limit=40):
