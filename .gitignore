@@ -36,3 +36,7 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Internal Demo Scripts & Notes
+DEMO_VIDEO_SCRIPT.md
+*SCRIPT.md
