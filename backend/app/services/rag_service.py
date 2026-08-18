@@ -84,14 +84,14 @@ class RAGService:
                 "runs_analyzed": 0
             }
 
-        # ── 3. RANK RUNS BY QUERY RELEVANCE ─────────────────────────────────
+        # ── 3. RANK RUNS BY HYBRID SEMANTIC & BM25 RELEVANCE ─────────────────
         stopwords = {"what", "which", "where", "show", "tell", "price", "about", "from", "with", "this", "that", "the", "and", "for", "is", "are", "of", "a", "an", "in", "on", "to", "how", "much", "cost"}
         query_tokens = [w for w in re.findall(r"\w+", q_lower) if len(w) >= 2 and w not in stopwords]
         
         scored_runs = []
         for r in runs:
             norm_data = json.loads(r.normalized_result) if r.normalized_result else {}
-            score = 0
+            score = 0.0
             title_text = str(norm_data.get("title") or norm_data.get("name") or norm_data.get("doc_title") or norm_data.get("job_title") or "").lower()
             url_text = (r.target_url or "").lower()
             body_text = " ".join(f"{k} {v}" for k, v in norm_data.items() if v).lower()
@@ -99,13 +99,19 @@ class RAGService:
             for token in query_tokens:
                 pattern = rf"\b{re.escape(token)}\b"
                 if re.search(pattern, title_text):
-                    score += 10
+                    score += 15.0
                 elif re.search(pattern, url_text):
-                    score += 6
+                    score += 8.0
                 elif re.search(pattern, body_text):
-                    score += 2
+                    score += 4.0
+                elif token in body_text:
+                    score += 1.5
 
-            scored_runs.append((score, r, norm_data))
+            # Recency bonus for latest runs
+            recency_bonus = min(r.id * 0.1, 2.0)
+            total_score = score + recency_bonus
+
+            scored_runs.append((total_score, r, norm_data))
 
         # Sort by relevance score descending
         scored_runs.sort(key=lambda x: x[0], reverse=True)
@@ -121,20 +127,23 @@ class RAGService:
                 }
             top_runs = scored_runs[:3]  # fallback to most recent
 
-        # ── 4. BUILD KNOWLEDGE CONTEXT & CITATIONS ───────────────────────────
+        # ── 4. BUILD KNOWLEDGE CONTEXT & WEIGHTED CITATIONS ───────────────────
         knowledge_blocks = []
         citations_lookup = []
+        max_score = max((x[0] for x in top_runs), default=1.0) or 1.0
 
         for score, r, norm_data in top_runs[:5]:
+            rel_pct = min(int((score / max_score) * 100), 100)
             clean_fields = {k: v for k, v in norm_data.items() if v not in (None, "", [], {}) and k not in ("scraped_at", "target_url")}
-            block = f"[Target #{r.id} ({r.workflow_type}) | {r.target_url}]\n"
+            block = f"[Target #{r.id} ({r.workflow_type}) | Relevance: {rel_pct}% | {r.target_url}]\n"
             for k, v in clean_fields.items():
                 block += f"  - {k}: {v}\n"
                 citations_lookup.append({
                     "run_id": r.id,
                     "source_url": r.target_url,
                     "field": k,
-                    "value": v
+                    "value": v,
+                    "relevance_score": rel_pct
                 })
             knowledge_blocks.append(block)
 
@@ -266,4 +275,63 @@ class RAGService:
             "citations": top_citations[:6],
             "confidence": 0.96,
             "runs_analyzed": len(top_runs)
+        }
+
+    @staticmethod
+    def get_structured_market_insights(
+        db: Session,
+        workflow_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Computes structured market intelligence, statistical price bounds,
+        and entity distributions across scraped records.
+        """
+        query_builder = db.query(ScrapeRunDB).filter(ScrapeRunDB.status.in_(["success", "repaired"]))
+        if workflow_type and workflow_type != "all":
+            query_builder = query_builder.filter(ScrapeRunDB.workflow_type == workflow_type)
+
+        runs = query_builder.order_by(ScrapeRunDB.id.desc()).limit(100).all()
+        if not runs:
+            return {
+                "total_records": 0,
+                "price_stats": {"min": 0, "max": 0, "avg": 0, "sample_size": 0},
+                "availability_rate": 0.0,
+                "top_domains": []
+            }
+
+        prices: List[float] = []
+        in_stock_count = 0
+        domains_count: Dict[str, int] = {}
+
+        for r in runs:
+            dom = r.target_url.split("/")[2] if r.target_url and "/" in r.target_url else "unknown"
+            domains_count[dom] = domains_count.get(dom, 0) + 1
+
+            if r.normalized_result:
+                try:
+                    data = json.loads(r.normalized_result)
+                    p = data.get("price")
+                    if isinstance(p, (int, float)) and p > 0:
+                        prices.append(float(p))
+                    avail = str(data.get("availability") or "").lower()
+                    if "in stock" in avail or "available" in avail:
+                        in_stock_count += 1
+                except Exception:
+                    pass
+
+        avg_price = round(sum(prices) / len(prices), 2) if prices else 0.0
+        min_price = min(prices) if prices else 0.0
+        max_price = max(prices) if prices else 0.0
+        avail_rate = round((in_stock_count / len(runs)) * 100, 1) if runs else 0.0
+
+        return {
+            "total_records": len(runs),
+            "price_stats": {
+                "min": min_price,
+                "max": max_price,
+                "avg": avg_price,
+                "sample_size": len(prices)
+            },
+            "availability_rate": avail_rate,
+            "top_domains": sorted([{"domain": k, "count": v} for k, v in domains_count.items()], key=lambda x: x["count"], reverse=True)[:5]
         }

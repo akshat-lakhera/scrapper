@@ -505,6 +505,12 @@ async def rag_chat(req: RAGChatRequest, db: Session = Depends(get_db)):
         domain_filter=req.domain_filter
     )
 
+@router.get("/rag/insights")
+def get_rag_insights(workflow_type: Optional[str] = None, db: Session = Depends(get_db)):
+    """Fetches automated structured market intelligence insights and statistical bounds."""
+    from app.services.rag_service import RAGService
+    return RAGService.get_structured_market_insights(db, workflow_type=workflow_type)
+
 @router.get("/intel/report")
 async def get_intel_report(domain: Optional[str] = None, db: Session = Depends(get_db)):
     from app.services.intel_service import IntelService

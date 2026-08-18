@@ -171,3 +171,97 @@ def test_no_html_available_structured_payload_graceful_handling():
     assert normalized["availability"] == "Available"
     assert normalized["rating"] == 4.8
     assert normalized["review_count"] == 450
+
+def test_obfuscated_hashed_css_extraction_and_repair():
+    """Verifies extraction and repair on websites with completely obfuscated / hashed class names."""
+    obfuscated_html = """
+    <html>
+      <body>
+        <main>
+          <h1 class="_k982j_title">Mechanical Gaming Keyboard Pro</h1>
+          <div class="_random_container_9x">
+            <span class="css-19zrnkn">$149.99</span>
+            <div class="_x1lliihq">In Stock</div>
+          </div>
+        </main>
+      </body>
+    </html>
+    """
+    normalized, traces = MultiStrategyEngine.extract(
+        html=obfuscated_html,
+        schema=PRODUCT_SCHEMA,
+        target_url="https://obfuscated.store/keyboard"
+    )
+    assert normalized["title"] == "Mechanical Gaming Keyboard Pro"
+    assert normalized["price"] == 149.99
+    assert normalized["availability"] == "In Stock"
+
+def test_nextjs_spa_hydration_state_extraction():
+    """Verifies structured extraction from Next.js __NEXT_DATA__ hydration state on client-side SPA shells."""
+    nextjs_spa_html = """
+    <html>
+      <head><title>Unrendered SPA Shell</title></head>
+      <body>
+        <div id="__next"></div>
+        <script id="__NEXT_DATA__" type="application/json">
+        {
+          "props": {
+            "pageProps": {
+              "productName": "Ultra-Wide Gaming Monitor 34-Inch",
+              "salePrice": 599.00,
+              "currencyCode": "USD",
+              "inventoryStatus": "In Stock",
+              "averageRating": 4.9
+            }
+          }
+        }
+        </script>
+      </body>
+    </html>
+    """
+    normalized, traces = MultiStrategyEngine.extract(
+        html=nextjs_spa_html,
+        schema=PRODUCT_SCHEMA,
+        target_url="https://nextjs-store.vercel.app/monitor"
+    )
+    assert normalized["title"] == "Ultra-Wide Gaming Monitor 34-Inch"
+    assert normalized["price"] == 599.00
+    assert normalized["currency"] == "USD"
+    assert normalized["availability"] == "In Stock"
+    assert normalized["rating"] == 4.9
+
+def test_repeating_catalog_multi_item_extraction():
+    """Verifies catalog search listing extraction across repeating item cards."""
+    catalog_html = """
+    <html>
+      <body>
+        <div class="search-results">
+          <div class="product-card">
+            <h1>Wireless Mouse MX</h1>
+            <span class="price">$79.99</span>
+            <span class="stock">In Stock</span>
+          </div>
+          <div class="product-card">
+            <h1>Ergonomic Keyboard K860</h1>
+            <span class="price">$129.99</span>
+            <span class="stock">In Stock</span>
+          </div>
+          <div class="product-card">
+            <h1>HD Webcam 1080p</h1>
+            <span class="price">$49.99</span>
+            <span class="stock">Out of Stock</span>
+          </div>
+        </div>
+      </body>
+    </html>
+    """
+    normalized, _ = MultiStrategyEngine.extract(
+        html=catalog_html,
+        schema=PRODUCT_SCHEMA,
+        target_url="https://catalog.store/search?q=accessories"
+    )
+    assert "items" in normalized
+    assert normalized["items_count"] == 3
+    assert len(normalized["items"]) == 3
+    assert normalized["items"][0]["title"] == "Wireless Mouse MX"
+    assert normalized["items"][1]["title"] == "Ergonomic Keyboard K860"

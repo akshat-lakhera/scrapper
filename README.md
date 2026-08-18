@@ -8,7 +8,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge&logo=fastapi&logoColor=white" alt="Status" />
-  <img src="https://img.shields.io/badge/Tests-62%2F62%20Passed%20(100%25)-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-67%2F67%20Passed%20(100%25)-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
   <img src="https://img.shields.io/badge/Self--Healing-Autonomous%20v2-blueviolet?style=for-the-badge&logo=dependabot&logoColor=white" alt="Self-Healing" />
   <img src="https://img.shields.io/badge/DOM%20Inspector-Real--Time-cyan?style=for-the-badge&logo=target&logoColor=white" alt="DOM Inspector" />
   <img src="https://img.shields.io/badge/Proxy-Bright%20Data%20Unlocker-orange?style=for-the-badge&logo=databricks&logoColor=white" alt="Bright Data" />

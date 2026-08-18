@@ -154,6 +154,79 @@ interface WorkflowsStudioProps {
   setActiveTab?: (tab: string) => void;
 }
 
+const formatFieldValue = (val: any): React.ReactNode => {
+  if (val === null || val === undefined) return <span className="text-slate-600 italic">None</span>;
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  if (typeof val === 'number') return val.toLocaleString();
+  if (typeof val === 'string') {
+    // If it's a raw stringified dict like "{'link': '...'}"
+    const s = val.trim();
+    if (s.startsWith('{') || s.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(s.replace(/'/g, '"'));
+        return formatFieldValue(parsed);
+      } catch {
+        const m = s.match(/['"](?:name|title|company|school)['"]:\s*['"]([^'"]+)['"]/i);
+        if (m) return m[1];
+      }
+    }
+    return <span className="break-words line-clamp-3">{val}</span>;
+  }
+  if (Array.isArray(val)) {
+    if (val.length === 0) return <span className="text-slate-600 italic">Empty</span>;
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-1 max-h-36 overflow-y-auto">
+        {val.map((item, idx) => {
+          let label = '';
+          if (typeof item === 'object' && item !== null) {
+            label = item.name || item.title || item.school || item.company || item.degree || item.label || Object.values(item).filter(x => typeof x === 'string')[0] || JSON.stringify(item);
+          } else {
+            label = String(item);
+          }
+          return (
+            <span key={idx} className="px-2 py-0.5 rounded-md text-[11px] bg-blue-500/10 text-blue-300 border border-blue-500/20 max-w-full truncate">
+              {label}
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
+  if (typeof val === 'object') {
+    const label = val.name || val.title || val.company || val.school || val.label || val.city || val.text;
+    if (label) {
+      return (
+        <span className="text-slate-200">
+          {label}
+          {val.link && (
+            <a href={val.link} target="_blank" rel="noreferrer" className="ml-1 text-blue-400 hover:underline text-[10px]">
+              ↗
+            </a>
+          )}
+        </span>
+      );
+    }
+    if (val.link || val.url) {
+      const url = val.link || val.url;
+      const slug = url.split('/').filter(Boolean).pop()?.replace(/[-_]/g, ' ') || url;
+      return (
+        <a href={url} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
+          <span className="capitalize">{slug}</span>
+          <ExternalLink className="w-2.5 h-2.5" />
+        </a>
+      );
+    }
+    return (
+      <div className="space-y-0.5 text-[11px] text-slate-300">
+        {Object.entries(val).map(([k, v]) => (
+          <div key={k} className="truncate"><span className="text-slate-500">{k}:</span> {String(v)}</div>
+        ))}
+      </div>
+    );
+  }
+  return String(val);
+};
+
 export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowPreset>(WORKFLOWS[0]);
   const [targetUrl, setTargetUrl] = useState<string>(WORKFLOWS[0].presets[0].url);
@@ -461,9 +534,9 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                     {Object.entries(result.extracted_data || {}).map(([k, v]) => {
                       if (k.includes('_url') || k === 'title' || k === 'price' || !v) return null;
                       return (
-                        <div key={k} className="p-3 rounded-lg bg-white/5 border border-white/5">
-                          <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">{k}</span>
-                          <span className="text-slate-200 truncate block text-sm">{String(v)}</span>
+                        <div key={k} className="p-3 rounded-lg bg-white/5 border border-white/5 space-y-1">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold block">{k}</span>
+                          <div className="text-slate-200 text-sm">{formatFieldValue(v)}</div>
                         </div>
                       );
                     })}

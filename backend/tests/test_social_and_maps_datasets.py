@@ -60,6 +60,41 @@ def test_linkedin_profile_normalization():
     assert len(missing) == 0
     assert len(errors) == 0
 
+def test_linkedin_nested_dicts_and_arrays_normalization():
+    """Verifies that arbitrary nested dicts and list of dicts (like education and current_company) unpack cleanly without '[object Object]'."""
+    schema = get_schema_by_name("linkedin")
+    raw_profile = {
+        "url": "https://www.linkedin.com/in/wilson-pereira-barros/",
+        "name": "Wilson Barros",
+        "headline": "Senior Software Engineer",
+        "current_company": {"link": "https://www.linkedin.com/company/nubank/", "name": "Nubank"},
+        "location": "São Paulo, Brazil",
+        "about": "Senior software engineer with 20+ years of experience.",
+        "connections": 500,
+        "education": [
+            {"school": "University of São Paulo", "degree": "Computer Science"},
+            {"school": "MIT Professional Education"}
+        ],
+        "experience": [
+            {"title": "Tech Lead", "company": "Nubank"},
+            {"title": "Senior Engineer", "company": "Globo"}
+        ]
+    }
+    normalized = Normalizer.normalize_record(raw_profile, schema)
+    assert normalized["name"] == "Wilson Barros"
+    assert normalized["current_company"] == "Nubank"
+    assert normalized["education"] == ["University of São Paulo (Computer Science)", "MIT Professional Education"]
+    assert normalized["experience"] == ["Tech Lead at Nubank", "Senior Engineer at Globo"]
+
+    # Also test when current_company is link-only dict
+    raw_profile_link_only = {
+        "url": "https://www.linkedin.com/in/test-user/",
+        "name": "Test User",
+        "current_company": "{'link': 'https://www.linkedin.com/company/amazon/'}"
+    }
+    normalized2 = Normalizer.normalize_record(raw_profile_link_only, schema)
+    assert normalized2["current_company"] == "Amazon"
+
 def test_facebook_post_normalization():
     schema = get_schema_by_name("facebook")
     raw_post = {

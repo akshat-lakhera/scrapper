@@ -292,4 +292,14 @@ export function getExportUrl(format: 'json' | 'csv' | 'ndjson'): string {
   return `${API_BASE}/export/runs?format=${format}`;
 }
 
+export async function fetchRAGInsights(workflow_type?: string): Promise<{
+  total_records: number;
+  price_stats: { min: number; max: number; avg: number; sample_size: number };
+  availability_rate: number;
+  top_domains: Array<{ domain: string; count: number }>;
+}> {
+  const query = workflow_type && workflow_type !== 'all' ? `?workflow_type=${encodeURIComponent(workflow_type)}` : '';
+  return request(`${API_BASE}/rag/insights${query}`);
+}
+
 

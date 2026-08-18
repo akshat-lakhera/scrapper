@@ -170,6 +170,110 @@ class Normalizer:
             if matched_field and matched_field not in resolved_fields:
                 resolved_fields[matched_field] = raw_v
 
+    @staticmethod
+    def clean_structured_field_value(val: Any, field_name: str = "") -> Any:
+        """
+        Recursively unpacks and formats arbitrary nested dicts, lists, and stringified objects
+        into clean, human-readable strings or structured arrays (preventing '[object Object]').
+        """
+        if val is None:
+            return None
+
+        # 1. Handle stringified dicts or lists like "{'link': 'https://...'}"
+        if isinstance(val, str):
+            clean_s = val.strip()
+            if (clean_s.startswith("{") and clean_s.endswith("}")) or (clean_s.startswith("[") and clean_s.endswith("]")):
+                try:
+                    import ast
+                    val = ast.literal_eval(clean_s)
+                except Exception:
+                    pass
+
+        # 2. Handle Dicts (e.g. current_company: {'link': '...', 'name': '...'})
+        if isinstance(val, dict):
+            # Prefer explicit semantic text keys
+            for key in ("name", "title", "company", "company_name", "school", "school_name", "degree", "text", "label", "value", "position", "summary", "city", "content"):
+                if val.get(key) and isinstance(val[key], str) and val[key].strip():
+                    return val[key].strip()
+
+            # If it only has a link/url, parse the human-readable slug
+            link = val.get("link") or val.get("url") or val.get("href")
+            if link and isinstance(link, str):
+                parts = [p for p in link.rstrip("/").split("/") if p and not p.startswith("http") and not p.endswith(".com")]
+                if parts:
+                    return parts[-1].replace("-", " ").replace("_", " ").title()
+                return link
+
+            # Fallback: join first 3 key-values
+            kvs = [f"{k}: {v}" for k, v in val.items() if v and isinstance(v, (str, int, float))]
+            if kvs:
+                return ", ".join(kvs[:3])
+            return str(val)
+
+        # 3. Handle Lists (e.g. education: [ {'school': 'MIT', 'degree': 'BS'}, ... ])
+        if isinstance(val, list):
+            cleaned_items = []
+            for item in val:
+                if isinstance(item, dict):
+                    school = item.get("school") or item.get("school_name") or item.get("institution")
+                    degree = item.get("degree") or item.get("title") or item.get("field_of_study")
+                    company = item.get("company") or item.get("company_name") or item.get("employer")
+                    title = item.get("title") or item.get("position") or item.get("role")
+                    
+                    if school and degree:
+                        cleaned_items.append(f"{school} ({degree})")
+                    elif school:
+                        cleaned_items.append(str(school))
+                    elif title and company:
+                        cleaned_items.append(f"{title} at {company}")
+                    elif title:
+                        cleaned_items.append(str(title))
+                    elif item.get("name"):
+                        cleaned_items.append(str(item["name"]))
+                    else:
+                        item_str = Normalizer.clean_structured_field_value(item, field_name)
+                        if item_str:
+                            cleaned_items.append(str(item_str))
+                elif isinstance(item, str) and item.strip():
+                    cleaned_items.append(item.strip())
+                elif item is not None:
+                    cleaned_items.append(str(item))
+
+            if cleaned_items:
+                return cleaned_items
+            return None
+
+        if isinstance(val, str):
+            c = val.strip()
+            return c if len(c) > 0 else None
+
+        return val
+
+    @staticmethod
+    def normalize_record(raw_record: Dict[str, Any], schema: ScrapeSchema) -> Dict[str, Any]:
+        """
+        Normalizes an arbitrary raw extracted payload against a strict target schema contract.
+        """
+        if not raw_record:
+            return {f.name: None for f in schema.fields}
+
+        # Flatten nested data containers if present
+        for container_key in ("data", "result", "record", "extracted_data", "product", "job", "profile"):
+            if container_key in raw_record and isinstance(raw_record[container_key], dict):
+                merged = {**raw_record[container_key], **{k: v for k, v in raw_record.items() if k != container_key}}
+                raw_record = merged
+
+        normalized: Dict[str, Any] = {}
+        
+        # Inverted index: resolve raw fields into schema fields
+        resolved_fields: Dict[str, Any] = {}
+        for raw_k, raw_v in raw_record.items():
+            if raw_v is None or raw_v == "":
+                continue
+            matched_field = Normalizer.match_schema_field(raw_k, schema)
+            if matched_field and matched_field not in resolved_fields:
+                resolved_fields[matched_field] = raw_v
+
         for field in schema.fields:
             name = field.name
             raw_val = resolved_fields.get(name)
@@ -192,8 +296,13 @@ class Normalizer:
                 elif name in ("rating", "review_count") and isinstance(raw_val, (int, float)):
                     normalized[name] = str(raw_val)
                 else:
-                    cleaned = str(raw_val).strip()
-                    normalized[name] = cleaned if len(cleaned) > 0 else None
+                    cleaned = Normalizer.clean_structured_field_value(raw_val, name)
+                    if isinstance(cleaned, list):
+                        normalized[name] = ", ".join(str(x) for x in cleaned)
+                    elif cleaned is not None:
+                        normalized[name] = str(cleaned).strip()
+                    else:
+                        normalized[name] = None
 
             elif field.data_type == "boolean":
                 if isinstance(raw_val, bool):
@@ -202,8 +311,18 @@ class Normalizer:
                     normalized[name] = raw_val.lower() in ("true", "1", "yes", "in_stock", "instock", "available")
                 else:
                     normalized[name] = bool(raw_val)
+
+            elif field.data_type in ("array", "list"):
+                cleaned = Normalizer.clean_structured_field_value(raw_val, name)
+                if isinstance(cleaned, list):
+                    normalized[name] = cleaned
+                elif cleaned is not None:
+                    normalized[name] = [cleaned]
+                else:
+                    normalized[name] = []
+
             else:
-                normalized[name] = raw_val
+                normalized[name] = Normalizer.clean_structured_field_value(raw_val, name)
 
         # Canonical URL resolution fallback from raw input/source
         source_target_url = (

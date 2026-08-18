@@ -138,3 +138,6 @@ export interface Metrics {
   rule_bundle_count_by_domain?: Record<string, number>;
 }
 
+export type ScraperMetrics = Metrics;
+
+

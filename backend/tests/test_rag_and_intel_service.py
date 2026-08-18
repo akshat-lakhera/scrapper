@@ -47,3 +47,13 @@ async def test_intel_service_domain_report_and_diffs():
     assert "executive_summary" in report
     assert isinstance(report["timeline_events"], list)
     db.close()
+
+def test_rag_structured_market_insights():
+    db = SessionLocal()
+    insights = RAGService.get_structured_market_insights(db, workflow_type="products")
+    assert "total_records" in insights
+    assert "price_stats" in insights
+    assert "availability_rate" in insights
+    assert "top_domains" in insights
+    assert isinstance(insights["top_domains"], list)
+    db.close()

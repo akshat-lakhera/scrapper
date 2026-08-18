@@ -181,6 +181,28 @@ class RepairEngine:
                     if sel:
                         return sel, txt, 0.82
 
+        # 5. Content-Aware Value Regex Pattern Scan (for obfuscated/hashed CSS classes)
+        if field_name in ("price", "salary") or data_type in ("number", "integer"):
+            price_pat = re.compile(r'^(?:[\$€£₹¥]\s?\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s?(?:USD|EUR|INR|GBP|CAD))$', re.I)
+            for tag in soup.find_all(["span", "div", "p", "b", "strong"], limit=100):
+                txt = tag.get_text(strip=True)
+                if price_pat.match(txt):
+                    parent = tag.parent
+                    p_cls = " ".join(parent.get("class", [])) if parent else ""
+                    if "strike" not in p_cls.lower() and "old" not in p_cls.lower():
+                        sel = RepairEngine._generate_unique_css_selector(tag)
+                        if sel:
+                            return sel, txt, 0.85
+
+        if field_name in ("availability", "stock"):
+            avail_pat = re.compile(r'^(?:in stock|out of stock|available|sold out|pre-order)$', re.I)
+            for tag in soup.find_all(["span", "div", "p"], limit=60):
+                txt = tag.get_text(strip=True)
+                if avail_pat.match(txt):
+                    sel = RepairEngine._generate_unique_css_selector(tag)
+                    if sel:
+                        return sel, txt, 0.85
+
         return None, None, 0.0
 
     @staticmethod

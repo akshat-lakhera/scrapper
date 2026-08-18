@@ -36,6 +36,9 @@ class MultiStrategyEngine:
         # 2. Parse Meta tags
         meta_data = MultiStrategyEngine._extract_meta_tags(soup)
 
+        # 2b. Parse Next.js / Nuxt / React SPA Initial State Hydration scripts
+        state_data = MultiStrategyEngine._extract_hydration_and_embedded_state(soup)
+
         # 3. Extract each field in schema
         for field in schema.fields:
             name = field.name
@@ -75,6 +78,15 @@ class MultiStrategyEngine:
                     selector_used = "script[type='application/ld+json']"
                     confidence = 0.98
 
+            # Strategy 2b: SPA Hydration Initial State JSON (Next.js / Nuxt / React SSR)
+            if not val and state_data:
+                s_val = MultiStrategyEngine._resolve_state_field(state_data, name)
+                if s_val:
+                    val = s_val
+                    strategy_used = "spa_hydration_state"
+                    selector_used = "script#__NEXT_DATA__"
+                    confidence = 0.96
+
             # Strategy 3: Meta Tags
             if not val and meta_data:
                 m_val = MultiStrategyEngine._resolve_meta_field(meta_data, name)
@@ -84,7 +96,7 @@ class MultiStrategyEngine:
                     selector_used = f"meta[{name}]"
                     confidence = 0.90
 
-            # Strategy 4: Generic Semantic Heuristics (Microdata, Structural & Proximity)
+            # Strategy 4: Generic Semantic Heuristics (Microdata, Value Patterns, Proximity)
             if not val:
                 sem_val, sem_sel = MultiStrategyEngine._infer_generic_semantic_dom(soup, name, field.data_type, target_url)
                 if sem_val:
@@ -117,6 +129,12 @@ class MultiStrategyEngine:
         # Normalize the extracted dictionary against the schema definition
         normalized_record = Normalizer.normalize_record(raw_record, schema)
         normalized_record["source_url"] = target_url
+
+        # Repeating Catalog / Multi-item listing detection (Search & Category pages)
+        multi_items = MultiStrategyEngine._extract_repeating_catalog_items(soup, schema, target_url)
+        if multi_items and len(multi_items) > 1:
+            normalized_record["items"] = multi_items
+            normalized_record["items_count"] = len(multi_items)
 
         # Update normalized values in traces
         for trace in traces:
@@ -531,4 +549,141 @@ class MultiStrategyEngine:
                     cls_name = " ".join(elem.get("class", []))
                     return txt, f".{cls_name.split()[0]}"
 
+        # 6. Content-Aware Value Regex Pattern Scan (for obfuscated/hashed CSS classes like .css-19zrnkn)
+        if field_name in ("price", "salary") or data_type in ("number", "integer"):
+            price_pat = re.compile(r'^(?:[\$€£₹¥]\s?\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s?(?:USD|EUR|INR|GBP|CAD))$', re.I)
+            for tag in soup.find_all(["span", "div", "p", "b", "strong"], limit=80):
+                txt = tag.get_text(strip=True)
+                if price_pat.match(txt):
+                    parent = tag.parent
+                    p_cls = " ".join(parent.get("class", [])) if parent else ""
+                    if "strike" not in p_cls.lower() and "old" not in p_cls.lower():
+                        return txt, f"{tag.name}:contains-price"
+
+        if field_name in ("availability", "stock"):
+            avail_pat = re.compile(r'^(?:in stock|out of stock|available|sold out|pre-order|temporarily out of stock)$', re.I)
+            for tag in soup.find_all(["span", "div", "p"], limit=60):
+                txt = tag.get_text(strip=True)
+                if avail_pat.match(txt):
+                    return txt, f"{tag.name}:contains-availability"
+
+        if field_name in ("rating", "score"):
+            rating_pat = re.compile(r'^(?:[1-5](?:\.\d)?\s?(?:/|out of|\*|★)\s?5?|[1-5]\.\d)$', re.I)
+            for tag in soup.find_all(["span", "div", "p"], limit=60):
+                txt = tag.get_text(strip=True)
+                if rating_pat.match(txt):
+                    return txt, f"{tag.name}:contains-rating"
+
         return None, None
+
+    @staticmethod
+    def _extract_hydration_and_embedded_state(soup: BeautifulSoup) -> Dict[str, Any]:
+        """Extracts and recursively parses Next.js, Nuxt, and React SSR hydration script payloads."""
+        state_dict: Dict[str, Any] = {}
+        
+        # 1. Next.js __NEXT_DATA__
+        next_script = soup.find("script", id="__NEXT_DATA__")
+        if next_script and next_script.string:
+            try:
+                data = json.loads(next_script.string.strip())
+                props = data.get("props", {}).get("pageProps", {})
+                state_dict.update(props)
+            except Exception:
+                pass
+
+        # 2. Nuxt __NUXT_DATA__
+        nuxt_script = soup.find("script", id="__NUXT_DATA__")
+        if nuxt_script and nuxt_script.string:
+            try:
+                data = json.loads(nuxt_script.string.strip())
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            state_dict.update(item)
+            except Exception:
+                pass
+
+        # 3. Window initial state patterns (React Redux / Apollo)
+        for s in soup.find_all("script"):
+            if not s.string:
+                continue
+            txt = s.string.strip()
+            if "window.__INITIAL_STATE__" in txt or "window.__PRELOADED_STATE__" in txt:
+                m_json = re.search(r'window\.__[A-Z_]+__\s*=\s*(\{.+?\});?', txt, re.DOTALL)
+                if m_json:
+                    try:
+                        data = json.loads(m_json.group(1))
+                        if isinstance(data, dict):
+                            state_dict.update(data)
+                    except Exception:
+                        pass
+
+        return state_dict
+
+    @staticmethod
+    def _resolve_state_field(state: Dict[str, Any], field_name: str) -> Optional[Any]:
+        """Recursively finds field values in embedded JSON state."""
+        def _search(obj: Any, key: str, depth: int = 0) -> Optional[Any]:
+            if depth > 4 or not obj:
+                return None
+            if isinstance(obj, dict):
+                if key in obj and obj[key] is not None:
+                    return obj[key]
+                for k, v in obj.items():
+                    res = _search(v, key, depth + 1)
+                    if res is not None:
+                        return res
+            elif isinstance(obj, list):
+                for item in obj:
+                    res = _search(item, key, depth + 1)
+                    if res is not None:
+                        return res
+            return None
+
+        aliases = {
+            "title": ["title", "name", "productName", "headline"],
+            "price": ["price", "currentPrice", "amount", "unitPrice", "salePrice"],
+            "currency": ["currency", "currencyCode", "priceCurrency"],
+            "availability": ["availability", "inStock", "stockStatus", "inventoryStatus"],
+            "job_title": ["jobTitle", "title", "roleName", "position"],
+            "company": ["companyName", "company", "employer", "organization"],
+            "location": ["location", "jobLocation", "city", "place"],
+            "description": ["description", "jobDescription", "summary", "body", "content"],
+            "image_url": ["imageUrl", "image", "thumbnail", "photoUrl"],
+            "rating": ["rating", "ratingValue", "averageRating", "score"],
+        }
+        for alias in aliases.get(field_name, [field_name]):
+            val = _search(state, alias)
+            if val is not None and not isinstance(val, (dict, list)):
+                return val
+        return None
+
+    @staticmethod
+    def _extract_repeating_catalog_items(soup: BeautifulSoup, schema: ScrapeSchema, target_url: str) -> List[Dict[str, Any]]:
+        """Identifies repeating product/job/post cards in catalog or search result pages."""
+        card_selectors = [
+            "[data-asin]:not([data-asin=''])",
+            "div.s-result-item",
+            "li.job-card",
+            "div.job-card",
+            "article.post",
+            "div.product-card",
+            "div.product-item",
+            ".search-result-item",
+            "div.result-card",
+        ]
+        items: List[Dict[str, Any]] = []
+        for sel in card_selectors:
+            cards = soup.select(sel)
+            if len(cards) >= 2:
+                for card in cards[:20]:
+                    item_data: Dict[str, Any] = {}
+                    for field in schema.fields:
+                        val, _ = MultiStrategyEngine._infer_generic_semantic_dom(card, field.name, field.data_type, target_url)
+                        if val:
+                            item_data[field.name] = val
+                    if item_data:
+                        items.append(Normalizer.normalize_record(item_data, schema))
+                if items:
+                    break
+        return items
