@@ -17,7 +17,10 @@ import {
   FileCode,
   Sparkles,
   Terminal,
-  Activity
+  Activity,
+  Send,
+  Globe,
+  Database
 } from 'lucide-react';
 import { executeScrape } from '../api';
 import { useToast } from './ToastContext';
@@ -56,12 +59,12 @@ const WORKFLOWS: WorkflowPreset[] = [
     name: 'Tech Docs & API Specs',
     workflow: 'tech_docs',
     icon: Code2,
-    tag: 'Scraper Studio Custom',
+    tag: 'API Docs & Guides',
     description: 'Extract API guides, code snippets, documentation sections, and version changes from long-tail developer sites.',
-    placeholder: 'https://docs.example.com/...',
+    placeholder: 'https://fastapi.tiangolo.com/ or https://docs.example.com/...',
     presets: [
-      { label: 'Scraper Studio DCA Guide v1', url: 'https://demo.local/tech_docs_v1.html' },
-      { label: 'Scraper Studio Redesigned v2', url: 'https://demo.local/tech_docs_redesign.html' },
+      { label: 'FastAPI Python Framework Docs', url: 'https://fastapi.tiangolo.com/' },
+      { label: 'Requests HTTP Developer Guide', url: 'https://requests.readthedocs.io/en/latest/' },
     ],
     sampleAttributes: ['doc_title', 'section_heading', 'content_body', 'code_snippet', 'last_updated']
   },
@@ -156,7 +159,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
   const [targetUrl, setTargetUrl] = useState<string>(WORKFLOWS[0].presets[0].url);
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'card' | 'json' | 'code'>('card');
+  const [activeView, setActiveView] = useState<'card' | 'json'>('card');
   const [copiedJson, setCopiedJson] = useState<boolean>(false);
   const [showCodeModal, setShowCodeModal] = useState<boolean>(false);
   const { showToast } = useToast();
@@ -200,107 +203,133 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12 font-sans">
-      {/* ── TOP HEADER ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
-        <div>
-          <h1 className="text-xl font-bold font-sans text-white flex items-center gap-2">
-            <Layers size={18} className="text-blue-400" />
-            Extraction Studio & Multi-Schema Matrix
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Select a target workflow, paste any URL, or test built-in production presets.
-          </p>
-        </div>
+    <div className="space-y-8 pb-16 font-sans">
+      {/* ── TOP HERO HEADER ── */}
+      <div className="bento-card p-8 sm:p-10 relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+              <Layers className="w-3.5 h-3.5" />
+              <span>Multi-Platform Scraper Studio</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Extraction Studio & Schema Engine
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Select a target schema, configure custom collectors, or paste any live URL. The multi-strategy engine executes ordered extraction and normalizes payloads into strict Pydantic schemas.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCodeModal(true)}
-            className="hw-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 text-xs font-mono"
+            className="px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-md self-start md:self-auto cursor-pointer"
           >
-            <FileCode size={13} className="text-cyan-400" />
-            <span>Generate SDK Code</span>
+            <FileCode className="w-4 h-4 text-cyan-400" />
+            <span>Generate SDK Snippet</span>
           </button>
         </div>
       </div>
 
-      {/* ── WORKFLOW TABS ROW ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-        {WORKFLOWS.map((wf) => {
-          const Icon = wf.icon;
-          const isSelected = selectedWorkflow.id === wf.id;
-          return (
-            <button
-              key={wf.id}
-              onClick={() => handleSelectWorkflow(wf)}
-              className={`hw-panel p-3 text-left transition-all hw-btn ${
-                isSelected
-                  ? 'border-blue-500 bg-blue-600/10 shadow-sm'
-                  : 'hover:bg-white/[0.02]'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <Icon size={14} className={isSelected ? 'text-blue-400' : 'text-slate-500'} />
-                <span className="text-[9px] font-mono text-slate-500">{wf.tag}</span>
+      {/* ── 8 PLATFORM BENTO DECK (4x2 GRID) ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+            Select Target Platform:
+          </span>
+          <span className="text-xs font-mono text-slate-500">8 Supported Schemas</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {WORKFLOWS.map((wf) => {
+            const Icon = wf.icon;
+            const isSelected = selectedWorkflow.id === wf.id;
+            return (
+              <div
+                key={wf.id}
+                onClick={() => handleSelectWorkflow(wf)}
+                className={`bento-card p-5 cursor-pointer flex flex-col justify-between transition-all ${
+                  isSelected
+                    ? 'border-blue-500 bg-[#151a26] shadow-xl shadow-blue-500/10 scale-[1.01]'
+                    : 'hover:bg-[#151824]'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-slate-400 border border-white/10'}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
+                      {wf.tag}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-bold text-white mb-1">{wf.name}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{wf.description}</p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                  <span className={isSelected ? 'text-blue-400 font-bold' : 'text-slate-500'}>
+                    {isSelected ? '● Active Target' : 'Select'}
+                  </span>
+                  <ArrowRight className={`w-3.5 h-3.5 ${isSelected ? 'text-blue-400' : 'text-slate-600'}`} />
+                </div>
               </div>
-              <div className="text-xs font-bold text-white truncate">{wf.name}</div>
-            </button>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* ── MAIN WORKSPACE SPLIT: TARGET CONTROLS & LIVE INSPECTOR ── */}
+      {/* ── WORKSPACE SPLIT: CONFIGURATION & LIVE INSPECTOR ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Target Configuration */}
+        {/* Left Column: Target Configuration (Span 5) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="hw-panel p-5 space-y-4">
+          <div className="bento-card p-7 space-y-6">
             <div className="space-y-1">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                Target Platform Specification
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                Target Configuration
               </span>
-              <h2 className="text-base font-bold text-white">{selectedWorkflow.name}</h2>
+              <h2 className="text-xl font-bold text-white">{selectedWorkflow.name}</h2>
               <p className="text-xs text-slate-400 leading-relaxed">
                 {selectedWorkflow.description}
               </p>
             </div>
 
-            {/* URL Input */}
-            <div className="space-y-1.5">
+            {/* Target URL Input */}
+            <div className="space-y-2">
               <label className="text-xs font-mono font-semibold text-slate-300">Target URL</label>
               <input
                 type="text"
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
                 placeholder={selectedWorkflow.placeholder}
-                className="w-full bg-[#0c0e14] border border-white/[0.1] rounded-lg px-3.5 py-2.5 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c13] border border-white/15 rounded-xl px-4 py-3.5 text-xs sm:text-sm font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 shadow-inner"
               />
             </div>
 
-            {/* Built-in Presets */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-mono text-slate-400 block">Verified Sample Targets:</span>
-              <div className="space-y-1.5">
+            {/* Verified Sample Presets */}
+            <div className="space-y-2.5">
+              <span className="text-xs font-mono text-slate-400 block font-bold">Verified Presets:</span>
+              <div className="space-y-2">
                 {selectedWorkflow.presets.map((p, idx) => (
                   <button
                     key={idx}
                     onClick={() => setTargetUrl(p.url)}
-                    className="w-full text-left p-2 rounded bg-[#0c0e14] hover:bg-white/[0.04] border border-white/[0.06] text-xs font-mono text-slate-300 hover:text-white transition-all flex items-center justify-between group"
+                    className="w-full text-left p-3 rounded-xl bg-[#090c13] hover:bg-white/5 border border-white/10 text-xs font-mono text-slate-300 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
                   >
                     <span className="truncate">{p.label}</span>
-                    <ArrowRight size={12} className="text-blue-400 opacity-50 group-hover:opacity-100 shrink-0" />
+                    <ArrowRight className="w-3.5 h-3.5 text-blue-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0" />
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Schema Attributes Chip List */}
-            <div className="pt-3 border-t border-white/[0.06] space-y-1.5">
-              <span className="text-[10px] font-mono uppercase text-slate-400 block">Schema Contract Attributes</span>
+            {/* Schema Contract Attributes */}
+            <div className="pt-4 border-t border-white/10 space-y-2">
+              <span className="text-[11px] font-mono uppercase text-slate-400 block font-bold">Schema Contract Attributes</span>
               <div className="flex flex-wrap gap-1.5">
                 {selectedWorkflow.sampleAttributes.map((attr) => (
                   <span
                     key={attr}
-                    className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] text-slate-300 border border-white/[0.06]"
+                    className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-white/5 text-slate-300 border border-white/10"
                   >
                     {attr}
                   </span>
@@ -312,116 +341,148 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
             <button
               onClick={handleRunScrape}
               disabled={loading || !targetUrl.trim()}
-              className="w-full hw-btn py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 cursor-pointer"
+              className="btn-pulse w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xl shadow-blue-600/30 disabled:opacity-50 cursor-pointer transition-all"
             >
               {loading ? (
                 <>
-                  <Zap size={14} className="animate-spin text-white" />
+                  <Zap className="w-4 h-4 animate-spin text-white" />
                   <span>Extracting Live Dataset...</span>
                 </>
               ) : (
                 <>
-                  <Play size={14} />
-                  <span>Execute Extraction</span>
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Deploy Scraper Pipeline</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Right Column: Live Holographic Entity Inspector */}
-        <div className="lg:col-span-7 hw-panel p-5 flex flex-col min-h-[480px]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-4">
-            <div className="flex items-center gap-2">
-              <Terminal size={15} className="text-blue-400" />
-              <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-300">
+        {/* Right Column: Live Entity Inspector (Span 7) */}
+        <div className="lg:col-span-7 bento-card p-7 flex flex-col min-h-[540px]">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+            <div className="flex items-center gap-2.5">
+              <Terminal className="w-5 h-5 text-blue-400" />
+              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-slate-200">
                 Live Entity Inspector
               </h3>
             </div>
 
             {result && (
               <div className="flex items-center gap-2">
-                <div className="flex bg-[#0c0e14] p-0.5 rounded-lg border border-white/[0.06] text-xs font-mono">
+                <div className="flex bg-[#090c13] p-1 rounded-lg border border-white/10 text-xs font-mono">
                   <button
                     onClick={() => setActiveView('card')}
-                    className={`px-3 py-1 rounded transition-colors ${activeView === 'card' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                   >
-                    Card
+                    Visual Card
                   </button>
                   <button
                     onClick={() => setActiveView('json')}
-                    className={`px-3 py-1 rounded transition-colors ${activeView === 'json' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                   >
-                    JSON
+                    Raw JSON
                   </button>
                 </div>
 
                 <button
                   onClick={handleCopyJson}
-                  className="hw-btn flex items-center gap-1 px-3 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-xs font-mono text-slate-300 border border-white/[0.08]"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-200 border border-white/10 transition-colors cursor-pointer"
                 >
-                  {copiedJson ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                  <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+                  {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedJson ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
             )}
           </div>
 
-          {/* Results Body */}
+          {/* Results Area */}
           {result ? (
-            <div className="flex-1 space-y-4">
+            <div className="flex-1 space-y-5">
               {/* Telemetry Header */}
-              <div className="p-3 rounded-lg bg-[#0c0e14] border border-white/[0.06] flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-2.5">
+              <div className="p-4 rounded-xl bg-[#090c13] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+                <div className="flex items-center gap-3">
                   <StatusBadge status={result.status} />
                   <span className="text-slate-400">
                     Quality: <strong className="text-emerald-400">{result.quality_score}%</strong>
                   </span>
                 </div>
                 <div className="text-slate-400">
-                  Duration: <strong className="text-white">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-400">{result.selected_strategy}</strong>
+                  Latency: <strong className="text-white">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-400">{result.selected_strategy}</strong>
                 </div>
               </div>
 
               {activeView === 'card' ? (
-                /* Formatted Entity Card */
-                <div className="p-4 rounded-lg bg-[#0c0e14] border border-white/[0.06] space-y-3">
-                  <h4 className="text-base font-bold text-white">
-                    {result.extracted_data?.title || result.extracted_data?.name || result.extracted_data?.job_title || result.extracted_data?.doc_title || 'Extracted Entity'}
-                  </h4>
+                <div className="p-6 rounded-xl bg-[#090c13] border border-white/10 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+                    {/* Product Image Preview */}
+                    {(result.extracted_data?.image_url || result.extracted_data?.image) && (
+                      <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-black/60 border border-white/15 p-2 flex items-center justify-center shrink-0 overflow-hidden group shadow-lg">
+                        <img
+                          src={result.extracted_data.image_url || result.extracted_data.image}
+                          alt={result.extracted_data?.title || 'Product'}
+                          className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
 
-                  {result.extracted_data?.price !== undefined && (
-                    <div className="text-lg font-mono font-bold text-emerald-400">
-                      {result.extracted_data?.currency || '$'} {result.extracted_data?.price}
+                    <div className="space-y-1.5 flex-1 max-w-2xl">
+                      <h4 className="text-xl font-bold text-white leading-snug">
+                        {result.extracted_data?.title || result.extracted_data?.name || result.extracted_data?.job_title || result.extracted_data?.doc_title || 'Extracted Entity'}
+                      </h4>
+                      <a
+                        href={result.target_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-mono text-blue-400 hover:underline flex items-center gap-1.5 truncate"
+                      >
+                        <span>{result.target_url}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
                     </div>
-                  )}
 
-                  {/* Attribute Chips Grid */}
-                  <div className="grid grid-cols-2 gap-2 font-mono text-xs pt-2 border-t border-white/[0.04]">
+                    {result.extracted_data?.price !== undefined && (
+                      <div className="text-left sm:text-right shrink-0 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl">
+                        <span className="text-2xl font-extrabold font-mono text-emerald-400 block">
+                          {result.extracted_data?.currency || '$'} {result.extracted_data?.price}
+                        </span>
+                        {result.extracted_data?.availability && (
+                          <span className="text-xs font-mono text-slate-300">
+                            {result.extracted_data?.availability}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Attributes Matrix */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10 font-mono text-xs">
                     {Object.entries(result.extracted_data || {}).map(([k, v]) => {
                       if (k.includes('_url') || k === 'title' || k === 'price' || !v) return null;
                       return (
-                        <div key={k} className="p-2 rounded bg-black/40 border border-white/[0.04]">
-                          <span className="text-[10px] text-slate-500 uppercase block">{k}</span>
-                          <span className="text-slate-200 truncate block">{String(v)}</span>
+                        <div key={k} className="p-3 rounded-lg bg-white/5 border border-white/5">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">{k}</span>
+                          <span className="text-slate-200 truncate block text-sm">{String(v)}</span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-                /* Raw Syntax JSON Tree */
-                <pre className="p-4 rounded-lg bg-black/60 border border-white/[0.06] text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px]">
+                <pre className="p-6 rounded-xl bg-[#090c13] border border-white/10 text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px] leading-relaxed">
                   {JSON.stringify(result.extracted_data, null, 2)}
                 </pre>
               )}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 font-mono space-y-2">
-              <Layers size={32} className="text-slate-700 mb-2" />
-              <div className="text-xs text-slate-400">No active extraction results</div>
-              <p className="text-[11px] max-w-sm">
-                Click "Execute Extraction" to trigger the multi-strategy pipeline and view live structured payloads.
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 font-mono space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-600 mb-2">
+                <Layers className="w-8 h-8" />
+              </div>
+              <div className="text-sm font-bold text-slate-300">No Active Extraction Results</div>
+              <p className="text-xs max-w-md text-slate-500 leading-relaxed">
+                Select a target on the left and click "Deploy Scraper Pipeline" to view real-time extracted entities and JSON payloads.
               </p>
             </div>
           )}

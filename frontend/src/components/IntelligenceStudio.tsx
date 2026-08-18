@@ -14,7 +14,9 @@ import {
   Clock,
   CheckCircle2,
   FileCode,
-  Tag
+  Tag,
+  MessageSquare,
+  Search
 } from 'lucide-react';
 import { ragChat, fetchIntelReport, fetchRuns } from '../api';
 import { useToast } from './ToastContext';
@@ -37,7 +39,7 @@ export const IntelligenceStudio: React.FC = () => {
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: '👋 Welcome to **MarketScout Living RAG**. I have indexed all your extracted web data, developer documentation, and competitor targets. Ask me anything about your scraped entities!',
+      content: '👋 Welcome to **MarketScout Living RAG**. I have indexed all your extracted web entities, developer documentation, and competitor targets with real-time self-healing DOM provenance. Ask me anything about your scraped data!',
       citations: [],
       timestamp: 'Just now'
     }
@@ -129,158 +131,164 @@ export const IntelligenceStudio: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* Top Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card/90 to-background p-6 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/30">
+    <div className="space-y-8 pb-16 font-sans">
+      {/* ── TOP HERO BANNER ── */}
+      <div className="bento-card p-8 sm:p-10 relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                 Living RAG & Competitive Intel
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 <ShieldCheck className="w-3 h-3" />
-                Zero-Rot Self-Healing Knowledge Base
+                Zero-Rot Grounded Knowledge Base
               </span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Autonomous Intelligence Engine
+
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Autonomous Intelligence & Knowledge Nexus
             </h1>
-            <p className="text-sm text-muted-foreground max-w-2xl">
+
+            <p className="text-sm text-slate-300 leading-relaxed">
               Query extracted web data, developer documentation, and competitor changelogs with grounded source provenance and automated structural drift radar.
             </p>
           </div>
 
-          {/* Tab Switcher */}
-          <div className="flex items-center bg-muted/60 p-1.5 rounded-xl border border-border/60 self-start md:self-auto">
+          {/* SubTab Switcher */}
+          <div className="flex items-center bg-[#090c13] p-1.5 rounded-xl border border-white/10 self-start md:self-auto shrink-0">
             <button
               onClick={() => setActiveSubTab('rag')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === 'rag'
-                  ? 'bg-background text-foreground shadow-md border border-border/80'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Brain className="w-4 h-4 text-primary" />
-              Living RAG Assistant
+              <Brain className="w-4 h-4" />
+              <span>Living RAG Assistant</span>
             </button>
             <button
               onClick={() => {
                 setActiveSubTab('intel');
                 loadIntel();
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === 'intel'
-                  ? 'bg-background text-foreground shadow-md border border-border/80'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Radio className="w-4 h-4 text-cyan-400" />
-              Diff Radar & Intel
+              <Radio className="w-4 h-4 text-cyan-300" />
+              <span>Diff Radar & Intel</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* ── SUBTAB 1: LIVING RAG CONVERSATIONAL WORKSPACE ── */}
       {activeSubTab === 'rag' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Column: Scope & Indexed Entities */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="p-4 rounded-xl border border-border/80 bg-card/60 backdrop-blur-md space-y-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-primary" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Scope & Suggested Prompts (Span 4 cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="bento-card p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-blue-400" />
                   Knowledge Scope
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-primary/10 text-primary border border-primary/20">
+                <span className="px-2.5 py-0.5 rounded text-[11px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
                   {runs.length} Runs Indexed
                 </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Filter Workflow</label>
+              {/* Workflow Filter Dropdown */}
+              <div className="space-y-2">
+                <label className="text-xs font-mono font-semibold text-slate-300">Filter Target Domain</label>
                 <select
                   value={selectedWorkflow}
                   onChange={e => setSelectedWorkflow(e.target.value)}
-                  className="w-full bg-background border border-border/80 rounded-lg px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full bg-[#090c13] border border-white/15 rounded-xl px-4 py-3 text-xs font-medium text-white focus:outline-none focus:border-blue-500"
                 >
                   <option value="all">All Workflows (Universal RAG)</option>
-                  <option value="products">E-Commerce Products</option>
+                  <option value="products">Amazon E-Commerce Products</option>
                   <option value="tech_docs">Tech Docs & API Specs</option>
                   <option value="jobs">Talent & Job Postings</option>
                   <option value="linkedin">LinkedIn Executive Profiles</option>
                   <option value="x">X (Twitter) Feed</option>
                   <option value="reddit">Reddit Discussions</option>
+                  <option value="google_maps">Google Maps POI</option>
                 </select>
               </div>
 
-              <div className="pt-2 border-t border-border/60 space-y-2">
-                <span className="text-[11px] font-medium text-muted-foreground block">
-                  Suggested Prompts
+              {/* Suggested Prompts */}
+              <div className="space-y-2.5 pt-2">
+                <span className="text-xs font-mono font-bold text-slate-400 block">
+                  Suggested Questions:
                 </span>
-                {samplePrompts.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSendMessage(p)}
-                    className="w-full text-left p-2.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted/60 text-[11px] text-muted-foreground hover:text-foreground transition-all flex items-start gap-2 group"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5 mt-0.5 text-primary opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                    <span>{p}</span>
-                  </button>
-                ))}
+                <div className="space-y-2">
+                  {samplePrompts.map((p, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(p)}
+                      className="w-full text-left p-3 rounded-xl border border-white/10 bg-[#090c13] hover:bg-white/5 text-xs text-slate-300 hover:text-white transition-all flex items-start gap-2.5 group cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4 mt-0.5 text-blue-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0" />
+                      <span className="leading-snug">{p}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Provenance Guarantee */}
-            <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2">
-              <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+            {/* Verifiable Provenance Guarantee Card */}
+            <div className="bento-card p-6 space-y-2.5 border-emerald-500/20 bg-emerald-500/[0.03]">
+              <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold font-mono">
                 <CheckCircle2 className="w-4 h-4" />
-                Verifiable Grounding
+                <span>100% Grounded Provenance</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Every response generates exact attribute citations linked to canonical source URLs with self-healed DOM provenance.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Every AI response is strictly synthesized from active database records with exact field-level citations and verified canonical URLs.
               </p>
             </div>
           </div>
 
-          {/* Right Column: Chat Console */}
-          <div className="lg:col-span-3 rounded-xl border border-border/80 bg-card/60 backdrop-blur-md shadow-sm flex flex-col h-[640px]">
-            {/* Chat Messages Scroll Area */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-4 font-sans">
+          {/* Right Column: Chat Console (Span 8 cols) */}
+          <div className="lg:col-span-8 bento-card p-0 flex flex-col min-h-[640px] h-[640px]">
+            {/* Messages Scroll View */}
+            <div className="flex-1 p-6 overflow-y-auto space-y-5">
               {messages.map(m => (
                 <div
                   key={m.id}
-                  className={`flex gap-3.5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {m.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 text-primary mt-1 shadow-sm">
-                      <Brain className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-400 shadow-sm mt-0.5">
+                      <Brain className="w-5 h-5" />
                     </div>
                   )}
 
                   <div className={`space-y-2 max-w-[85%] ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                     <div
-                      className={`p-4 rounded-2xl text-xs leading-relaxed ${
+                      className={`p-5 rounded-2xl text-sm leading-relaxed ${
                         m.role === 'user'
-                          ? 'bg-primary text-primary-foreground font-medium rounded-tr-sm shadow-md'
-                          : 'bg-muted/40 border border-border/80 text-foreground rounded-tl-sm shadow-sm'
+                          ? 'bg-blue-600 text-white font-medium rounded-tr-sm shadow-md'
+                          : 'bg-[#090c13] border border-white/10 text-slate-200 rounded-tl-sm shadow-sm'
                       }`}
                     >
                       <div className="whitespace-pre-wrap">{m.content}</div>
 
                       {/* Source Citations */}
                       {m.citations && m.citations.length > 0 && (
-                        <div className="mt-3.5 pt-3 border-t border-border/60 space-y-2">
+                        <div className="mt-4 pt-3.5 border-t border-white/10 space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                              <FileCode className="w-3 h-3 text-primary" />
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 font-mono">
+                              <FileCode className="w-3.5 h-3.5 text-blue-400" />
                               Verified Source Citations ({m.citations.length})
                             </span>
                             {m.confidence && (
-                              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">
                                 {(m.confidence * 100).toFixed(0)}% Grounded
                               </span>
                             )}
@@ -289,20 +297,21 @@ export const IntelligenceStudio: React.FC = () => {
                             {m.citations.map((c, cIdx) => (
                               <div
                                 key={cIdx}
-                                className="p-2 rounded bg-background/80 border border-border/80 text-[11px] space-y-1"
+                                className="p-3 rounded-lg bg-black/40 border border-white/5 text-xs space-y-1 font-mono"
                               >
-                                <div className="flex items-center justify-between font-mono">
-                                  <span className="font-semibold text-primary">{c.field}</span>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-blue-400">{c.field}</span>
                                   <a
                                     href={c.source_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="text-muted-foreground hover:text-foreground flex items-center gap-0.5 text-[10px]"
+                                    className="text-slate-400 hover:text-white flex items-center gap-1 text-[10px]"
                                   >
-                                    Source <ExternalLink className="w-2.5 h-2.5" />
+                                    <span>Source</span>
+                                    <ExternalLink className="w-3 h-3" />
                                   </a>
                                 </div>
-                                <div className="truncate text-muted-foreground font-mono text-[10px]">
+                                <div className="truncate text-slate-300 text-[11px]">
                                   {String(c.value)}
                                 </div>
                               </div>
@@ -311,7 +320,7 @@ export const IntelligenceStudio: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] font-mono text-muted-foreground px-1 block">
+                    <span className="text-[10px] font-mono text-slate-500 px-1 block">
                       {m.timestamp}
                     </span>
                   </div>
@@ -319,191 +328,122 @@ export const IntelligenceStudio: React.FC = () => {
               ))}
 
               {loadingQuery && (
-                <div className="flex gap-3.5 items-start">
-                  <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 text-primary mt-1 animate-pulse">
-                    <Sparkles className="w-4 h-4" />
+                <div className="flex gap-4 items-start">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-400 animate-pulse">
+                    <Sparkles className="w-5 h-5" />
                   </div>
-                  <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 text-xs text-muted-foreground flex items-center gap-2 shadow-sm">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                    Synthesizing grounded answer from extracted web entities...
+                  <div className="p-4 rounded-2xl bg-[#090c13] border border-white/10 text-xs text-slate-300 flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                    <span>Synthesizing grounded response with exact citations...</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Input Bar */}
-            <div className="p-4 border-t border-border/80 bg-muted/20">
+            {/* Large Comfortable Chat Input Bar */}
+            <div className="p-4 border-t border-white/10 bg-[#0f131f]">
               <form
                 onSubmit={e => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
-                className="flex items-center gap-2"
+                className="flex items-center gap-3"
               >
-                <input
-                  type="text"
-                  value={inputQuery}
-                  onChange={e => setInputQuery(e.target.value)}
-                  placeholder="Ask any question about your scraped web data, docs, or prices..."
-                  className="flex-1 bg-background border border-border/80 rounded-xl px-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-inner font-sans"
-                />
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={inputQuery}
+                    onChange={e => setInputQuery(e.target.value)}
+                    placeholder="Ask any question about your scraped products, docs, prices, or talent..."
+                    className="w-full bg-[#090c13] border border-white/15 rounded-xl px-5 py-3.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 shadow-inner font-sans"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={!inputQuery.trim() || loadingQuery}
-                  className="px-4 py-2.5 bg-primary text-primary-foreground font-semibold rounded-xl text-xs flex items-center gap-1.5 hover:bg-primary/90 disabled:opacity-50 transition-all shadow-md"
+                  className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/30 disabled:opacity-50 transition-all cursor-pointer shrink-0"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  Ask RAG
+                  <Send className="w-4 h-4" />
+                  <span>Ask RAG</span>
                 </button>
               </form>
             </div>
           </div>
         </div>
       ) : (
-        /* Competitive Intelligence & Diff Radar SubTab */
+        /* ── SUBTAB 2: COMPETITIVE INTEL & DIFF RADAR ── */
         <div className="space-y-6">
           {/* Executive Briefing Card */}
-          <div className="p-6 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-card via-card/90 to-cyan-950/20 shadow-xl space-y-4">
+          <div className="bento-card p-8 border-cyan-500/20 bg-gradient-to-br from-[#121622] via-[#121622] to-cyan-950/20 space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <Radio className="w-4 h-4 animate-pulse" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <Radio className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-foreground">
-                    AI Executive Intelligence Briefing
-                  </h2>
-                  <span className="text-xs text-muted-foreground">
-                    Automated multi-run semantic diff synthesis
+                  <h3 className="text-lg font-bold text-white">Automated Market & Competitor Briefing</h3>
+                  <span className="text-xs font-mono text-slate-400">
+                    Generated dynamically from multi-run historical diffs
                   </span>
                 </div>
               </div>
               <button
                 onClick={loadIntel}
                 disabled={loadingIntel}
-                className="px-3 py-1.5 rounded-lg border border-border/80 bg-background/80 hover:bg-background text-xs font-medium text-muted-foreground hover:text-foreground transition-all"
+                className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-300 border border-white/10 transition-colors"
               >
-                {loadingIntel ? 'Refreshing...' : 'Refresh Radar'}
+                {loadingIntel ? 'Analyzing...' : 'Refresh Intel'}
               </button>
             </div>
 
-            <p className="text-xs text-foreground/90 leading-relaxed font-sans p-4 rounded-xl bg-background/60 border border-border/60">
-              {intelReport?.executive_summary || 'Analyzing historical change timeline across monitored web targets...'}
-            </p>
-
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Tracked Runs</span>
-                <span className="text-xl font-bold text-foreground font-mono">
-                  <CountUp end={intelReport?.total_tracked_runs || 0} />
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">DOM Templates</span>
-                <span className="text-xl font-bold text-primary font-mono">
-                  <CountUp end={intelReport?.unique_templates || 0} />
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Diff Events</span>
-                <span className="text-xl font-bold text-amber-400 font-mono">
-                  <CountUp end={intelReport?.total_diff_events || 0} />
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/60">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Healed Outages</span>
-                <span className="text-xl font-bold text-emerald-400 font-mono">
-                  <CountUp end={intelReport?.healed_runs_count || 0} />
-                </span>
-              </div>
+            <div className="p-5 rounded-xl bg-[#090c13] border border-white/10 text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+              {intelReport?.executive_summary || 'No multi-run movements detected on monitored targets.'}
             </div>
-
           </div>
 
-          {/* Timeline & Price Radar */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Timeline Stream */}
-            <div className="p-5 rounded-xl border border-border/80 bg-card/60 backdrop-blur-md space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-primary" />
-                  Chronological Field Diff Stream
-                </h3>
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  {intelReport?.timeline_events?.length || 0} Events
-                </span>
+          {/* Historical Diff Stream */}
+          <div className="bento-card p-8 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+                <h3 className="text-base font-bold text-white">Historical Field Mutations & Price Diffs</h3>
               </div>
-
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto">
-                {intelReport?.timeline_events?.length > 0 ? (
-                  intelReport.timeline_events.map((ev: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-lg border border-border/60 bg-muted/20 text-xs space-y-1.5 font-sans"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-primary flex items-center gap-1.5">
-                          <Tag className="w-3 h-3 text-muted-foreground" />
-                          {ev.field_name}
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          {ev.change_type}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-background/80 p-2 rounded border border-border/60">
-                        <div className="truncate text-rose-400">
-                          <span className="text-muted-foreground">Old:</span> {String(ev.old_value || 'None')}
-                        </div>
-                        <div className="truncate text-emerald-400">
-                          <span className="text-muted-foreground">New:</span> {String(ev.new_value || 'None')}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-xs text-muted-foreground">
-                    No structural diffs detected yet. Execute multiple scrape runs on target domains to populate the radar.
-                  </div>
-                )}
-              </div>
+              <span className="text-xs font-mono text-slate-400">
+                {intelReport?.mutations_detected || 0} Total Changes Tracked
+              </span>
             </div>
 
-            {/* Pricing & Stock Trajectory */}
-            <div className="p-5 rounded-xl border border-border/80 bg-card/60 backdrop-blur-md space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  Pricing & Availability Shifts
-                </h3>
-              </div>
-
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto">
-                {intelReport?.price_events?.length > 0 ? (
-                  intelReport.price_events.map((pe: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs space-y-1.5 font-sans"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-foreground">Run #{pe.run_id} Mutation</span>
-                        <span className="text-[10px] font-mono text-emerald-400 font-semibold">
-                          Shift Detected
-                        </span>
+            <div className="space-y-3">
+              {intelReport?.diffs && intelReport.diffs.length > 0 ? (
+                intelReport.diffs.map((d: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-xl bg-[#090c13] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-blue-400">{d.field}</span>
+                        <span className="text-slate-500">·</span>
+                        <span className="text-slate-300">{d.domain}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs font-mono">
-                        <span className="line-through text-muted-foreground">{pe.old_value}</span>
-                        <ArrowRight className="w-3 h-3 text-primary" />
-                        <span className="font-bold text-emerald-400">{pe.new_value}</span>
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <span className="line-through text-rose-400">{String(d.old_value)}</span>
+                        <span>→</span>
+                        <span className="text-emerald-400 font-bold">{String(d.new_value)}</span>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-xs text-muted-foreground">
-                    No pricing or salary shifts recorded. Execute recurring scrape jobs to track historical price movements.
+
+                    <span className="px-2.5 py-1 rounded bg-white/5 border border-white/10 text-slate-400 text-[11px] self-start sm:self-auto">
+                      {d.detected_at}
+                    </span>
                   </div>
-                )}
-              </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-slate-500 font-mono text-xs">
+                  Run multiple scrapes on the same domain to view historical diff radar metrics.
+                </div>
+              )}
             </div>
           </div>
         </div>

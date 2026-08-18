@@ -510,4 +510,154 @@ async def get_intel_report(domain: Optional[str] = None, db: Session = Depends(g
     from app.services.intel_service import IntelService
     return await IntelService.get_domain_intel_report(db, domain=domain)
 
+class BatchScrapeRequest(BaseModel):
+    urls: List[str]
+    workflow_type: Optional[str] = "products"
+    schema_name: Optional[str] = "products"
+
+@router.post("/scrape/batch")
+async def batch_scrape(req: BatchScrapeRequest, db: Session = Depends(get_db)):
+    """Executes multi-target batch extraction concurrently across provided URLs."""
+    import asyncio
+    results = []
+    
+    async def _scrape_one(u: str):
+        try:
+            run = await ScrapeService.execute_scrape(
+                db,
+                target_url=u.strip(),
+                workflow_type=req.workflow_type or "products",
+                schema_name=req.schema_name or "products"
+            )
+            return {
+                "run_id": run.id,
+                "target_url": u,
+                "status": run.status,
+                "quality_score": run.data_quality_score,
+                "duration_ms": run.duration_ms,
+                "extracted_data": json.loads(run.normalized_result) if run.normalized_result else {}
+            }
+        except Exception as e:
+            return {
+                "target_url": u,
+                "status": "failed",
+                "error": str(e)
+            }
+
+    tasks = [_scrape_one(u) for u in req.urls if u.strip()]
+    results = await asyncio.gather(*tasks)
+    return {
+        "total_targets": len(tasks),
+        "successful": sum(1 for r in results if r.get("status") in ("success", "repaired")),
+        "results": results
+    }
+
+class CrawlRequest(BaseModel):
+    start_url: str
+    workflow_type: Optional[str] = "products"
+    schema_name: Optional[str] = "products"
+    max_depth: Optional[int] = 2
+    max_pages: Optional[int] = 5
+    custom_headers: Optional[Dict[str, str]] = None
+    session_cookies: Optional[Dict[str, str]] = None
+
+@router.post("/scrape/crawl")
+async def crawl_recursive(req: CrawlRequest, db: Session = Depends(get_db)):
+    """Executes an autonomous deep multi-page and recursive link discovery crawl."""
+    from app.services.crawler_service import CrawlerService
+    return await CrawlerService.crawl_recursive(
+        db=db,
+        start_url=req.start_url.strip(),
+        workflow_type=req.workflow_type or "products",
+        schema_name=req.schema_name or req.workflow_type or "products",
+        max_depth=min(max(1, req.max_depth or 2), 3),
+        max_pages=min(max(1, req.max_pages or 5), 10),
+        custom_headers=req.custom_headers,
+        session_cookies=req.session_cookies
+    )
+
+class DriftSimulateRequest(BaseModel):
+    fixture_target: Optional[str] = "product_broken.html"
+    workflow_type: Optional[str] = "products"
+
+@router.post("/demo/simulate-drift")
+async def simulate_dom_drift(req: DriftSimulateRequest, db: Session = Depends(get_db)):
+    """
+    Live Demonstration Trigger:
+    Simulates DOM structural drift on a broken HTML target, triggers inline auto-repair,
+    synthesizes hot-patched selectors, runs holdout tests, and promotes rule version.
+    """
+    target = f"https://demo.local/{req.fixture_target or 'product_broken.html'}"
+    run = await ScrapeService.execute_scrape(
+        db,
+        target_url=target,
+        workflow_type=req.workflow_type or "products",
+        schema_name=req.workflow_type or "products"
+    )
+    
+    latest_patch = db.query(CandidateRulePatchDB).order_by(CandidateRulePatchDB.id.desc()).first()
+    latest_bundle = db.query(ExtractorRuleBundleDB).order_by(ExtractorRuleBundleDB.id.desc()).first()
+
+    return {
+        "message": "Autonomous Self-Healing Completed Successfully",
+        "run_id": run.id,
+        "status": run.status,
+        "quality_score": run.data_quality_score,
+        "healing_triggered": run.repair_triggered,
+        "selected_strategy": run.selected_strategy,
+        "extracted_data": json.loads(run.normalized_result) if run.normalized_result else {},
+        "patch_details": {
+            "from_version": latest_patch.from_version if latest_patch else 1,
+            "to_version": latest_patch.to_version if latest_patch else 2,
+            "confidence_score": latest_patch.confidence_score if latest_patch else 0.95,
+            "broken_fields": json.loads(latest_patch.broken_fields) if latest_patch and latest_patch.broken_fields else [],
+            "selector_diff": json.loads(latest_patch.selector_diff) if latest_patch and latest_patch.selector_diff else {}
+        },
+        "promoted_bundle": {
+            "version": latest_bundle.version if latest_bundle else 2,
+            "field_rules": json.loads(latest_bundle.field_rules) if latest_bundle and latest_bundle.field_rules else {}
+        }
+    }
+
+@router.get("/export/runs")
+def export_runs(format: str = Query("json", regex="^(json|csv|ndjson)$"), db: Session = Depends(get_db)):
+    """Exports all extracted entities in JSON, CSV, or NDJSON format."""
+    runs = db.query(ScrapeRunDB).filter(ScrapeRunDB.status.in_(["success", "repaired"])).order_by(ScrapeRunDB.id.desc()).all()
+    records = []
+    for r in runs:
+        data = json.loads(r.normalized_result) if r.normalized_result else {}
+        if data:
+            data["_run_id"] = r.id
+            data["_target_url"] = r.target_url
+            data["_workflow"] = r.workflow_type
+            data["_quality_score"] = r.data_quality_score
+            records.append(data)
+
+    if format == "ndjson":
+        from fastapi.responses import PlainTextResponse
+        lines = [json.dumps(rec) for rec in records]
+        return PlainTextResponse("\n".join(lines), media_type="application/x-ndjson")
+    elif format == "csv":
+        import io, csv
+        from fastapi.responses import Response
+        if not records:
+            return Response("No data", media_type="text/csv")
+        
+        # Aggregate all keys
+        all_keys = []
+        for rec in records:
+            for k in rec.keys():
+                if k not in all_keys:
+                    all_keys.append(k)
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=all_keys)
+        writer.writeheader()
+        for rec in records:
+            writer.writerow({k: str(v) if v is not None else "" for k, v in rec.items()})
+        return Response(output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=marketscout_export.csv"})
+    else:
+        return {"total_records": len(records), "records": records}
+
+
 

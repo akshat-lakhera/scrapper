@@ -192,3 +192,57 @@ export async function fetchIntelReport(domain?: string): Promise<{
   return request(url);
 }
 
+export async function batchScrape(data: {
+  urls: string[];
+  workflow_type?: string;
+  schema_name?: string;
+}): Promise<{ total_targets: number; successful: number; results: any[] }> {
+  return request(`${API_BASE}/scrape/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function simulateDrift(data?: {
+  fixture_target?: string;
+  workflow_type?: string;
+}): Promise<any> {
+  return request(`${API_BASE}/demo/simulate-drift`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data || {}),
+  });
+}
+
+export async function crawlRecursive(data: {
+  start_url: string;
+  workflow_type?: string;
+  schema_name?: string;
+  max_depth?: number;
+  max_pages?: number;
+  custom_headers?: Record<string, string>;
+  session_cookies?: Record<string, string>;
+}): Promise<{
+  start_url: string;
+  workflow_type: string;
+  max_depth: number;
+  max_pages_limit: number;
+  total_pages_crawled: number;
+  total_links_discovered: number;
+  successful_extractions: number;
+  crawled_pages: any[];
+  discovered_link_sample: string[];
+}> {
+  return request(`${API_BASE}/scrape/crawl`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getExportUrl(format: 'json' | 'csv' | 'ndjson'): string {
+  return `${API_BASE}/export/runs?format=${format}`;
+}
+
+

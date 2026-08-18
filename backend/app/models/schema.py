@@ -167,7 +167,7 @@ TECH_DOCS_SCHEMA = ScrapeSchema(
     description="Technical documentation, API references, guides and code snippets",
     fields=[
         SchemaField(name="doc_title", description="Documentation title or guide name", data_type="string", required=True),
-        SchemaField(name="section_heading", description="Current section or chapter heading", data_type="string", required=True),
+        SchemaField(name="section_heading", description="Current section or chapter heading", data_type="string", required=False),
         SchemaField(name="content_body", description="Main documentation article or text body", data_type="string", required=True),
         SchemaField(name="code_snippet", description="Extracted code block or example", data_type="string", required=False),
         SchemaField(name="last_updated", description="Last revision date or release version", data_type="string", required=False),

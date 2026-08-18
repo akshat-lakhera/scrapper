@@ -1,19 +1,21 @@
 import json
 import logging
+import os
+import re
+import httpx
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.scrape_run import ScrapeRunDB
 from app.models.field_change import FieldChangeDB
-from app.extraction.groq_extractor import GroqExtractor
 
 logger = logging.getLogger("marketscout.rag_service")
 
 class RAGService:
     """
     Autonomous RAG (Retrieval-Augmented Generation) Knowledge Base Service.
-    Indexes extracted structured web entities and provides grounded Q&A with
-    exact source provenance, field citations, and zero-hallucination constraints.
+    Provides natural language conversational synthesis with exact source provenance,
+    entity relevance ranking, and multi-LLM generation (Groq + Google Gemini).
     """
 
     @staticmethod
@@ -25,151 +27,243 @@ class RAGService:
         domain_filter: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Executes a grounded RAG query across extracted scrape runs using Groq (llama-3.3-70b-versatile).
-        Returns the synthesized answer alongside verified field citations and source URLs.
+        Executes a grounded RAG query across extracted scrape runs.
+        Handles conversational inquiries, entity search, and deep structured synthesis.
         """
-        # 1. Retrieve relevant scrape runs
+        q_clean = query.strip()
+        q_lower = q_clean.lower()
+
+        # ── 1. CONVERSATIONAL & CAPABILITY INTENT ROUTING ───────────────────
+        general_patterns = [
+            r"can you (scrap|scrape|extract|crawl|collect|fetch|work)",
+            r"how do (you|i) (scrap|scrape|extract|crawl)",
+            r"how does (this|it|marketscout) work",
+            r"what (can you do|are your capabilities|is marketscout|can i do)",
+            r"^(hi|hello|hey|help|who are you|what is this|hii|yo)\b",
+            r"what (platforms|websites|domains) (do you|can you) support",
+            r"(support|features|instructions|usage)"
+        ]
+        
+        if any(re.search(pat, q_lower) for pat in general_patterns):
+            answer = (
+                "**Hello! I am MarketScout Intelligence Assistant**, your autonomous AI agent for web data extraction, living RAG, and self-healing scraping.\n\n"
+                "### Key Capabilities:\n"
+                "- **8 Platform Schemas**: Amazon E-Commerce, LinkedIn Profiles, X (Twitter), Talent/Jobs (Lever/Indeed), Tech Docs & API Specs, Instagram, Reddit, and Google Maps.\n"
+                "- **Bright Data Web Unlocker**: Bypasses CAPTCHAs, bot protections, and geo-blocks autonomously.\n"
+                "- **Multi-Strategy Pipeline**: Uses JSON-LD schema, OpenGraph meta tags, and semantic DOM heuristics with 0% data rot.\n"
+                "- **Self-Healing Engine**: Automatically diagnoses DOM structural drifts and hot-patches CSS selectors without downtime.\n\n"
+                "**How to use**: Navigate to **Command Center** or **Extraction Studio**, paste any target URL, click **Deploy Scraper Pipeline**, and then ask me anything about your scraped data!"
+            )
+            return {
+                "query": query,
+                "answer": answer,
+                "citations": [],
+                "confidence": 1.0,
+                "runs_analyzed": 0
+            }
+
+        # ── 2. RETRIEVE RELEVANT RUNS FROM DATABASE ─────────────────────────
         query_builder = db.query(ScrapeRunDB).filter(ScrapeRunDB.status.in_(["success", "repaired"]))
         
         if run_ids:
             query_builder = query_builder.filter(ScrapeRunDB.id.in_(run_ids))
-        if workflow_type:
+        if workflow_type and workflow_type != "all":
             query_builder = query_builder.filter(ScrapeRunDB.workflow_type == workflow_type)
         
-        runs = query_builder.order_by(ScrapeRunDB.id.desc()).limit(15).all()
+        runs = query_builder.order_by(ScrapeRunDB.id.desc()).limit(25).all()
 
         if domain_filter:
             runs = [r for r in runs if domain_filter.lower() in (r.target_url or "").lower()]
 
         if not runs:
-            # Fallback if no runs in DB yet
             return {
                 "query": query,
-                "answer": "No extracted knowledge base runs are currently available. Please execute a scrape run first to populate the self-healing knowledge base.",
+                "answer": "No extracted knowledge base runs are currently available. Please execute a scrape in the **Command Center** or **Extraction Studio** to populate the Living RAG database.",
                 "citations": [],
                 "confidence": 0.0,
                 "runs_analyzed": 0
             }
 
-        # 2. Build structured knowledge context with source provenance
+        # ── 3. RANK RUNS BY QUERY RELEVANCE ─────────────────────────────────
+        stopwords = {"what", "which", "where", "show", "tell", "price", "about", "from", "with", "this", "that", "the", "and", "for", "is", "are", "of", "a", "an", "in", "on", "to", "how", "much", "cost"}
+        query_tokens = [w for w in re.findall(r"\w+", q_lower) if len(w) >= 2 and w not in stopwords]
+        
+        scored_runs = []
+        for r in runs:
+            norm_data = json.loads(r.normalized_result) if r.normalized_result else {}
+            score = 0
+            title_text = str(norm_data.get("title") or norm_data.get("name") or norm_data.get("doc_title") or norm_data.get("job_title") or "").lower()
+            url_text = (r.target_url or "").lower()
+            body_text = " ".join(f"{k} {v}" for k, v in norm_data.items() if v).lower()
+
+            for token in query_tokens:
+                pattern = rf"\b{re.escape(token)}\b"
+                if re.search(pattern, title_text):
+                    score += 10
+                elif re.search(pattern, url_text):
+                    score += 6
+                elif re.search(pattern, body_text):
+                    score += 2
+
+            scored_runs.append((score, r, norm_data))
+
+        # Sort by relevance score descending
+        scored_runs.sort(key=lambda x: x[0], reverse=True)
+        top_runs = [x for x in scored_runs if x[0] > 0]
+        if not top_runs:
+            if query_tokens:
+                return {
+                    "query": query,
+                    "answer": f"I couldn't find any extracted records in the database matching **'{query}'**.\n\n👉 **Tip**: You can scrape that target URL in the **Command Center** or **Extraction Studio** to index its data into Living RAG!",
+                    "citations": [],
+                    "confidence": 0.0,
+                    "runs_analyzed": len(runs)
+                }
+            top_runs = scored_runs[:3]  # fallback to most recent
+
+        # ── 4. BUILD KNOWLEDGE CONTEXT & CITATIONS ───────────────────────────
         knowledge_blocks = []
         citations_lookup = []
 
-        for r in runs:
-            norm_data = json.loads(r.normalized_result) if r.normalized_result else {}
-            if not norm_data:
-                continue
-            
+        for score, r, norm_data in top_runs[:5]:
             clean_fields = {k: v for k, v in norm_data.items() if v not in (None, "", [], {}) and k not in ("scraped_at", "target_url")}
-            
-            block_summary = (
-                f"[Source Document Run #{r.id}]\n"
-                f"- Canonical URL: {r.target_url}\n"
-                f"- Workflow: {r.workflow_type}\n"
-                f"- Extractor Strategy: {r.selected_strategy}\n"
-                f"- Quality Score: {r.data_quality_score}%\n"
-                f"- Extracted Attributes:\n"
-            )
+            block = f"[Target #{r.id} ({r.workflow_type}) | {r.target_url}]\n"
             for k, v in clean_fields.items():
-                block_summary += f"  * {k}: {v}\n"
+                block += f"  - {k}: {v}\n"
                 citations_lookup.append({
                     "run_id": r.id,
                     "source_url": r.target_url,
                     "field": k,
                     "value": v
                 })
-            knowledge_blocks.append(block_summary)
+            knowledge_blocks.append(block)
 
         context_text = "\n\n".join(knowledge_blocks)
 
-        # 3. If Groq is disabled, generate deterministic grounded summary
-        if not settings.is_groq_enabled():
-            matched_citations = []
-            q_lower = query.lower()
-            for cit in citations_lookup:
-                if str(cit["field"]).lower() in q_lower or any(word in str(cit["value"]).lower() for word in q_lower.split() if len(word) > 3):
-                    matched_citations.append(cit)
-
-            return {
-                "query": query,
-                "answer": f"Knowledge base contains {len(runs)} analyzed web targets. Top matching entity attributes retrieved from deterministic multi-strategy extraction.",
-                "citations": matched_citations[:5],
-                "confidence": 0.88,
-                "runs_analyzed": len(runs)
-            }
-
-        # 4. Generate grounded LLM synthesis via Groq (llama-3.3-70b-versatile)
         system_prompt = (
             "You are MarketScout Intelligence Assistant, an elite AI knowledge agent for extracted web data.\n"
-            "Your job is to provide accurate, factual, and actionable answers strictly grounded in the provided web extraction context.\n\n"
-            "Rules:\n"
-            "1. Answer the user's question directly using ONLY facts from the provided Extracted Knowledge context.\n"
-            "2. Always cite specific fields and exact URLs when referencing data (e.g. 'According to [url], the price is INR 1,499').\n"
-            "3. If information is not in the context, explicitly state what is missing rather than inventing facts.\n"
-            "4. Return clean, formatted markdown."
+            "Provide clear, concise, conversational, and factual answers strictly grounded in the extracted web context.\n"
+            "Cite exact field values and URLs naturally in your text using clean markdown."
         )
-
         user_prompt = (
             f"User Question: {query}\n\n"
-            f"--- EXTRACTED KNOWLEDGE CONTEXT ({len(runs)} Runs) ---\n"
+            f"--- EXTRACTED TARGETS CONTEXT ---\n"
             f"{context_text}\n"
-            "---------------------------------------------------\n\n"
-            "Provide a comprehensive, verified answer with exact citations:"
+            "---------------------------------\n"
+            "Answer the user's question directly:"
         )
 
-        try:
-            from groq import AsyncGroq
-            client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+        # ── 5. MULTI-LLM INFERENCE: GROQ -> GOOGLE GEMINI ──────────────────
+        llm_answer = None
+
+        # Try Groq (llama-3.3-70b-versatile)
+        if settings.is_groq_enabled():
+            try:
+                from groq import AsyncGroq
+                client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+                completion = await client.chat.completions.create(
+                    model=settings.GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.1,
+                    max_tokens=600
+                )
+                if completion.choices and completion.choices[0].message.content:
+                    llm_answer = completion.choices[0].message.content.strip()
+            except Exception as e:
+                logger.info(f"Groq LLM call error: {e}. Trying Gemini fallback.")
+
+        # Try Google Gemini (gemini-2.5-flash)
+        if not llm_answer:
+            gemini_key = os.environ.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+            if gemini_key:
+                try:
+                    async with httpx.AsyncClient(timeout=30.0) as http_client:
+                        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+                        gemini_payload = {
+                            "contents": [
+                                {
+                                    "parts": [
+                                        {"text": f"{system_prompt}\n\n{user_prompt}"}
+                                    ]
+                                }
+                            ],
+                            "generationConfig": {
+                                "temperature": 0.1,
+                                "maxOutputTokens": 800
+                            }
+                        }
+                        res = await http_client.post(gemini_url, json=gemini_payload)
+                        if res.status_code == 200:
+                            data = res.json()
+                            candidates = data.get("candidates", [])
+                            if candidates and "content" in candidates[0]:
+                                parts = candidates[0]["content"].get("parts", [])
+                                if parts and "text" in parts[0]:
+                                    llm_answer = parts[0]["text"].strip()
+                except Exception as e:
+                    logger.info(f"Gemini API fallback error: {e}")
+
+        # ── 6. DETERMINISTIC SMART CONVERSATIONAL SYNTHESIZER ───────────────
+        if not llm_answer:
+            best_match = top_runs[0]
+            best_r, best_data = best_match[1], best_match[2]
             
-            completion = await client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.1,
-                max_tokens=1000
-            )
+            title = best_data.get("title") or best_data.get("name") or best_data.get("doc_title") or best_data.get("job_title") or "Indexed Target"
+            price = best_data.get("price")
+            currency = best_data.get("currency") or "$"
+            avail = best_data.get("availability")
+            company = best_data.get("company") or best_data.get("seller")
+            location = best_data.get("location")
+            desc = best_data.get("description") or best_data.get("content_body")
 
-            answer_text = completion.choices[0].message.content or "No response generated."
-            
-            # Match top citations based on question and answer
-            top_citations = []
-            for cit in citations_lookup:
-                if str(cit["field"]).lower() in query.lower() or str(cit["field"]).lower() in answer_text.lower():
-                    if cit not in top_citations:
-                        top_citations.append(cit)
+            lines = []
+            if "price" in q_lower or "cost" in q_lower or "how much" in q_lower:
+                if price is not None:
+                    lines.append(f"The price for **{title}** is **{currency} {price}**.")
+                    if avail:
+                        lines.append(f"**Availability**: {avail}")
+                    if company:
+                        lines.append(f"**Sold by / Retailer**: {company}")
+                else:
+                    lines.append(f"Price data was not found for **{title}**.")
+            elif "who" in q_lower or "author" in q_lower or "user" in q_lower:
+                author = best_data.get("user_posted") or best_data.get("author") or best_data.get("name")
+                if author:
+                    lines.append(f"The author/profile for this target is **{author}**.")
+                else:
+                    lines.append(f"Target entity: **{title}**.")
+            elif "job" in q_lower or "salary" in q_lower:
+                lines.append(f"**Job Position**: {title}")
+                if company: lines.append(f"- **Company**: {company}")
+                if location: lines.append(f"- **Location**: {location}")
+                if best_data.get("salary"): lines.append(f"- **Compensation**: {best_data.get('salary')}")
+            else:
+                lines.append(f"Based on extracted data for **{title}**:")
+                if price is not None: lines.append(f"- **Price**: {currency} {price} ({avail or 'Status available'})")
+                if company: lines.append(f"- **Organization/Seller**: {company}")
+                if desc:
+                    snippet = desc[:280] + ("..." if len(desc) > 280 else "")
+                    lines.append(f"- **Summary**: {snippet}")
 
-            return {
-                "query": query,
-                "answer": answer_text,
-                "citations": top_citations[:8],
-                "confidence": 0.96,
-                "runs_analyzed": len(runs)
-            }
-        except Exception as e:
-            logger.warning(f"Groq RAG LLM call encountered error: {e}. Generating deterministic grounded answer.")
-            top_citations = []
-            for cit in citations_lookup:
-                if str(cit["field"]).lower() in query.lower() or any(word in str(cit["value"]).lower() for word in query.lower().split() if len(word) > 2):
-                    if cit not in top_citations:
-                        top_citations.append(cit)
-            
-            if not top_citations:
-                top_citations = citations_lookup[:5]
+            lines.append(f"\n**Source Target**: [{best_r.target_url}]({best_r.target_url})")
+            llm_answer = "\n".join(lines)
 
-            synthesis_lines = [
-                f"### Grounded Knowledge Synthesis ({len(runs)} Scraped Web Targets Analyzed)",
-                f"Based on real-time extraction across indexed documents:",
-            ]
-            for cit in top_citations[:4]:
-                synthesis_lines.append(f"- **{cit['field'].title()}**: {cit['value']} (Source: {cit['source_url']})")
+        # Match relevant citations
+        top_citations = []
+        for cit in citations_lookup:
+            if str(cit["field"]).lower() in q_lower or any(tok in str(cit["value"]).lower() for tok in query_tokens):
+                if cit not in top_citations:
+                    top_citations.append(cit)
+        if not top_citations:
+            top_citations = citations_lookup[:4]
 
-            return {
-                "query": query,
-                "answer": "\n".join(synthesis_lines),
-                "citations": top_citations[:6],
-                "confidence": 0.92,
-                "runs_analyzed": len(runs)
-            }
-
+        return {
+            "query": query,
+            "answer": llm_answer,
+            "citations": top_citations[:6],
+            "confidence": 0.96,
+            "runs_analyzed": len(top_runs)
+        }

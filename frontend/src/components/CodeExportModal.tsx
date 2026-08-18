@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Terminal, Code2, FileCode, CheckCheck, X } from 'lucide-react';
+import { Copy, Check, Terminal, Code2, FileCode, CheckCheck, X, Globe, Shield } from 'lucide-react';
 import { useToast } from './ToastContext';
 
 interface CodeExportModalProps {
@@ -17,49 +17,55 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({
   workflowType,
   schemaFields = [],
 }) => {
-  const [activeLang, setActiveLang] = useState<'python' | 'javascript' | 'curl'>('python');
+  const [activeLang, setActiveLang] = useState<'python' | 'typescript' | 'curl' | 'go' | 'brightdata'>('python');
   const [copied, setCopied] = useState(false);
   const { showToast } = useToast();
 
   if (!isOpen) return null;
 
-  const pythonSnippet = `import requests
+  const pythonSnippet = `import httpx
+import asyncio
 
-url = "http://localhost:8000/api/scrape"
-payload = {
-    "target_url": "${targetUrl}",
-    "workflow_type": "${workflowType}",
-    "schema_name": "${workflowType}"
+async def scrape_target():
+    url = "http://localhost:8000/api/scrape"
+    payload = {
+        "target_url": "${targetUrl}",
+        "workflow_type": "${workflowType}",
+        "schema_name": "${workflowType}"
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(url, json=payload)
+        data = response.json()
+        
+        print(f"Status: {data.get('status')}")
+        print(f"Quality Score: {data.get('data_quality_score')}%")
+        print("Extracted Entity Payload:", data.get("normalized_result"))
+
+asyncio.run(scrape_target())`;
+
+  const tsSnippet = `import axios from 'axios';
+
+interface ScrapeResponse {
+  status: string;
+  data_quality_score: number;
+  normalized_result: Record<string, any>;
+  duration_ms: number;
 }
 
-headers = {
-    "Content-Type": "application/json"
-}
-
-response = requests.post(url, json=payload, headers=headers)
-data = response.json()
-
-print(f"Status: {data.get('status')}")
-print(f"Quality Score: {data.get('data_quality_score')}%")
-print("Extracted Record:", data.get("normalized_result"))`;
-
-  const jsSnippet = `const executeScrape = async () => {
-  const response = await fetch("http://localhost:8000/api/scrape", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      target_url: "${targetUrl}",
-      workflow_type: "${workflowType}",
-      schema_name: "${workflowType}"
-    })
+async function runScrape() {
+  const { data } = await axios.post<ScrapeResponse>('http://localhost:8000/api/scrape', {
+    target_url: '${targetUrl}',
+    workflow_type: '${workflowType}',
+    schema_name: '${workflowType}',
   });
 
-  const data = await response.json();
-  console.log("Quality Score:", data.data_quality_score);
-  console.log("Extracted Data:", data.normalized_result);
-};
+  console.log(\`Extraction Status: \${data.status}\`);
+  console.log(\`Quality Score: \${data.data_quality_score}%\`);
+  console.log('Structured Record:', data.normalized_result);
+}
 
-executeScrape();`;
+runScrape();`;
 
   const curlSnippet = `curl -X POST "http://localhost:8000/api/scrape" \\
      -H "Content-Type: application/json" \\
@@ -69,86 +75,133 @@ executeScrape();`;
        "schema_name": "${workflowType}"
      }'`;
 
-  const currentSnippet = 
-    activeLang === 'python' ? pythonSnippet :
-    activeLang === 'javascript' ? jsSnippet : curlSnippet;
+  const goSnippet = `package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"io"
+)
+
+func main() {
+	payload, _ := json.Marshal(map[string]string{
+		"target_url":    "${targetUrl}",
+		"workflow_type": "${workflowType}",
+		"schema_name":   "${workflowType}",
+	})
+
+	resp, err := http.Post("http://localhost:8000/api/scrape", "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Println("Response:", string(body))
+}`;
+
+  const brightDataSnippet = `// Direct Bright Data Web Unlocker Proxy Integration
+const axios = require('axios');
+const HttpsProxyAgent = require('https-proxy-agent');
+
+const proxyUrl = 'http://brd-customer-hl_marketscout-zone-unlocker:pass123@brd.superproxy.io:22225';
+const agent = new HttpsProxyAgent(proxyUrl);
+
+axios.get('${targetUrl}', {
+  httpsAgent: agent,
+  headers: {
+    'User-Agent': 'MarketScout-Autonomous-Agent/2.0'
+  }
+}).then(res => {
+  console.log('Unblocked HTML status:', res.status);
+});`;
+
+  const snippets: Record<string, string> = {
+    python: pythonSnippet,
+    typescript: tsSnippet,
+    curl: curlSnippet,
+    go: goSnippet,
+    brightdata: brightDataSnippet,
+  };
+
+  const currentSnippet = snippets[activeLang];
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentSnippet);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    showToast('success', 'Code Copied', `${activeLang.toUpperCase()} snippet copied to clipboard`);
+    showToast('success', 'Code Copied', `${activeLang.toUpperCase()} SDK snippet copied to clipboard`);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div 
-        className="w-full max-w-2xl bg-[#060a12] border border-white/15 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-up"
+        className="w-full max-w-3xl bg-[#090c13] border border-white/15 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#0f131f]">
           <div className="flex items-center gap-2.5">
-            <Code2 size={18} className="text-cyan-400" />
-            <h2 className="text-sm font-bold text-white mono">Integration Code Snippet</h2>
+            <Code2 size={20} className="text-blue-400" />
+            <div>
+              <h2 className="text-sm font-bold text-white font-mono">Multi-Language SDK & API Generator</h2>
+              <span className="text-[11px] text-slate-400 font-mono">Deploy extraction pipelines from any codebase</span>
+            </div>
           </div>
           <button 
             onClick={onClose}
-            className="text-slate-500 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Language Tabs & Copy */}
-        <div className="flex items-center justify-between px-5 py-2.5 bg-black/40 border-b border-white/10">
-          <div className="flex gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
-            <button
-              onClick={() => setActiveLang('python')}
-              className={`px-3 py-1 rounded-lg font-mono font-bold transition-all cursor-pointer ${
-                activeLang === 'python' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Python (requests)
-            </button>
-            <button
-              onClick={() => setActiveLang('javascript')}
-              className={`px-3 py-1 rounded-lg font-mono font-bold transition-all cursor-pointer ${
-                activeLang === 'javascript' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              JavaScript (fetch)
-            </button>
-            <button
-              onClick={() => setActiveLang('curl')}
-              className={`px-3 py-1 rounded-lg font-mono font-bold transition-all cursor-pointer ${
-                activeLang === 'curl' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              cURL CLI
-            </button>
+        {/* Tab Selector */}
+        <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/40">
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: 'python', label: 'Python (httpx)' },
+              { id: 'typescript', label: 'TypeScript / Node' },
+              { id: 'curl', label: 'cURL' },
+              { id: 'go', label: 'Go' },
+              { id: 'brightdata', label: 'Bright Data Proxy' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveLang(tab.id as any)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                  activeLang === tab.id
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-white border border-white/10 hover:border-white/20 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-mono text-white transition-colors cursor-pointer shrink-0"
           >
-            {copied ? <CheckCheck size={14} className="text-emerald-400" /> : <Copy size={14} />}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
+            {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            <span>{copied ? 'Copied!' : 'Copy Code'}</span>
           </button>
         </div>
 
-        {/* Code View */}
-        <div className="p-5 bg-[#030712] overflow-x-auto">
+        {/* Code Content Area */}
+        <div className="p-6 bg-[#04060a] overflow-x-auto max-h-[420px]">
           <pre className="text-xs font-mono text-emerald-300 leading-relaxed">
-            <code>{currentSnippet}</code>
+            {currentSnippet}
           </pre>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 bg-black/60 border-t border-white/10 flex items-center justify-between text-[11px] mono text-slate-500">
-          <span>Target Workflow: <span className="text-cyan-400 uppercase font-bold">{workflowType}</span></span>
-          <span className="text-slate-400">Endpoint: POST /api/scrape</span>
+        <div className="px-6 py-3 border-t border-white/10 bg-[#0f131f] flex items-center justify-between text-xs font-mono text-slate-400">
+          <span>Target: <strong className="text-white">{workflowType}</strong></span>
+          <span>Endpoint: <strong className="text-blue-400">/api/scrape</strong></span>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ import { WorkflowsStudio } from './components/WorkflowsStudio';
 import { IntelligenceStudio } from './components/IntelligenceStudio';
 import { RuleBundlesExplorer } from './components/RuleBundlesExplorer';
 import { CommandPalette } from './components/CommandPalette';
-
+import { ParticleBackground } from './components/effects/ParticleBackground';
 
 export function AppContent() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -29,15 +29,16 @@ export function AppContent() {
     fetchConfigMode().then(setConfigMode).catch(console.error);
   }, []);
 
-  // Global Keyboard Navigation (⌘1-⌘5, ⌘K)
+  // Global Keyboard Navigation (⌘1-⌘6, ⌘K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
         if (e.key === '1') { e.preventDefault(); switchTab('overview'); }
         if (e.key === '2') { e.preventDefault(); switchTab('studio'); }
-        if (e.key === '3') { e.preventDefault(); switchTab('repair'); }
-        if (e.key === '4') { e.preventDefault(); switchTab('runs'); }
-        if (e.key === '5') { e.preventDefault(); switchTab('settings'); }
+        if (e.key === '3') { e.preventDefault(); switchTab('intel'); }
+        if (e.key === '4') { e.preventDefault(); switchTab('repair'); }
+        if (e.key === '5') { e.preventDefault(); switchTab('runs'); }
+        if (e.key === '6') { e.preventDefault(); switchTab('settings'); }
         if (e.key === 'k') { 
           e.preventDefault(); 
           setCommandPaletteOpen((prev) => !prev);
@@ -54,7 +55,7 @@ export function AppContent() {
     setTimeout(() => {
       setActiveTab(tab);
       setTransitioning(false);
-    }, 140);
+    }, 120);
   };
 
   const handleGlobalReset = async () => {
@@ -71,9 +72,13 @@ export function AppContent() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#09090b] text-[#f8fafc] overflow-x-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Subtle Ambient Background Gradient */}
-      <div className="ambient-bg" aria-hidden="true" />
+    <div className="min-h-screen flex flex-col bg-[#07080c] text-[#f1f5f9] overflow-x-hidden relative">
+      {/* ── INTERACTIVE CANVAS PARTICLE CONSTELLATION ── */}
+      <ParticleBackground />
+
+      {/* Ambient Glows */}
+      <div className="ambient-glow-primary" aria-hidden="true" />
+      <div className="ambient-glow-secondary" aria-hidden="true" />
 
       {/* Global Command Palette */}
       <CommandPalette
@@ -82,7 +87,7 @@ export function AppContent() {
         setActiveTab={switchTab}
       />
 
-      {/* Linear-Grade Header Navigation */}
+      {/* Floating Island Navigation Dock */}
       <Header
         activeTab={activeTab}
         setActiveTab={switchTab}
@@ -92,22 +97,21 @@ export function AppContent() {
         resetting={resetting}
       />
 
-      {/* Main Studio Viewport */}
+      {/* Main Workstation Viewport */}
       <main
         id="main-content"
         role="main"
-        className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-8 py-8 relative z-10"
         style={{
           opacity: transitioning ? 0 : 1,
-          transform: transitioning ? 'translateY(4px) scale(0.998)' : 'translateY(0) scale(1)',
-          transition: 'opacity 140ms cubic-bezier(0.16, 1, 0.3, 1), transform 140ms cubic-bezier(0.16, 1, 0.3, 1)',
+          transform: transitioning ? 'translateY(3px)' : 'translateY(0)',
+          transition: 'opacity 120ms ease, transform 120ms ease',
         }}
       >
         {activeTab === 'overview' && <Overview configMode={configMode} setActiveTab={switchTab} />}
         {activeTab === 'studio' && <WorkflowsStudio setActiveTab={switchTab} />}
         {activeTab === 'intel' && <IntelligenceStudio />}
         {activeTab === 'products' && <ProductDiscovery setActiveTab={switchTab} />}
-
         {activeTab === 'jobs' && <JobDiscovery setActiveTab={switchTab} />}
         {activeTab === 'repair' && <RepairCenter />}
         {activeTab === 'rules' && <RuleBundlesExplorer />}
@@ -117,11 +121,17 @@ export function AppContent() {
         {activeTab === 'settings' && <Settings configMode={configMode} />}
       </main>
 
-      {/* Clean Minimalist Footer */}
-      <footer className="py-6 border-t border-white/[0.06] text-center text-xs font-mono text-slate-500">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>MarketScout Engine v2.4 · Autonomous Web Extraction</span>
-          <span>Powered by Bright Data & Multi-Strategy Normalizers</span>
+      {/* Industrial Footer */}
+      <footer className="py-6 border-t border-white/[0.06] text-xs font-mono text-slate-500 relative z-10 bg-[#07080c]/80 backdrop-blur-md">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+            <span className="font-semibold text-slate-300">MarketScout Enterprise v2.5</span>
+            <span>· Autonomous Web-Data Intelligence</span>
+          </div>
+          <div className="text-slate-400">
+            Powered by Bright Data Scraper Studio & Multi-Strategy Engine
+          </div>
         </div>
       </footer>
     </div>

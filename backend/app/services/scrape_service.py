@@ -159,7 +159,9 @@ class ScrapeService:
         target_url: str,
         workflow_type: str = "products",
         schema_name: str = "products",
-        scraper_id: Optional[int] = None
+        scraper_id: Optional[int] = None,
+        custom_headers: Optional[Dict[str, str]] = None,
+        session_cookies: Optional[Dict[str, str]] = None
     ) -> ScrapeRunDB:
         # 1. URL Canonicalization & Redirect Resolution (e.g. lnkd.in, amzn.to, search-results?currentJobId=...)
         resolved_url = target_url.strip()

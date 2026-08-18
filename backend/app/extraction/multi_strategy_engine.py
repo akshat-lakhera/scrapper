@@ -213,6 +213,13 @@ class MultiStrategyEngine:
             return json_ld.get("description")
         if field_name == "posted_date":
             return json_ld.get("datePosted")
+        if field_name == "image_url":
+            img = json_ld.get("image")
+            if isinstance(img, list) and img:
+                return img[0] if isinstance(img[0], str) else img[0].get("url")
+            if isinstance(img, dict):
+                return img.get("url")
+            return img
 
         return json_ld.get(field_name)
 
@@ -228,6 +235,15 @@ class MultiStrategyEngine:
 
     @staticmethod
     def _resolve_meta_field(meta: Dict[str, str], field_name: str) -> Optional[str]:
+        if field_name == "image_url":
+            return (
+                meta.get("og:image")
+                or meta.get("og:image:url")
+                or meta.get("og:image:secure_url")
+                or meta.get("twitter:image")
+                or meta.get("twitter:image:src")
+                or meta.get("image")
+            )
         og_title = meta.get("og:title") or meta.get("twitter:title") or meta.get("title") or ""
         og_desc = meta.get("og:description") or meta.get("twitter:description") or meta.get("description") or ""
 
@@ -399,7 +415,7 @@ class MultiStrategyEngine:
             return elem.get(f"data-{field_name}") or elem.get_text(strip=True), f"[data-{field_name}]"
 
         # 3. HTML5 Headings for Title / Heading Fields
-        if field_name in ("title", "job_title", "place_name"):
+        if field_name in ("title", "job_title", "place_name", "doc_title", "section_heading"):
             # Google Maps URL extraction fallback
             if ("google.com/maps" in target_url or "maps.google." in target_url) and "/place/" in target_url:
                 m_place = re.search(r'/place/([^/@?#]+)', target_url)
@@ -416,8 +432,13 @@ class MultiStrategyEngine:
                     if slug_text and not slug_text.isdigit() and len(slug_text) > 4:
                         return slug_text, "linkedin_url_slug"
 
-            h1 = soup.select_one("h1, .top-card-layout__title, .job-details-jobs-unified-top-card__job-title")
-            if h1 and len(h1.get_text(strip=True)) > 3:
+            if field_name == "section_heading":
+                h2 = soup.select_one("h2, h3, .section-heading, .topic-heading, .article-heading")
+                if h2 and len(h2.get_text(strip=True)) > 2:
+                    return h2.get_text(strip=True), "h2"
+
+            h1 = soup.select_one("h1, .top-card-layout__title, .job-details-jobs-unified-top-card__job-title, .doc-title, .guide-title, article h1, main h1")
+            if h1 and len(h1.get_text(strip=True)) > 2:
                 clean_h1 = re.sub(r'\s*\|\s*LinkedIn.*$', '', h1.get_text(strip=True), flags=re.I).strip()
                 if clean_h1.lower() not in ("linkedin", "google maps", "sign in", "join linkedin"):
                     return clean_h1, "h1"
@@ -452,11 +473,16 @@ class MultiStrategyEngine:
             if loc_elem and loc_elem.get_text(strip=True):
                 return loc_elem.get_text(strip=True), "linkedin_location_class"
 
-        # LinkedIn & General Description DOM Heuristics
-        if field_name in ("description", "job_description", "post_text", "body_text"):
-            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], article p")
+        # LinkedIn, Documentation & General Description DOM Heuristics
+        if field_name in ("description", "job_description", "post_text", "body_text", "content_body"):
+            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], article, main, .document, .content, .body, .section, article p, main p, div.body p, p")
             if desc_elem and len(desc_elem.get_text(strip=True)) > 5:
-                return desc_elem.get_text(strip=True), "semantic_description_class"
+                return desc_elem.get_text(separator=" ", strip=True)[:1500], "semantic_description_class"
+
+        if field_name == "code_snippet":
+            code_el = soup.select_one("pre code, pre, .highlight, .code-block, code")
+            if code_el and len(code_el.get_text(strip=True)) > 3:
+                return code_el.get_text(strip=True)[:1000], "code_block"
 
         # 4. Proximity Text Anchor (find label/span/dt containing the field name)
         for label_tag in soup.find_all(["label", "dt", "span", "th"], limit=40):
@@ -482,7 +508,8 @@ class MultiStrategyEngine:
             "company": ["company-name", "company", "employer", "organization"],
             "location": ["job-location", "location", "city", "place", "address"],
             "salary": ["salary", "compensation", "wage", "pay"],
-            "description": ["job-description", "description", "summary", "about", "details"]
+            "description": ["job-description", "description", "summary", "about", "details"],
+            "image_url": ["product-image", "main-image", "featured-image", "thumbnail", "photo", "gallery"]
         }
 
         synonyms = token_synonyms.get(field_name, [field_name.replace("_", "-")])

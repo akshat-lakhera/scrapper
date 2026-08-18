@@ -117,7 +117,11 @@ class Normalizer:
             "followers_count": ["followers", "subscribercount", "connections", "followerscount"],
             "following_count": ["following", "followingcount"],
             "posts_count": ["posts", "postscount", "mediacount", "totalposts"],
-            "place_name": ["business", "storename", "placename", "venue"]
+            "place_name": ["business", "storename", "placename", "venue"],
+            "image_url": ["image", "images", "img", "thumbnail", "photo", "mainimage", "productimage", "primaryimage", "picture", "avatar", "profileimage", "profilephoto", "avatarimage"],
+            "content_body": ["content", "body", "text", "description", "details", "article", "guide", "maincontent", "docbody", "documentation"],
+            "doc_title": ["title", "heading", "name", "doctitle", "documenttitle", "pagetitle"],
+            "section_heading": ["heading", "sectionheading", "subheading", "chapter", "section"]
         }
 
         # 3. Exact semantic token match

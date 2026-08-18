@@ -1,170 +1,128 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
-:root {
-  /* ── INDUSTRIAL TITANIUM & PRECISION DATA PALETTE (Anti-Slop / Zero-Neon) ── */
-  --bg-deep-void: #08090d;
-  --bg-base: #0c0e14;
-  --bg-surface: #12151e;
-  --bg-card: #161a26;
-  --bg-elevated: #1d2232;
-  --bg-highlight: #252c40;
+@layer base {
+  :root {
+    --bg-space: #08090d;
+    --bg-surface: #10131c;
+    --bg-card: #151926;
+    --bg-card-hover: #1c2234;
+    --bg-input: #0a0c12;
 
-  --border-hairline: rgba(255, 255, 255, 0.05);
-  --border-subtle: rgba(255, 255, 255, 0.09);
-  --border-medium: rgba(255, 255, 255, 0.16);
-  --border-active: #3b82f6;
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-medium: rgba(255, 255, 255, 0.14);
+    --border-focus: #3b82f6;
 
-  --text-pure: #ffffff;
-  --text-main: #e2e8f0;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+    --text-pure: #ffffff;
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
 
-  --signal-blue: #3b82f6;
-  --signal-blue-subtle: rgba(59, 130, 246, 0.12);
-  --signal-emerald: #10b981;
-  --signal-emerald-subtle: rgba(16, 185, 129, 0.12);
-  --signal-amber: #f59e0b;
-  --signal-amber-subtle: rgba(245, 158, 11, 0.12);
-  --signal-rose: #f43f5e;
-  --signal-rose-subtle: rgba(244, 63, 94, 0.12);
-  --signal-cyan: #06b6d4;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.15);
+    --secondary: #10b981;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --cyan: #06b6d4;
 
-  /* ── SWISS INDUSTRIAL TYPOGRAPHY ── */
-  --font-sans: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
 
-  /* ── SPRING EASING ── */
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-snap: 120ms;
-  --duration-smooth: 220ms;
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-space);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ── STITCH BENTO CARD SYSTEM ── */
+.bento-card {
+  background-color: #121622;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
 }
 
-html {
-  background-color: var(--bg-deep-void);
-  color: var(--text-main);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  scroll-behavior: smooth;
+.bento-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
-body {
-  overflow-x: hidden;
-  background-color: var(--bg-deep-void);
-  min-height: 100vh;
+.bento-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.04), transparent 70%);
+  pointer-events: none;
 }
 
-/* ── INDUSTRIAL MONOSPACE ── */
+/* ── AMBIENT BACKDROP GLOWS ── */
+.ambient-glow-primary {
+  position: fixed;
+  top: -150px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 500px;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.07), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient-glow-secondary {
+  position: fixed;
+  bottom: -150px;
+  right: 5%;
+  width: 700px;
+  height: 450px;
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.04), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── TACTILE BUTTON PULSE ── */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+  70% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+.btn-pulse {
+  animation: pulse-ring 2.5s infinite;
+}
+
+/* ── PROGRESS CIRCLE ROTATION ── */
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* ── MONO UTILITIES ── */
 .mono {
-  font-family: var(--font-mono);
+  font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
 }
 
-/* ── METALLIC PRECISION SCROLLBAR ── */
+/* ── SCROLLBAR ── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-deep-void);
+  background: #08090d;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-elevated);
-  border-radius: 3px;
+  background: #1e2638;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-medium);
-}
-
-::selection {
-  background: rgba(59, 130, 246, 0.3);
-  color: #ffffff;
-}
-
-/* ── AMBIENT DATA MESH (Non-distracting, mathematical fine grid) ── */
-.data-mesh-bg {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.05) 0%, transparent 60%),
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-  background-size: 100% 100%, 32px 32px, 32px 32px;
-}
-
-/* ── TACTILE HARDWARE BUTTONS & CHIPS ── */
-.hw-btn {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  transition: transform var(--duration-snap) var(--ease-spring),
-              background-color var(--duration-smooth) ease,
-              border-color var(--duration-smooth) ease;
-}
-.hw-btn:active {
-  transform: scale(0.975);
-}
-
-/* ── INDUSTRIAL PANELS ── */
-.hw-panel {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
-  transition: border-color var(--duration-smooth) ease,
-              box-shadow var(--duration-smooth) ease;
-}
-.hw-panel:hover {
-  border-color: var(--border-medium);
-}
-
-/* ── INDUSTRIAL TELEMETRY TICKER ── */
-@keyframes tickerSlide {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.telemetry-ticker {
-  display: flex;
-  width: max-content;
-  animation: tickerSlide 28s linear infinite;
-}
-.telemetry-ticker:hover {
-  animation-play-state: paused;
-}
-
-/* ── HARDWARE LED STATUS BEACON ── */
-.led-beacon {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  position: relative;
-}
-.led-beacon::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  background: inherit;
-  opacity: 0.4;
-  animation: beaconPulse 2s ease-in-out infinite;
-}
-
-@keyframes beaconPulse {
-  0%, 100% { transform: scale(1); opacity: 0.4; }
-  50% { transform: scale(1.6); opacity: 0; }
-}
-
-/* ── SYNTAX CODE CONTAINERS ── */
-pre, code {
-  font-family: var(--font-mono);
+  background: #2e3b56;
 }
