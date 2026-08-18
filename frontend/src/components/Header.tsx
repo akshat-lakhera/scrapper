@@ -8,7 +8,8 @@ import {
   RotateCcw,
   Search,
   CheckCircle2,
-  Cpu
+  Cpu,
+  Brain
 } from 'lucide-react';
 import type { ConfigModeResponse } from '../types';
 import { Button } from './ui/Button';
@@ -25,10 +26,12 @@ interface HeaderProps {
 const TABS = [
   { id: 'overview', label: 'Command Center', icon: Sparkles },
   { id: 'studio', label: 'Extraction Studio', icon: Layers },
-  { id: 'repair', label: 'Self-Healing Lab', icon: Wrench, badge: 'v2' },
+  { id: 'intel', label: 'Living RAG & Intel', icon: Brain, badge: 'AI' },
+  { id: 'repair', label: 'Self-Healing Lab', icon: Wrench, badge: 'Auto' },
   { id: 'runs', label: 'Audit Timeline', icon: History },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
+
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,

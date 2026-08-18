@@ -122,23 +122,26 @@ class RepairEngine:
             if h1 and len(h1.get_text(strip=True)) > 2:
                 return "h1", h1.get_text(strip=True), 0.95
 
-        # 3. Label-based proximity search (e.g. finding "Price:", "Company:", "Location:")
+        # 3. Label-based proximity search (e.g. finding "Price:", "Company:", "Location:", "Section:")
         label_keywords = {
             "price": ["price", "mrp", "cost", "our price", "sale price"],
             "company": ["company", "employer", "organization", "hiring"],
             "location": ["location", "place", "city", "region"],
             "salary": ["salary", "compensation", "pay", "stipend"],
-            "title": ["product title", "item name", "heading"],
-            "job_title": ["job title", "position", "role"]
+            "title": ["product title", "item name", "heading", "guide title"],
+            "job_title": ["job title", "position", "role"],
+            "doc_title": ["documentation", "guide", "title", "api reference"],
+            "section_heading": ["section", "topic", "chapter", "heading"],
+            "last_updated": ["updated", "version", "revision", "released"]
         }
 
         keywords = label_keywords.get(field_name, [field_name])
         for kw in keywords:
-            for tag in soup.find_all(["span", "div", "label", "th", "p", "dt"]):
+            for tag in soup.find_all(["span", "div", "label", "th", "p", "dt", "h2", "h3", "h4"]):
                 text = tag.get_text(strip=True).lower()
                 if kw in text and len(text) < 30:
                     # Check next sibling or parent's next element
-                    sibling = tag.find_next_sibling(["span", "div", "td", "dd", "p"])
+                    sibling = tag.find_next_sibling(["span", "div", "td", "dd", "p", "section"])
                     if sibling and sibling.get_text(strip=True):
                         val = sibling.get_text(strip=True)
                         sel = RepairEngine._generate_unique_css_selector(sibling)
@@ -147,17 +150,24 @@ class RepairEngine:
 
         # 4. Keyword class/id pattern scans
         class_patterns = {
-            "price": [re.compile(r"price", re.I), re.compile(r"amount", re.I), re.compile(r"cost", re.I)],
-            "title": [re.compile(r"title", re.I), re.compile(r"product.*name", re.I), re.compile(r"heading", re.I)],
+            "price": [re.compile(r"price", re.I), re.compile(r"amount", re.I), re.compile(r"cost", re.I), re.compile(r"rate", re.I), re.compile(r"billing", re.I), re.compile(r"tier", re.I)],
+            "currency": [re.compile(r"currency", re.I), re.compile(r"valuta", re.I), re.compile(r"symbol", re.I), re.compile(r"code", re.I)],
+            "title": [re.compile(r"title", re.I), re.compile(r"product.*name", re.I), re.compile(r"heading", re.I), re.compile(r"headline", re.I), re.compile(r"header", re.I)],
             "job_title": [re.compile(r"job.*title", re.I), re.compile(r"position", re.I), re.compile(r"heading", re.I)],
-            "company": [re.compile(r"company", re.I), re.compile(r"employer", re.I), re.compile(r"org", re.I)],
+            "company": [re.compile(r"company", re.I), re.compile(r"employer", re.I), re.compile(r"org", re.I), re.compile(r"vendor", re.I)],
             "location": [re.compile(r"location", re.I), re.compile(r"city", re.I), re.compile(r"place", re.I)],
-            "salary": [re.compile(r"salary", re.I), re.compile(r"pay", re.I), re.compile(r"compensation", re.I)],
-            "description": [re.compile(r"desc", re.I), re.compile(r"summary", re.I), re.compile(r"detail", re.I), re.compile(r"about", re.I)],
-            "availability": [re.compile(r"availab", re.I), re.compile(r"stock", re.I)],
-            "rating": [re.compile(r"rating", re.I), re.compile(r"stars?", re.I), re.compile(r"score", re.I)],
-            "review_count": [re.compile(r"review", re.I), re.compile(r"count", re.I)]
+            "salary": [re.compile(r"salary", re.I), re.compile(r"pay", re.I), re.compile(r"compensation", re.I), re.compile(r"stipend", re.I)],
+            "description": [re.compile(r"desc", re.I), re.compile(r"summary", re.I), re.compile(r"detail", re.I), re.compile(r"about", re.I), re.compile(r"spec", re.I)],
+            "availability": [re.compile(r"availab", re.I), re.compile(r"stock", re.I), re.compile(r"inventory", re.I)],
+            "rating": [re.compile(r"rating", re.I), re.compile(r"stars?", re.I), re.compile(r"score", re.I), re.compile(r"metric", re.I)],
+            "review_count": [re.compile(r"review", re.I), re.compile(r"count", re.I), re.compile(r"audit", re.I)],
+            "doc_title": [re.compile(r"doc.*title", re.I), re.compile(r"guide.*headline", re.I), re.compile(r"doc.*header", re.I), re.compile(r"title", re.I)],
+            "section_heading": [re.compile(r"section.*title", re.I), re.compile(r"article.*heading", re.I), re.compile(r"topic", re.I)],
+            "content_body": [re.compile(r"section.*body", re.I), re.compile(r"article.*body", re.I), re.compile(r"markdown.*body", re.I), re.compile(r"content", re.I)],
+            "code_snippet": [re.compile(r"code", re.I), re.compile(r"snippet", re.I), re.compile(r"syntax", re.I)],
+            "last_updated": [re.compile(r"version", re.I), re.compile(r"release", re.I), re.compile(r"updated", re.I)]
         }
+
 
         patterns = class_patterns.get(field_name, [])
         for pat in patterns:

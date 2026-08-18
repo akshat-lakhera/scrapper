@@ -161,6 +161,20 @@ REDDIT_POST_SCHEMA = ScrapeSchema(
     ]
 )
 
+# Built-in TECH_DOCS_SCHEMA (Long-tail / Technical Documentation)
+TECH_DOCS_SCHEMA = ScrapeSchema(
+    name="tech_docs",
+    description="Technical documentation, API references, guides and code snippets",
+    fields=[
+        SchemaField(name="doc_title", description="Documentation title or guide name", data_type="string", required=True),
+        SchemaField(name="section_heading", description="Current section or chapter heading", data_type="string", required=True),
+        SchemaField(name="content_body", description="Main documentation article or text body", data_type="string", required=True),
+        SchemaField(name="code_snippet", description="Extracted code block or example", data_type="string", required=False),
+        SchemaField(name="last_updated", description="Last revision date or release version", data_type="string", required=False),
+        SchemaField(name="doc_url", description="Canonical documentation page URL", data_type="url", required=True),
+    ]
+)
+
 SCHEMA_REGISTRY: Dict[str, ScrapeSchema] = {
     "products": PRODUCT_SCHEMA,
     "jobs": JOB_SCHEMA,
@@ -174,6 +188,9 @@ SCHEMA_REGISTRY: Dict[str, ScrapeSchema] = {
     "maps": GOOGLE_MAPS_SCHEMA,
     "reddit": REDDIT_POST_SCHEMA,
     "reddit_post": REDDIT_POST_SCHEMA,
+    "tech_docs": TECH_DOCS_SCHEMA,
+    "docs": TECH_DOCS_SCHEMA,
+    "documentation": TECH_DOCS_SCHEMA,
 }
 
 
@@ -230,6 +247,11 @@ def generate_brightdata_instruction(schema: ScrapeSchema) -> str:
     elif schema.name == "reddit":
         return (
             "Extract post title, subreddit, body text, upvotes and comment count from this Reddit thread.\n\n"
+            f"Fields: {field_names}."
+        )
+    elif schema.name in ("tech_docs", "docs", "documentation"):
+        return (
+            "Extract technical documentation content, section headings, and code snippets from this developer documentation page.\n\n"
             f"Fields: {field_names}."
         )
     else:

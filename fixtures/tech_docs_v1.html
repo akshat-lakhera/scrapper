@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BrightData Scraper Studio API Guide v1</title>
+    <meta name="description" content="Official developer documentation for Scraper Studio DCA API integration.">
+</head>
+<body>
+    <header class="doc-header">
+        <h1 class="doc-title">BrightData Scraper Studio DCA API Reference</h1>
+        <span class="doc-version">v2.4.0 (Updated 2026-08-15)</span>
+    </header>
+    <main class="doc-content">
+        <section class="section-block">
+            <h2 class="section-title">Triggering Custom Collectors</h2>
+            <div class="section-body">
+                <p>To initiate a collection run on a custom Scraper Studio collector, send an authenticated POST request to the DCA trigger endpoint.</p>
+                <p>The collector will render the page using unblocking proxies, solve CAPTCHAs, and execute AI-synthesized parser rules.</p>
+            </div>
+            <pre class="code-block"><code>curl -X POST "https://api.brightdata.com/dca/trigger?collector=c_mpohus372o5tmid1jk" \
+     -H "Authorization: Bearer ${BRIGHTDATA_API_KEY}" \
+     -d '[{"url": "https://example.com/target"}]'</code></pre>
+        </section>
+    </main>
+</body>
+</html>

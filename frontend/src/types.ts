@@ -125,11 +125,16 @@ export interface Metrics {
   successful_runs: number;
   degraded_runs: number;
   repaired_runs: number;
+  healed_runs?: number;
   manual_review_runs: number;
   avg_repair_duration_ms: number;
+  avg_duration_ms?: number;
+  overall_reliability?: number;
+  healing_success_rate?: number;
   scraper_health: string;
   same_template_repair_success_rate?: number;
   avg_confidence_promoted_only?: number;
   template_count?: number;
   rule_bundle_count_by_domain?: Record<string, number>;
 }
+

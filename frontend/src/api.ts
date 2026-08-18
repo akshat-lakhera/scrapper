@@ -150,3 +150,45 @@ export async function fetchCandidatePatches() {
 export async function resetDemo() {
   return request<Record<string, any>>(`${API_BASE}/demo/reset`, { method: 'POST' });
 }
+
+export async function ragChat(data: {
+  query: string;
+  run_ids?: number[];
+  workflow_type?: string;
+  domain_filter?: string;
+}): Promise<{
+  query: string;
+  answer: string;
+  citations: Array<{ run_id: number; source_url: string; field: string; value: any }>;
+  confidence: number;
+  runs_analyzed: number;
+}> {
+  return request(`${API_BASE}/rag/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchIntelReport(domain?: string): Promise<{
+  domain: string;
+  total_tracked_runs: number;
+  unique_templates: number;
+  healed_runs_count: number;
+  total_diff_events: number;
+  executive_summary: string;
+  timeline_events: Array<{
+    id: number;
+    run_id: number;
+    field_name: string;
+    old_value: any;
+    new_value: any;
+    change_type: string;
+    detected_at: string;
+  }>;
+  price_events: Array<any>;
+}> {
+  const url = domain ? `${API_BASE}/intel/report?domain=${encodeURIComponent(domain)}` : `${API_BASE}/intel/report`;
+  return request(url);
+}
+

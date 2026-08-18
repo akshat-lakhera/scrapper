@@ -81,17 +81,50 @@ class LocalProvider(ScraperProvider):
         """
         target_lower = target.lower()
 
-        # 1. Resolve Job Workflow Fixtures
+        # 0. Generic Dynamic Fixture Resolution (supports any custom fixture file created in fixtures/)
+        target_path_name = Path(target.split("?")[0].split("#")[0]).name
+        if target_path_name and target_path_name.endswith(".html"):
+            custom_fixture = self.fixtures_dir / target_path_name
+            if custom_fixture.exists() and custom_fixture.is_file():
+                html_text = custom_fixture.read_text(encoding="utf-8", errors="ignore")
+                raw = DOMExtractor.extract_from_html(html_text, schema.name, target)
+                return {
+                    "status": "success",
+                    "provider_run_id": f"local_run_{custom_fixture.stem}",
+                    "provider": "local",
+                    "mode_label": OFFLINE_MODE_LABEL,
+                    "fixture_name": custom_fixture.name,
+                    "raw_html": html_text,
+                    "raw_result": raw
+                }
+
+        # 1. Resolve Tech Docs Workflow Fixtures
+
+        if schema.name in ("tech_docs", "docs", "documentation"):
+            fixture_file = self.fixtures_dir / "tech_docs_v1.html"
+            if "redesign" in target_lower or "v2" in target_lower:
+                fixture_file = self.fixtures_dir / "tech_docs_redesign.html"
+
+            if fixture_file and fixture_file.exists():
+                html_text = fixture_file.read_text(encoding="utf-8", errors="ignore")
+                raw = DOMExtractor.extract_from_html(html_text, "tech_docs", target)
+                return {
+                    "status": "success",
+                    "provider_run_id": f"local_run_docs_{fixture_file.stem}",
+                    "provider": "local",
+                    "mode_label": OFFLINE_MODE_LABEL,
+                    "fixture_name": fixture_file.name,
+                    "raw_html": html_text,
+                    "raw_result": raw
+                }
+
+        # 2. Resolve Job Workflow Fixtures
         if schema.name == "jobs":
-            fixture_file = None
-            if "jobs_v2.html" in target_lower:
+            fixture_file = self.fixtures_dir / "jobs_v1.html"
+            if "jobs_v2.html" in target_lower or "v2" in target_lower:
                 fixture_file = self.fixtures_dir / "jobs_v2.html"
-                if not fixture_file.exists():
-                    fixture_file = self.fixtures_dir / "jobs_v1.html"
             elif "jobs_degraded.html" in target_lower or "degraded" in target_lower:
                 fixture_file = self.fixtures_dir / "jobs_degraded.html"
-            elif "jobs_v1.html" in target_lower or "python-dev" in target_lower or "demo.local" in target_lower or "localhost" in target_lower:
-                fixture_file = self.fixtures_dir / "jobs_v1.html"
 
             if fixture_file and fixture_file.exists():
                 html_text = fixture_file.read_text(encoding="utf-8", errors="ignore")
@@ -106,44 +139,113 @@ class LocalProvider(ScraperProvider):
                     "raw_result": raw
                 }
 
-            return {
-                "status": "provider_error",
-                "provider_run_id": "local_run_jobs_error",
-                "provider": "local",
-                "mode_label": OFFLINE_MODE_LABEL,
-                "error": f"Target '{target}' is not an available local fixture.",
-                "raw_html": None,
-                "raw_result": {}
+        # 3. Resolve Product Workflow Fixtures
+        if schema.name in ("products", "product"):
+            fixture_file = self.fixtures_dir / "product_v1.html"
+            if "product_broken.html" in target_lower or "broken" in target_lower:
+                fixture_file = self.fixtures_dir / "product_broken.html"
+            elif "product_price_changed.html" in target_lower or "price_changed" in target_lower:
+                fixture_file = self.fixtures_dir / "product_price_changed.html"
+            elif "product_v2.html" in target_lower or "v2" in target_lower or "degraded" in target_lower:
+                fixture_file = self.fixtures_dir / "product_v2.html"
+
+            if fixture_file and fixture_file.exists():
+                html_text = fixture_file.read_text(encoding="utf-8", errors="ignore")
+                raw = DOMExtractor.extract_from_html(html_text, "products", target)
+                return {
+                    "status": "success",
+                    "provider_run_id": f"local_run_products_{fixture_file.stem}",
+                    "provider": "local",
+                    "mode_label": OFFLINE_MODE_LABEL,
+                    "fixture_name": fixture_file.name,
+                    "raw_html": html_text,
+                    "raw_result": raw
+                }
+
+        # 4. Standard Offline Mocks for Social, Communities, and Maps Workflows
+        offline_mock_data: Dict[str, Any] = {}
+        if schema.name in ("x", "twitter"):
+            offline_mock_data = {
+                "post_url": target,
+                "user_posted": "FabrizioRomano",
+                "description": "Here we go! Deal signed and completed. Official announcement to follow.",
+                "likes": 242000,
+                "reposts": 13500,
+                "replies": 4200,
+                "views": 19800000,
+                "date_posted": "2026-08-18"
+            }
+        elif schema.name == "linkedin":
+            offline_mock_data = {
+                "profile_url": target,
+                "name": "Elad Moshe",
+                "headline": "VP of Engineering & Web Data Architect",
+                "current_company": "Bright Data",
+                "location": "Tel Aviv, Israel",
+                "about": "Building scalable web data collectors and autonomous scraping engines.",
+                "connections": 500
+            }
+        elif schema.name == "facebook":
+            offline_mock_data = {
+                "post_url": target,
+                "page_name": "Tech Insider",
+                "post_text": "AI agents are transforming how modern developer tools and web scrapers self-heal.",
+                "likes_count": 8900,
+                "comments_count": 450,
+                "shares_count": 1200,
+                "posted_at": "2026-08-18"
+            }
+        elif schema.name == "instagram":
+            offline_mock_data = {
+                "profile_url": target,
+                "username": "cristiano",
+                "full_name": "Cristiano Ronaldo",
+                "biography": "SIUUU! Join the journey.",
+                "followers_count": 630000000,
+                "following_count": 580,
+                "posts_count": 3700,
+                "is_verified": True
+            }
+        elif schema.name in ("google_maps", "google", "maps"):
+            offline_mock_data = {
+                "place_url": target,
+                "title": "Pizza Inn Magdeburg",
+                "address": "Breiter Weg 120, 39104 Magdeburg, Germany",
+                "rating": 4.8,
+                "reviews_count": 88,
+                "phone": "+49 391 5551234",
+                "category": "Pizza Restaurant",
+                "latitude": 52.1263,
+                "longitude": 11.6094
+            }
+        elif schema.name == "reddit":
+            offline_mock_data = {
+                "post_url": target,
+                "title": "Official Update on the next generation Web Scraping and Self-Healing Pipelines",
+                "subreddit": "technology",
+                "user_posted": "auto_scout",
+                "description": "Discussion on Bright Data Scraper Studio DCA refactor templates and adaptive CSS healing.",
+                "upvotes": 2100,
+                "num_comments": 1200,
+                "date_posted": "2026-08-18"
             }
 
-        # 2. Resolve Product Workflow Fixtures
-        fixture_file = None
-        if "product_broken.html" in target_lower or "broken" in target_lower:
-            fixture_file = self.fixtures_dir / "product_broken.html"
-        elif "product_v2.html" in target_lower or "v2" in target_lower or "degraded" in target_lower:
-            fixture_file = self.fixtures_dir / "product_v2.html"
-        elif "product_v1.html" in target_lower or "v1" in target_lower or "headphones" in target_lower or "demo.local" in target_lower or "localhost" in target_lower:
-            fixture_file = self.fixtures_dir / "product_v1.html"
-
-        if fixture_file and fixture_file.exists():
-            html_text = fixture_file.read_text(encoding="utf-8", errors="ignore")
-            raw = DOMExtractor.extract_from_html(html_text, "products", target)
+        if offline_mock_data:
             return {
                 "status": "success",
-                "provider_run_id": f"local_run_products_{fixture_file.stem}",
+                "provider_run_id": f"local_mock_{schema.name}",
                 "provider": "local",
                 "mode_label": OFFLINE_MODE_LABEL,
-                "fixture_name": fixture_file.name,
-                "raw_html": html_text,
-                "raw_result": raw
+                "raw_html": None,
+                "raw_result": offline_mock_data
             }
 
         return {
             "status": "provider_error",
-            "provider_run_id": "local_run_products_error",
+            "provider_run_id": "local_run_error",
             "provider": "local",
             "mode_label": OFFLINE_MODE_LABEL,
-            "error": f"Target '{target}' is not an available local fixture.",
+            "error": f"Target '{target}' does not match any offline fixture or mock schema '{schema.name}'.",
             "raw_html": None,
             "raw_result": {}
         }

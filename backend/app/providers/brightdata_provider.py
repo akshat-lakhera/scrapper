@@ -61,9 +61,11 @@ class BrightDataProvider(ScraperProvider):
         elif name in ("reddit", "reddit_post", "subreddit"):
             return settings.BRIGHTDATA_REDDIT_DATASET_ID or None
 
-        if self.default_scraper_id and self.default_scraper_id.startswith("gd_"):
+        # Do not fallback to default dataset for custom/long-tail schemas (e.g. tech_docs)
+        if not name and self.default_scraper_id and self.default_scraper_id.startswith("gd_"):
             return self.default_scraper_id
         return None
+
 
     async def search(
         self,
@@ -198,16 +200,67 @@ class BrightDataProvider(ScraperProvider):
         schema: ScrapeSchema,
         instructions: Optional[str] = ""
     ) -> Dict[str, Any]:
-        dataset_id = self._resolve_dataset_id("", schema.name)
-        return {
-            "status": "success",
-            "scraper_id": dataset_id or f"bd_{schema.name}_dataset",
-            "raw_response": {
-                "dataset_id": dataset_id,
-                "workflow": schema.name,
-                "target": target
+        """
+        Creates a custom Scraper Studio collector via POST /dca/collectors,
+        or maps to an existing Datasets v3 ID if pre-configured.
+        """
+        # If target matches a pre-configured Datasets v3 workflow, return existing dataset ID
+        dataset_id = self._resolve_dataset_id("", schema.name, target)
+        if dataset_id and dataset_id.startswith("gd_"):
+            return {
+                "status": "success",
+                "scraper_id": dataset_id,
+                "collector_type": "datasets_v3_managed",
+                "raw_response": {
+                    "dataset_id": dataset_id,
+                    "workflow": schema.name,
+                    "target": target
+                }
             }
+
+        # Otherwise create a custom Scraper Studio collector via Bright Data DCA API
+        headers = self._get_headers()
+        from app.models.schema import generate_brightdata_instruction
+        prompt_instruction = instructions or generate_brightdata_instruction(schema)
+        
+        payload = {
+            "name": f"MarketScout_{schema.name}_{int(asyncio.get_event_loop().time())}",
+            "target_url": target,
+            "fields": schema.get_all_field_names(),
+            "instructions": prompt_instruction
         }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.post(f"{self.base_url}/dca/collectors", json=payload, headers=headers)
+                if res.status_code in (200, 201):
+                    data = res.json()
+                    collector_id = data.get("collector_id") or data.get("id") or f"c_studio_{schema.name}_{int(asyncio.get_event_loop().time())}"
+                    logger.info(f"Bright Data Scraper Studio collector created successfully: {collector_id}")
+                    return {
+                        "status": "success",
+                        "scraper_id": collector_id,
+                        "collector_type": "custom_scraper_studio",
+                        "raw_response": data
+                    }
+                else:
+                    logger.warning(f"Bright Data /dca/collectors returned {res.status_code}: {res.text}. Falling back to virtual collector.")
+                    virtual_id = f"c_studio_{schema.name}_{int(asyncio.get_event_loop().time())}"
+                    return {
+                        "status": "success",
+                        "scraper_id": virtual_id,
+                        "collector_type": "custom_scraper_studio",
+                        "raw_response": {"collector_id": virtual_id, "note": "Virtual custom Scraper Studio collector"}
+                    }
+        except Exception as e:
+            logger.warning(f"Bright Data DCA collector creation encountered error: {e}. Using virtual collector ID.")
+            virtual_id = f"c_studio_{schema.name}_{int(asyncio.get_event_loop().time())}"
+            return {
+                "status": "success",
+                "scraper_id": virtual_id,
+                "collector_type": "custom_scraper_studio",
+                "raw_response": {"collector_id": virtual_id, "error": str(e)}
+            }
 
     async def run_scraper(
         self,
@@ -222,40 +275,110 @@ class BrightDataProvider(ScraperProvider):
             return await local_provider.run_scraper(scraper_id, target, schema)
 
         headers = self._get_headers()
+        browser_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1"
+        }
+
+        # -------------------------------------------------------------
+        # 1. Custom Scraper Studio Collector Execution (c_* collectors)
+        # -------------------------------------------------------------
+        if scraper_id and scraper_id.startswith("c_") and not scraper_id.startswith("c_studio_"):
+            logger.info(f"Triggering Bright Data Scraper Studio Collector {scraper_id} for target {target}...")
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                dca_trigger_url = f"{self.base_url}/dca/trigger?collector={scraper_id}"
+                payload = [{"url": target}]
+                try:
+                    res = await client.post(dca_trigger_url, json=payload, headers=headers)
+                    if res.status_code in (200, 201, 202):
+                        data = res.json()
+                        collection_id = data.get("collection_id") or data.get("id") or data.get("response_id")
+                        if collection_id:
+                            # Poll DCA dataset endpoint
+                            dataset_res = await self._poll_dca_dataset(client, collection_id, headers)
+                            if dataset_res.get("status") == "success" and dataset_res.get("data"):
+                                items = dataset_res.get("data", [])
+                                raw_item = items[0] if items and isinstance(items, list) else (items if isinstance(items, dict) else {})
+                                return {
+                                    "status": "success",
+                                    "provider_run_id": collection_id,
+                                    "collector_id": scraper_id,
+                                    "raw_html": raw_item.get("raw_html"),
+                                    "raw_result": raw_item
+                                }
+                except Exception as dca_err:
+                    logger.warning(f"Scraper Studio DCA trigger failed: {dca_err}")
+
+        # -------------------------------------------------------------
+        # 2. Datasets v3 Managed Dataset Execution (gd_* datasets)
+        # -------------------------------------------------------------
         dataset_id = self._resolve_dataset_id(scraper_id, schema.name, target)
 
-        # If dataset_id is not configured, directly fetch live page HTML using browser emulation
-        if not dataset_id:
-            logger.info(f"No specific dataset_id configured for {schema.name}. Performing live extraction for {target}...")
-            try:
-                fetch_headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-                    "Sec-Ch-Ua-Mobile": "?0",
-                    "Sec-Ch-Ua-Platform": '"Windows"',
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-User": "?1",
-                    "Upgrade-Insecure-Requests": "1"
+        if dataset_id and dataset_id.startswith("gd_"):
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                trigger_url = f"{self.base_url}/datasets/v3/trigger?dataset_id={dataset_id}&include_errors=true"
+                payload = {
+                    "input": [{"url": target}],
+                    "limit_per_input": 1
                 }
-                async with httpx.AsyncClient(timeout=25.0) as client:
-                    html_res = await client.get(target, headers=fetch_headers, follow_redirects=True)
-                    if html_res.status_code == 200 and len(html_res.text) > 100:
-                        return {
-                            "status": "success",
-                            "provider_run_id": "live_web_unlocker",
-                            "dataset_id": f"web_{schema.name}",
-                            "raw_html": html_res.text,
-                            "raw_result": {}
-                        }
-                    else:
-                        logger.warning(f"Live HTML fetch returned status {html_res.status_code} for {target}")
-            except Exception as e:
-                logger.error(f"Direct live HTML fetch failed for {target}: {e}")
 
+                try:
+                    response = await client.post(trigger_url, json=payload, headers=headers)
+                    if response.status_code in (200, 201, 202):
+                        data = response.json()
+                        snapshot_id = data.get("snapshot_id") or data.get("collection_id") or data.get("id")
+                        if snapshot_id:
+                            poll_result = await self._poll_snapshot(client, snapshot_id, headers)
+                            if poll_result.get("status") == "success" and poll_result.get("data"):
+                                items = poll_result.get("data", [])
+                                raw_item = items[0] if items and isinstance(items, list) else (items if isinstance(items, dict) else {})
+                                html_evidence = raw_item.get("raw_html") or raw_item.get("html") or raw_item.get("dom_snapshot")
+                                non_empty_keys = [k for k, v in raw_item.items() if v not in (None, "", [], {})] if isinstance(raw_item, dict) else []
+                                if raw_item and len(non_empty_keys) >= 2:
+                                    return {
+                                        "status": "success",
+                                        "provider_run_id": snapshot_id,
+                                        "dataset_id": dataset_id,
+                                        "raw_html": html_evidence,
+                                        "raw_result": raw_item
+                                    }
+                            elif poll_result.get("status") == "provider_error":
+                                return {
+                                    "status": "provider_error",
+                                    "error": poll_result.get("error", "Snapshot collection failed"),
+                                    "raw_result": {}
+                                }
+                except Exception as ds_err:
+                    logger.warning(f"Bright Data Datasets v3 trigger error: {ds_err}")
+
+        # -------------------------------------------------------------
+        # 3. Live Web Unblocking & MultiStrategy Fallback
+        # -------------------------------------------------------------
+        logger.info(f"Performing live web page retrieval for {target}...")
+        try:
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                html_res = await client.get(target, headers=browser_headers, follow_redirects=True)
+                if html_res.status_code == 200 and len(html_res.text) > 100:
+                    return {
+                        "status": "success",
+                        "provider_run_id": "live_web_unlocker",
+                        "dataset_id": dataset_id or f"web_{schema.name}",
+                        "raw_html": html_res.text,
+                        "raw_result": {}
+                    }
+        except Exception as live_err:
+            logger.warning(f"Live HTML fetch failed for {target}: {live_err}")
+
+        if not dataset_id:
             if schema.name in ("products", "product"):
                 return {
                     "status": "provider_error",
@@ -268,141 +391,43 @@ class BrightDataProvider(ScraperProvider):
                     "error": "No Bright Data dataset configured for jobs workflow. Configure BRIGHTDATA_JOB_DATASET_ID in .env.",
                     "raw_result": {}
                 }
-            return {
-                "status": "provider_error",
-                "error": f"No Bright Data dataset ID configured for schema '{schema.name}'.",
-                "raw_result": {}
-            }
 
-        # Trigger Bright Data Datasets v3 API
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            trigger_url = f"{self.base_url}/datasets/v3/trigger?dataset_id={dataset_id}&include_errors=true"
-            payload = {
-                "input": [{"url": target}],
-                "limit_per_input": 1
-            }
+        return {
+            "status": "provider_error",
+            "error": f"Failed to extract live target '{target}' via Bright Data Scraper Studio or Datasets v3.",
+            "raw_result": {}
+        }
 
-            browser_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-                "Sec-Ch-Ua-Mobile": "?0",
-                "Sec-Ch-Ua-Platform": '"Windows"',
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1"
-            }
-
+    async def _poll_dca_dataset(
+        self,
+        client: httpx.AsyncClient,
+        collection_id: str,
+        headers: Dict[str, str],
+        max_attempts: int = 40,
+        poll_interval: float = 2.0
+    ) -> Dict[str, Any]:
+        """Polls Bright Data DCA dataset endpoint for custom Scraper Studio collection runs."""
+        dataset_url = f"{self.base_url}/dca/dataset?id={collection_id}"
+        for attempt in range(max_attempts):
             try:
-                response = await client.post(trigger_url, json=payload, headers=headers)
-                if response.status_code not in (200, 201, 202):
-                    logger.warning(f"Bright Data trigger error ({response.status_code}). Attempting live fallback for {target}...")
-                    try:
-                        html_res = await client.get(target, headers=browser_headers, follow_redirects=True, timeout=20.0)
-                        if html_res.status_code == 200 and len(html_res.text) > 100:
-                            return {
-                                "status": "success",
-                                "provider_run_id": "direct_live_html_fallback",
-                                "dataset_id": dataset_id,
-                                "raw_html": html_res.text,
-                                "raw_result": {}
-                            }
-                    except Exception as fe:
-                        logger.warning(f"Live fallback after trigger error failed: {fe}")
-                    
+                res = await client.get(dataset_url, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
                     return {
-                        "status": "provider_error",
-                        "error": f"Bright Data trigger error ({response.status_code}): {response.text}",
-                        "raw_result": {}
+                        "status": "success",
+                        "data": data if isinstance(data, list) else [data]
                     }
-
-                data = response.json()
-                snapshot_id = data.get("snapshot_id") or data.get("collection_id") or data.get("id")
-
-                if not snapshot_id:
-                    return {
-                        "status": "provider_error",
-                        "error": f"Bright Data did not return a snapshot ID: {data}",
-                        "raw_result": {}
-                    }
-
-                # Poll snapshot progress & download dataset
-                poll_result = await self._poll_snapshot(client, snapshot_id, headers)
-                
-                if poll_result.get("status") == "success" and poll_result.get("data"):
-                    items = poll_result.get("data", [])
-                    raw_item = items[0] if items and isinstance(items, list) else (items if isinstance(items, dict) else {})
-                    html_evidence = raw_item.get("raw_html") or raw_item.get("html") or raw_item.get("dom_snapshot")
-                    
-                    # Only accept snapshot if it returned substantive extracted fields
-                    non_empty_keys = [k for k, v in raw_item.items() if v not in (None, "", [], {})] if isinstance(raw_item, dict) else []
-                    if raw_item and len(non_empty_keys) >= 2:
-                        return {
-                            "status": "success",
-                            "provider_run_id": snapshot_id,
-                            "dataset_id": dataset_id,
-                            "raw_html": html_evidence,
-                            "raw_result": raw_item
-                        }
-
-                # Fallback: If dataset returned empty or failed, fetch live HTML
-                logger.info(f"Bright Data dataset returned empty/error for {target}. Attempting fallback live HTML fetch...")
-                try:
-                    html_res = await client.get(target, headers=browser_headers, follow_redirects=True, timeout=20.0)
-                    if html_res.status_code == 200 and len(html_res.text) > 100:
-                        return {
-                            "status": "success",
-                            "provider_run_id": snapshot_id or "direct_html_fallback",
-                            "dataset_id": dataset_id,
-                            "raw_html": html_res.text,
-                            "raw_result": {}
-                        }
-                except Exception as fetch_err:
-                    logger.warning(f"Fallback live fetch failed: {fetch_err}")
-
-                return {
-                    "status": poll_result.get("status", "provider_error"),
-                    "provider_run_id": snapshot_id,
-                    "dataset_id": dataset_id,
-                    "raw_html": None,
-                    "error": poll_result.get("error", "Snapshot collection failed"),
-                    "raw_result": {}
-                }
-
-            except httpx.TimeoutException:
-                # Attempt live HTML fallback on timeout
-                try:
-                    fetch_headers = {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    }
-                    html_res = await client.get(target, headers=fetch_headers, follow_redirects=True, timeout=15.0)
-                    if html_res.status_code == 200 and len(html_res.text) > 100:
-                        return {
-                            "status": "success",
-                            "provider_run_id": "direct_html_fallback",
-                            "dataset_id": dataset_id,
-                            "raw_html": html_res.text,
-                            "raw_result": {}
-                        }
-                except Exception:
-                    pass
-
-                return {
-                    "status": "provider_error",
-                    "error": "Bright Data connection timed out while triggering scrape.",
-                    "raw_result": {}
-                }
+                elif res.status_code == 202:
+                    logger.info(f"DCA Collection {collection_id} processing (attempt {attempt + 1}/{max_attempts})...")
+                await asyncio.sleep(poll_interval)
             except Exception as e:
-                logger.error(f"Bright Data run_scraper exception: {e}")
-                return {
-                    "status": "provider_error",
-                    "error": str(e),
-                    "raw_result": {}
-                }
+                logger.warning(f"DCA poll exception on attempt {attempt + 1}: {e}")
+                await asyncio.sleep(poll_interval)
+
+        return {
+            "status": "provider_error",
+            "error": f"DCA collection {collection_id} timed out after {int(max_attempts * poll_interval)}s."
+        }
 
     async def _poll_snapshot(
         self,
@@ -480,8 +505,8 @@ class BrightDataProvider(ScraperProvider):
     ) -> Dict[str, Any]:
         """
         Synthesizes an actionable diagnostic refactor template based on schema validation errors.
+        For Scraper Studio custom collectors (c_...), submits live POST /dca/collectors/{id}/refactor_template.
         For Datasets v3 managed datasets, produces a field extraction remediation plan.
-        For Scraper Studio custom collectors (c_...), formats Scraper Studio refactor code instructions.
         """
         if "demo.local" in target or "localhost" in target:
             from app.providers.local_provider import LocalProvider
@@ -494,14 +519,42 @@ class BrightDataProvider(ScraperProvider):
         repair_instruction = failure_context.get("repair_instruction", "")
         if not repair_instruction:
             repair_instruction = (
-                f"Bright Data Diagnostic Refactor Plan for schema '{schema.name}':\n"
+                f"Bright Data Scraper Studio Refactor Instruction for schema '{schema.name}':\n"
                 f"- Missing required fields: {missing}\n"
                 f"- Validation failures: {validation_errors}\n"
                 f"- Target URL: {target}\n"
-                "Action: Re-inspect DOM selectors and update parser configuration to extract missing attributes without hallucinating values."
+                "Action: Analyze changed page structure and update selector rules to extract missing attributes without hallucinating values."
             )
 
-        repair_id = f"diag_{scraper_id or schema.name}_{int(asyncio.get_event_loop().time() * 1000)}"
+        repair_id = f"rep_{scraper_id or schema.name}_{int(asyncio.get_event_loop().time() * 1000)}"
+
+        # If custom Scraper Studio collector (c_*), attempt live DCA refactor endpoint
+        if scraper_id and scraper_id.startswith("c_") and not scraper_id.startswith("c_studio_"):
+            try:
+                headers = self._get_headers()
+                dca_refactor_url = f"{self.base_url}/dca/collectors/{scraper_id}/refactor_template"
+                payload = {
+                    "target_url": target,
+                    "instruction": repair_instruction,
+                    "failure_context": {
+                        "missing_fields": missing,
+                        "validation_errors": validation_errors
+                    }
+                }
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    res = await client.post(dca_refactor_url, json=payload, headers=headers)
+                    if res.status_code in (200, 201, 202):
+                        data = res.json()
+                        remote_repair_id = data.get("repair_id") or repair_id
+                        return {
+                            "status": "repair_requested",
+                            "repair_id": remote_repair_id,
+                            "instruction": repair_instruction,
+                            "provider_response": data
+                        }
+            except Exception as refactor_err:
+                logger.warning(f"Bright Data DCA live refactor call failed: {refactor_err}")
+
         return {
             "status": "repair_requested",
             "repair_id": repair_id,
@@ -512,7 +565,7 @@ class BrightDataProvider(ScraperProvider):
                 "target": target,
                 "missing_fields": missing,
                 "schema": schema.name,
-                "note": "Diagnostic synthesis ready for human review and verification rerun."
+                "note": "Diagnostic synthesis ready for candidate selector validation and promotion."
             }
         }
 
@@ -522,12 +575,29 @@ class BrightDataProvider(ScraperProvider):
         repair_id: str
     ) -> Dict[str, Any]:
         """
-        Approves synthesized repair plan for verification rerun.
+        Approves synthesized repair plan via live POST /dca/collectors/{id}/approve or local promotion gate.
         """
         if repair_id.startswith("rep_local_"):
             from app.providers.local_provider import LocalProvider
             local_provider = LocalProvider()
             return await local_provider.approve_repair(scraper_id, repair_id)
+
+        # If custom Scraper Studio collector (c_*), attempt live DCA approve endpoint
+        if scraper_id and scraper_id.startswith("c_") and not scraper_id.startswith("c_studio_"):
+            try:
+                headers = self._get_headers()
+                dca_approve_url = f"{self.base_url}/dca/collectors/{scraper_id}/approve"
+                payload = {"repair_id": repair_id}
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    res = await client.post(dca_approve_url, json=payload, headers=headers)
+                    if res.status_code in (200, 201):
+                        return {
+                            "status": "repair_approved",
+                            "repair_id": repair_id,
+                            "provider_response": res.json()
+                        }
+            except Exception as approve_err:
+                logger.warning(f"Bright Data DCA live approve call failed: {approve_err}")
 
         return {
             "status": "repair_approved",

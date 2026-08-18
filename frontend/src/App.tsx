@@ -12,8 +12,10 @@ import { ToastProvider, useToast } from './components/ToastContext';
 import type { ConfigModeResponse } from './types';
 import { fetchConfigMode, resetDemo } from './api';
 import { WorkflowsStudio } from './components/WorkflowsStudio';
+import { IntelligenceStudio } from './components/IntelligenceStudio';
 import { RuleBundlesExplorer } from './components/RuleBundlesExplorer';
 import { CommandPalette } from './components/CommandPalette';
+
 
 export function AppContent() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -103,7 +105,9 @@ export function AppContent() {
       >
         {activeTab === 'overview' && <Overview configMode={configMode} setActiveTab={switchTab} />}
         {activeTab === 'studio' && <WorkflowsStudio setActiveTab={switchTab} />}
+        {activeTab === 'intel' && <IntelligenceStudio />}
         {activeTab === 'products' && <ProductDiscovery setActiveTab={switchTab} />}
+
         {activeTab === 'jobs' && <JobDiscovery setActiveTab={switchTab} />}
         {activeTab === 'repair' && <RepairCenter />}
         {activeTab === 'rules' && <RuleBundlesExplorer />}

@@ -1,4 +1,5 @@
 from pathlib import Path
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,10 +7,17 @@ from app.config import settings
 from app.database import init_db
 from app.api.endpoints import router as api_router
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database schemas and tables on startup
+    init_db()
+    yield
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Live web-data monitoring and self-healing scraper dashboard powered by Bright Data Scraper Studio."
+    description="Live web-data monitoring and self-healing scraper dashboard powered by Bright Data Scraper Studio.",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -20,10 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
 # Mount API endpoints first
 app.include_router(api_router)
 
@@ -31,3 +35,4 @@ app.include_router(api_router)
 frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
     app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+

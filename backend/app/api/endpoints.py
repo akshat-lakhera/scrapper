@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from app.services.scrape_service import ScrapeService
 from app.services.search_service import SearchService
 from app.services.metrics_service import MetricsService
 
+logger = logging.getLogger("marketscout.api")
 router = APIRouter(prefix="/api")
 
 def verify_reset_permission(x_admin_key: Optional[str] = Header(None)):
@@ -62,9 +64,9 @@ def list_schemas():
         for s in SCHEMA_REGISTRY.values()
     ]
 
+@router.get("/rules/bundles")
 @router.get("/rules")
 def list_rule_bundles(db: Session = Depends(get_db)):
-    from app.models.extractor_rule_db import ExtractorRuleBundleDB
     bundles = db.query(ExtractorRuleBundleDB).order_by(ExtractorRuleBundleDB.id.desc()).all()
     return [
         {
@@ -83,13 +85,13 @@ def list_rule_bundles(db: Session = Depends(get_db)):
 
 @router.get("/rules/patches")
 def list_rule_patches(db: Session = Depends(get_db)):
-    from app.models.extractor_rule_db import CandidateRulePatchDB
     patches = db.query(CandidateRulePatchDB).order_by(CandidateRulePatchDB.id.desc()).all()
     return [
         {
             "id": p.id,
             "scrape_run_id": p.scrape_run_id,
             "domain": p.domain,
+            "template_signature": p.template_signature,
             "from_version": p.from_version,
             "to_version": p.to_version,
             "broken_fields": json.loads(p.broken_fields) if p.broken_fields else [],
@@ -478,46 +480,6 @@ def get_run_repair_attempts(id: int, db: Session = Depends(get_db)):
         } for a in attempts
     ]
 
-@router.get("/rules/bundles")
-def list_rule_bundles(db: Session = Depends(get_db)):
-    bundles = db.query(ExtractorRuleBundleDB).order_by(ExtractorRuleBundleDB.id.desc()).all()
-    return [
-        {
-            "id": b.id,
-            "domain": b.domain,
-            "template_signature": b.template_signature,
-            "workflow_type": b.workflow_type,
-            "version": b.version,
-            "description": b.description,
-            "field_rules": json.loads(b.field_rules) if b.field_rules else {},
-            "is_active": b.is_active,
-            "created_at": b.created_at
-        } for b in bundles
-    ]
-
-@router.get("/rules/patches")
-def list_candidate_patches(db: Session = Depends(get_db)):
-    patches = db.query(CandidateRulePatchDB).order_by(CandidateRulePatchDB.id.desc()).all()
-    return [
-        {
-            "id": p.id,
-            "scrape_run_id": p.scrape_run_id,
-            "domain": p.domain,
-            "template_signature": p.template_signature,
-            "from_version": p.from_version,
-            "to_version": p.to_version,
-            "broken_fields": json.loads(p.broken_fields) if p.broken_fields else [],
-            "root_cause_analysis": json.loads(p.root_cause_analysis) if p.root_cause_analysis else {},
-            "selector_diff": json.loads(p.selector_diff) if p.selector_diff else {},
-            "regression_results": json.loads(p.regression_results) if p.regression_results else [],
-            "confidence_score": p.confidence_score,
-            "field_recovery_rate": p.field_recovery_rate,
-            "non_regression_rate": p.non_regression_rate,
-            "status": p.status,
-            "created_at": p.created_at
-        } for p in patches
-    ]
-
 @router.post("/demo/reset", dependencies=[Depends(verify_reset_permission)])
 def reset_demo(db: Session = Depends(get_db)):
     return ScrapeService.reset_demo_data(db)
@@ -525,3 +487,27 @@ def reset_demo(db: Session = Depends(get_db)):
 @router.get("/metrics")
 def get_metrics(db: Session = Depends(get_db)):
     return MetricsService.get_metrics(db)
+
+class RAGChatRequest(BaseModel):
+    query: str
+    run_ids: Optional[List[int]] = None
+    workflow_type: Optional[str] = None
+    domain_filter: Optional[str] = None
+
+@router.post("/rag/chat")
+async def rag_chat(req: RAGChatRequest, db: Session = Depends(get_db)):
+    from app.services.rag_service import RAGService
+    return await RAGService.chat_with_data(
+        db,
+        query=req.query,
+        run_ids=req.run_ids,
+        workflow_type=req.workflow_type,
+        domain_filter=req.domain_filter
+    )
+
+@router.get("/intel/report")
+async def get_intel_report(domain: Optional[str] = None, db: Session = Depends(get_db)):
+    from app.services.intel_service import IntelService
+    return await IntelService.get_domain_intel_report(db, domain=domain)
+
+

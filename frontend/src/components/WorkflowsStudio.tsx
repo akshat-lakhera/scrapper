@@ -147,7 +147,22 @@ const WORKFLOWS: WorkflowPreset[] = [
     ],
     sampleAttributes: ['job_title', 'company', 'location', 'employment_type', 'description']
   },
+  {
+    id: 'tech_docs',
+    name: 'Tech Docs & API Specs',
+    workflow: 'tech_docs',
+    icon: Code2,
+    badge: 'Scraper Studio Custom',
+    description: 'Extract API guides, code snippets, documentation sections, and version changes from long-tail developer websites.',
+    placeholder: 'https://docs.example.com/...',
+    presets: [
+      { label: 'Scraper Studio DCA Guide v1', url: 'https://demo.local/tech_docs_v1.html' },
+      { label: 'Scraper Studio DCA Redesigned v2', url: 'https://demo.local/tech_docs_redesign.html' },
+    ],
+    sampleAttributes: ['doc_title', 'section_heading', 'content_body', 'code_snippet', 'last_updated']
+  },
 ];
+
 
 interface WorkflowsStudioProps {
   setActiveTab?: (tab: string) => void;
