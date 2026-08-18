@@ -211,22 +211,22 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* ── TOP ACTION BAR WITH EXPORT & HEAL DEMO TRIGGER ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+    <div className="space-y-6 pb-12">
+      {/* ── UNIFIED COMPACT WORKSPACE TOOLBAR (Execution Controls Only) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-[#0a0d16] border border-white/10 shadow-lg">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setScrapeMode('single')}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
-              scrapeMode === 'single' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-[#121622] text-slate-400 border border-white/10 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+              scrapeMode === 'single' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
             }`}
           >
             Single Target
           </button>
           <button
             onClick={() => setScrapeMode('batch')}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              scrapeMode === 'batch' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-[#121622] text-slate-400 border border-white/10 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              scrapeMode === 'batch' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -234,8 +234,8 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </button>
           <button
             onClick={() => setScrapeMode('crawl')}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              scrapeMode === 'crawl' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-[#121622] text-slate-400 border border-white/10 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              scrapeMode === 'crawl' ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
             }`}
           >
             <Network className="w-3.5 h-3.5" />
@@ -243,38 +243,17 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </button>
         </div>
 
-        {/* Action Triggers: Drift Simulator & Exporter */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Action Trigger: Autonomous Drift Simulator */}
+        <div className="flex items-center gap-2">
           <button
             onClick={handleSimulateDrift}
             disabled={simulatingDrift}
-            className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+            className="px-3.5 py-1.5 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-white/20 hover:border-amber-400/50 text-slate-200 hover:text-amber-200 text-xs font-mono font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            title="Simulate upstream DOM breaking changes and trigger autonomous selector synthesis"
           >
-            <Wrench className={`w-3.5 h-3.5 ${simulatingDrift ? 'animate-spin' : ''}`} />
-            <span>{simulatingDrift ? 'Healing Drift...' : '⚡ Simulate DOM Drift & Auto-Heal'}</span>
+            <Wrench className={`w-3.5 h-3.5 text-amber-400 ${simulatingDrift ? 'animate-spin' : ''}`} />
+            <span>{simulatingDrift ? 'Synthesizing...' : '⚡ Simulate DOM Drift'}</span>
           </button>
-
-          <div className="flex items-center bg-[#121622] border border-white/10 rounded-xl p-1 text-xs font-mono">
-            <span className="px-2.5 text-slate-500 text-[11px]">Export:</span>
-            <button
-              onClick={() => handleExport('json')}
-              className="px-2.5 py-1 rounded hover:bg-white/10 text-slate-300 hover:text-white cursor-pointer"
-            >
-              JSON
-            </button>
-            <button
-              onClick={() => handleExport('csv')}
-              className="px-2.5 py-1 rounded hover:bg-white/10 text-emerald-400 hover:text-emerald-300 cursor-pointer"
-            >
-              CSV
-            </button>
-            <button
-              onClick={() => handleExport('ndjson')}
-              className="px-2.5 py-1 rounded hover:bg-white/10 text-cyan-400 hover:text-cyan-300 cursor-pointer"
-            >
-              NDJSON
-            </button>
-          </div>
         </div>
       </div>
 
@@ -410,10 +389,11 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="Enter target URL (Amazon, LinkedIn, X, Lever, Docs, Reddit, Maps)..."
-                    className="w-full bg-[#090c13] border border-white/10 text-white font-mono text-sm sm:text-base py-4 pl-4 pr-32 rounded-xl focus:border-blue-500 focus:outline-none transition-colors shadow-inner"
+                    className="w-full bg-[#080b12] border border-white/20 text-white font-mono text-sm sm:text-base py-4 pl-4 pr-36 rounded-xl focus:border-blue-400 focus:outline-none transition-colors shadow-inner"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-[11px] font-mono bg-white/5 text-slate-400 border border-white/10 pointer-events-none">
-                    {activePlatform.tag}
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/40 pointer-events-none shadow-sm flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    <span>{activePlatform.tag}</span>
                   </span>
                 </div>
 
@@ -450,11 +430,14 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             )}
 
             {/* Platform Source Chips */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
-                Target Protocol & Schema Presets:
-              </span>
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider block">
+                  Target Protocol & Schema Presets:
+                </span>
+                <span className="text-[11px] font-mono text-slate-400">8 Supported Schemas</span>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
                 {PLATFORMS.map((p) => {
                   const Icon = p.icon;
                   const isSelected = activePlatform.id === p.id;
@@ -462,13 +445,13 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                     <button
                       key={p.id}
                       onClick={() => handleSelectPlatform(p)}
-                      className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border cursor-pointer ${
+                      className={`px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2.5 border cursor-pointer ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-600/15 text-blue-300 shadow-md shadow-blue-500/10 font-bold scale-[1.02]'
-                          : 'border-white/10 bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                          ? 'border-blue-400 bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30 scale-[1.02]'
+                          : 'border-white/20 bg-[#121728] text-slate-100 hover:text-white hover:bg-[#1c2742] hover:border-blue-400/60 font-semibold shadow-sm'
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
+                      <Icon className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-blue-400'}`} />
                       <span>{p.name}</span>
                     </button>
                   );
@@ -478,8 +461,8 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </div>
 
           {/* Action Row */}
-          <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between">
-            <span className="text-xs font-mono text-slate-500">
+          <div className="mt-8 pt-4 border-t border-white/10 flex items-center justify-between">
+            <span className="text-xs font-mono text-slate-300 font-medium">
               Autonomous unblocking via Bright Data Web Unlocker
             </span>
 
@@ -509,20 +492,49 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </div>
         </SpotlightCard>
 
-        {/* ── CELL 2: EXTRACTION AUDIT STREAM (Span 4 cols) ── */}
+        {/* ── CELL 2: EXTRACTION AUDIT STREAM / PRE-FLIGHT BLUEPRINT (Span 4 cols) ── */}
         <SpotlightCard className="col-span-1 lg:col-span-4 p-0 flex flex-col justify-between min-h-[380px]">
-          <div className="p-5 border-b border-white/10 bg-[#0f131f] flex items-center justify-between">
+          <div className="p-4 border-b border-white/10 bg-[#0f1422] flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <History className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-bold text-white">Extraction Audit Stream</h3>
+              <h3 className="text-sm font-bold text-white">Audit Stream</h3>
             </div>
-            <button
-              onClick={() => setActiveTab('runs')}
-              className="text-[11px] font-mono text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <span>Full Log</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-[#090c13] border border-white/15 rounded-lg px-2 py-0.5 text-xs font-mono shadow-inner">
+                <span className="text-slate-400 text-[10px] mr-1 font-semibold">Export:</span>
+                <button
+                  onClick={() => handleExport('json')}
+                  className="px-1.5 py-0.5 rounded hover:bg-white/10 text-slate-200 hover:text-white text-[10px] font-medium cursor-pointer"
+                  title="Export raw JSON"
+                >
+                  JSON
+                </button>
+                <button
+                  onClick={() => handleExport('csv')}
+                  className="px-1.5 py-0.5 rounded hover:bg-white/10 text-emerald-300 hover:text-emerald-200 text-[10px] font-medium cursor-pointer"
+                  title="Export CSV spreadsheet"
+                >
+                  CSV
+                </button>
+                <button
+                  onClick={() => handleExport('ndjson')}
+                  className="px-1.5 py-0.5 rounded hover:bg-white/10 text-cyan-300 hover:text-cyan-200 text-[10px] font-medium cursor-pointer"
+                  title="Export NDJSON stream"
+                >
+                  NDJSON
+                </button>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('runs')}
+                className="text-xs font-mono text-blue-400 hover:text-blue-300 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                title="View full audit log"
+              >
+                <span>Log</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 p-5 overflow-y-auto space-y-3 font-mono text-xs max-h-[340px]">
@@ -530,29 +542,97 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
               recentRuns.map((r) => (
                 <div
                   key={r.id}
-                  className="p-3 rounded-lg bg-[#090c13] border border-white/5 flex items-center justify-between hover:border-white/15 transition-colors"
+                  className="p-3 rounded-lg bg-[#090c13] border border-white/10 flex items-center justify-between hover:border-white/20 transition-colors"
                 >
                   <div className="flex items-center gap-2.5 overflow-hidden">
-                    <span className="text-slate-500 font-bold">#{r.id}</span>
+                    <span className="text-slate-300 font-bold">#{r.id}</span>
                     <StatusBadge status={r.status} />
-                    <span className="text-slate-300 truncate max-w-[140px] text-[11px]">{r.target_url}</span>
+                    <span className="text-slate-100 truncate max-w-[140px] text-[11px] font-medium">{r.target_url}</span>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-emerald-400 font-bold block">{r.data_quality_score}%</span>
-                    <span className="text-[10px] text-slate-500">{r.duration_ms}ms</span>
+                    <span className="text-[10px] text-slate-300">{r.duration_ms}ms</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-12 text-slate-500 text-xs">
-                Awaiting first scrape execution...
+              /* Rich Interactive Architecture Blueprint & Pre-flight Guide */
+              <div className="space-y-4 py-2">
+                <div className="p-4 rounded-xl bg-[#0b0f19] border border-blue-500/20 space-y-3">
+                  <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                    <span>Engine Pre-Flight Readiness</span>
+                  </div>
+                  
+                  <div className="space-y-2 text-[11px] text-slate-200 font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300">Proxy Gateway:</span>
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Bright Data Unlocker
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300">Schema Contracts:</span>
+                      <span className="text-slate-100 font-bold">8 Strict Pydantic</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300">Self-Healing Watcher:</span>
+                      <span className="text-amber-300 font-bold">Auto-Drift Armed</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300">Living RAG Copilot:</span>
+                      <span className="text-cyan-300 font-bold">Llama-70B Ready</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                    Quick Sample Launchers:
+                  </span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      onClick={() => handleSelectPlatform(PLATFORMS[0])}
+                      className="p-2.5 rounded-lg bg-[#121829] hover:bg-[#1a233a] border border-white/15 text-left flex items-center justify-between text-xs text-slate-100 hover:text-white transition-all cursor-pointer font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Amazon Sony WH-1000XM5</span>
+                      </span>
+                      <ArrowRight className="w-3 h-3 text-slate-400" />
+                    </button>
+
+                    <button
+                      onClick={() => handleSelectPlatform(PLATFORMS[1])}
+                      className="p-2.5 rounded-lg bg-[#121829] hover:bg-[#1a233a] border border-white/15 text-left flex items-center justify-between text-xs text-slate-100 hover:text-white transition-all cursor-pointer font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>FastAPI Python Framework Docs</span>
+                      </span>
+                      <ArrowRight className="w-3 h-3 text-slate-400" />
+                    </button>
+
+                    <button
+                      onClick={() => handleSelectPlatform(PLATFORMS[2])}
+                      className="p-2.5 rounded-lg bg-[#121829] hover:bg-[#1a233a] border border-white/15 text-left flex items-center justify-between text-xs text-slate-100 hover:text-white transition-all cursor-pointer font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Briefcase className="w-3.5 h-3.5 text-purple-400" />
+                        <span>LinkedIn Executive Profile</span>
+                      </span>
+                      <ArrowRight className="w-3 h-3 text-slate-400" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="p-3.5 border-t border-white/10 bg-[#090c13] text-[11px] font-mono text-slate-400 flex items-center justify-between">
-            <span>Cluster Status: <strong className="text-emerald-400">NORMAL</strong></span>
-            <span>WAL Mode: <strong className="text-slate-300">ACTIVE</strong></span>
+          <div className="p-3.5 border-t border-white/10 bg-[#090c13] text-xs font-mono text-slate-300 flex items-center justify-between">
+            <span>Cluster Status: <strong className="text-emerald-400 font-bold">NORMAL</strong></span>
+            <span>WAL Mode: <strong className="text-white font-bold">ACTIVE</strong></span>
           </div>
         </SpotlightCard>
 
@@ -565,7 +645,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 Multi-Strategy Pipeline Waterfall
               </h3>
             </div>
-            <span className="text-xs font-mono text-slate-400">
+            <span className="text-xs font-mono font-bold text-slate-300">
               {loading ? 'STATUS: EXECUTING LIVE' : (extractedResult ? 'STATUS: EXTRACTION COMPLETE' : 'STATUS: STANDBY')}
             </span>
           </div>
@@ -573,57 +653,81 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs font-mono">
             {/* Step 1 */}
             <div className={`p-4 rounded-xl border transition-all ${
-              loading ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-md shadow-blue-500/10' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-[#090c13] border-white/10 text-slate-500')
+              loading ? 'bg-blue-500/20 border-blue-400 text-blue-200 shadow-md shadow-blue-500/20' : (extractedResult ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100' : 'bg-[#121728] border-white/20 text-slate-100')
             }`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold">01 CRAWL</span>
-                <span className="text-[10px] text-slate-400">Bright Data</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-white text-sm">01 CRAWL</span>
+                <span className="text-[10px] text-slate-100 bg-white/15 px-2 py-0.5 rounded-full font-bold border border-white/10">Bright Data</span>
               </div>
-              <p className="text-[11px] text-slate-400">Web Unlocker & Proxy Cluster</p>
+              <p className="text-xs text-slate-100 font-semibold leading-relaxed">Web Unlocker & Proxy Cluster</p>
             </div>
 
             {/* Step 2 */}
             <div className={`p-4 rounded-xl border transition-all ${
-              loading ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-md shadow-blue-500/10' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-[#090c13] border-white/10 text-slate-500')
+              loading ? 'bg-blue-500/20 border-blue-400 text-blue-200 shadow-md shadow-blue-500/20' : (extractedResult ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100' : 'bg-[#121728] border-white/20 text-slate-100')
             }`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold">02 FINGERPRINT</span>
-                <span className="text-[10px] text-slate-400">DOM Hash</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-white text-sm">02 FINGERPRINT</span>
+                <span className="text-[10px] text-slate-100 bg-white/15 px-2 py-0.5 rounded-full font-bold border border-white/10">DOM Hash</span>
               </div>
-              <p className="text-[11px] text-slate-400">Skeleton Template Signature</p>
+              <p className="text-xs text-slate-100 font-semibold leading-relaxed">Skeleton Template Signature</p>
             </div>
 
             {/* Step 3 */}
             <div className={`p-4 rounded-xl border transition-all ${
-              loading ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-md shadow-blue-500/10' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-[#090c13] border-white/10 text-slate-500')
+              loading ? 'bg-blue-500/20 border-blue-400 text-blue-200 shadow-md shadow-blue-500/20' : (extractedResult ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100' : 'bg-[#121728] border-white/20 text-slate-100')
             }`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold">03 EXTRACT</span>
-                <span className="text-[10px] text-cyan-400 truncate max-w-[80px]">{extractedResult?.selected_strategy || 'Waterfall'}</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-white text-sm">03 EXTRACT</span>
+                <span className="text-[10px] text-cyan-200 bg-cyan-950/80 border border-cyan-400/50 px-2 py-0.5 rounded-full font-bold truncate max-w-[85px]">{extractedResult?.selected_strategy || 'Waterfall'}</span>
               </div>
-              <p className="text-[11px] text-slate-400">JSON-LD / Rules / Heuristics</p>
+              <p className="text-xs text-slate-100 font-semibold leading-relaxed">JSON-LD / Rules / Heuristics</p>
             </div>
 
             {/* Step 4 */}
             <div className={`p-4 rounded-xl border transition-all ${
-              loading ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-md shadow-blue-500/10' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-[#090c13] border-white/10 text-slate-500')
+              loading ? 'bg-blue-500/20 border-blue-400 text-blue-200 shadow-md shadow-blue-500/20' : (extractedResult ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100' : 'bg-[#121728] border-white/20 text-slate-100')
             }`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold">04 VALIDATE</span>
-                <span className="text-[10px] text-emerald-400">{extractedResult ? `${extractedResult.quality_score}%` : 'Pydantic'}</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-white text-sm">04 VALIDATE</span>
+                <span className="text-[10px] text-emerald-200 bg-emerald-950/80 border border-emerald-400/50 px-2 py-0.5 rounded-full font-bold">{extractedResult ? `${extractedResult.quality_score}%` : 'Pydantic'}</span>
               </div>
-              <p className="text-[11px] text-slate-400">Quality Gating & Null Checks</p>
+              <p className="text-xs text-slate-100 font-semibold leading-relaxed">Quality Gating & Null Checks</p>
             </div>
 
             {/* Step 5 */}
             <div className={`p-4 rounded-xl border transition-all ${
-              loading ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-md shadow-blue-500/10' : (extractedResult?.status === 'repaired' ? 'bg-amber-500/15 border-amber-500/50 text-amber-300' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-[#090c13] border-white/10 text-slate-500'))
+              loading ? 'bg-blue-500/20 border-blue-400 text-blue-200 shadow-md shadow-blue-500/20' : (extractedResult?.status === 'repaired' ? 'bg-amber-500/25 border-amber-400 text-amber-100' : (extractedResult ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100' : 'bg-[#121728] border-white/20 text-slate-100'))
             }`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold">05 DELIVER</span>
-                <span className="text-[10px] text-slate-400">{extractedResult?.status === 'repaired' ? 'Auto-Healed' : 'Clean'}</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-white text-sm">05 DELIVER</span>
+                <span className="text-[10px] text-slate-100 bg-white/15 px-2 py-0.5 rounded-full font-bold border border-white/10">{extractedResult?.status === 'repaired' ? 'Auto-Healed' : 'Clean'}</span>
               </div>
-              <p className="text-[11px] text-slate-400">Living RAG & DB Ingestion</p>
+              <p className="text-xs text-slate-100 font-semibold leading-relaxed">Living RAG & DB Ingestion</p>
+            </div>
+          </div>
+
+          {/* ── WATERFALL LIVE TELEMETRY & THROUGHPUT DOCK (Balances Bottom Right) ── */}
+          <div className="pt-3 border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono text-slate-300">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>5-STAGE CASCADE ARMED</span>
+              </div>
+              <span className="text-slate-600 hidden sm:inline">|</span>
+              <span className="text-slate-200">
+                Fallback Cascade: <span className="text-blue-300 font-medium">Rules → JSON-LD → Meta → Heuristics → Groq Llama-70B</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4 shrink-0">
+              <span className="text-slate-300">
+                Avg Latency: <strong className="text-white font-bold">{metrics?.avg_duration_ms || 21}ms</strong>
+              </span>
+              <span className="text-slate-600 hidden sm:inline">|</span>
+              <div className="flex items-center gap-1 text-[11px] text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-0.5 rounded-full font-bold">
+                <span>Tunnel: Bright Data Unlocker (US/EU/APAC)</span>
+              </div>
             </div>
           </div>
         </SpotlightCard>
@@ -864,6 +968,9 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </SpotlightCard>
         )}
       </div>
+
+      {/* ── SUBTLE PANEL CLOSURE LINE ── */}
+      <div className="w-full pt-4 border-b border-white/[0.08]" />
     </div>
   );
 };

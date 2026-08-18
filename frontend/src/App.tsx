@@ -782,50 +782,53 @@ export function AppContent() {
       />
 
       {/* ── TOP LEVEL REAL-TIME SYSTEM TELEMETRY STRIP ── */}
-      <div className="w-full bg-[#05060a]/90 backdrop-blur-md border-b border-white/[0.06] py-1 px-4 sm:px-8 text-[11px] font-mono text-slate-400 flex flex-wrap items-center justify-between gap-2 z-40 relative">
+      <div className="w-full bg-[#05070d]/95 backdrop-blur-md border-b border-white/10 py-1.5 px-4 sm:px-8 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3 z-40 relative">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px]">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>ENGINE ONLINE</span>
           </div>
-          <span className="text-slate-700">|</span>
-          <span>Provider: <strong className="text-slate-200">{configMode?.display_name || 'Bright Data Unlocker'}</strong></span>
-          <span className="text-slate-700 hidden sm:inline">|</span>
-          <span className="hidden sm:inline">Reliability: <strong className="text-emerald-400">{metrics?.overall_reliability || 96}%</strong></span>
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-300">Cluster: <strong className="text-white font-semibold">{configMode?.display_name || 'Bright Data Live Unlocker'}</strong></span>
+          <span className="text-slate-600 hidden sm:inline">|</span>
+          <span className="hidden sm:inline text-slate-300">Reliability: <strong className="text-emerald-400 font-bold">{metrics?.overall_reliability || 96}%</strong></span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setCopilotOpen(true)}
-            className="hover:text-cyan-400 text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer font-bold"
+            className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
           >
-            <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
-            <span>AI Copilot <kbd className="px-1 py-0.2 rounded bg-white/10 text-white text-[9px]">⌘I</kbd></span>
+            <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
+            <span>AI Copilot</span>
+            <kbd className="px-1 py-0.2 rounded bg-black/40 text-cyan-100 text-[10px] border border-cyan-500/30">⌘I</kbd>
           </button>
-          <span className="text-slate-700">|</span>
+
           <button
             onClick={() => setQuickHUDOpen(true)}
-            className="hover:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
           >
-            <Zap className="w-3 h-3 text-blue-400" />
-            <span>Quick Scrape <kbd className="px-1 py-0.2 rounded bg-white/10 text-white text-[9px]">⌘J</kbd></span>
+            <Zap className="w-3.5 h-3.5 text-blue-300" />
+            <span>Quick Scrape</span>
+            <kbd className="px-1 py-0.2 rounded bg-black/40 text-blue-100 text-[10px] border border-blue-500/30">⌘J</kbd>
           </button>
-          <span className="text-slate-700">|</span>
+
           <button
             onClick={() => setDiagnosticsOpen(true)}
-            className="hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
           >
-            <Terminal className="w-3 h-3 text-emerald-400" />
-            <span>Diagnostics <kbd className="px-1 py-0.2 rounded bg-white/10 text-white text-[9px]">⌘L</kbd></span>
+            <Terminal className="w-3.5 h-3.5 text-emerald-300" />
+            <span>Diagnostics</span>
+            <kbd className="px-1 py-0.2 rounded bg-black/40 text-emerald-100 text-[10px] border border-emerald-500/30">⌘L</kbd>
           </button>
-          <span className="text-slate-700">|</span>
+
           <button
             onClick={() => setShortcutsModalOpen(true)}
-            className="hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+            className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-slate-200 hover:text-white transition-all flex items-center gap-1 cursor-pointer text-[11px]"
             title="Keyboard Shortcuts (?)"
           >
-            <HelpCircle className="w-3 h-3" />
-            <span className="hidden md:inline">Hotkeys</span>
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span className="hidden md:inline font-medium">Hotkeys (?)</span>
           </button>
         </div>
       </div>

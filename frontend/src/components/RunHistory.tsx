@@ -44,7 +44,28 @@ export const RunHistory: React.FC = () => {
     }
   };
 
-  const filteredRuns = runs.filter((r) => filterWorkflow === 'all' || r.workflow_type === filterWorkflow);
+  const [sortField, setSortField] = useState<string>('id');
+  const [sortAsc, setSortAsc] = useState<boolean>(false);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(false);
+    }
+  };
+
+  const filteredRuns = runs
+    .filter((r) => filterWorkflow === 'all' || r.workflow_type === filterWorkflow)
+    .sort((a: any, b: any) => {
+      const valA = a[sortField] ?? 0;
+      const valB = b[sortField] ?? 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortAsc ? valA - valB : valB - valA;
+      }
+      return sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+    });
 
   return (
     <div className="space-y-8">
@@ -67,23 +88,21 @@ export const RunHistory: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Workflow Filter */}
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
-            {['all', 'products', 'jobs'].map((w) => (
+          <div className="flex gap-1 p-1 rounded-xl bg-[#080b12] border border-white/15 shadow-inner">
+            {['all', 'products', 'tech_docs', 'jobs', 'linkedin'].map((w) => (
               <button
                 key={w}
                 onClick={() => setFilterWorkflow(w)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold uppercase mono transition-all btn-spring focus-ring"
-                style={{
-                  background: filterWorkflow === w ? 'var(--accent)' : 'transparent',
-                  color: filterWorkflow === w ? '#fff' : 'var(--text-tertiary)',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase mono transition-all cursor-pointer ${
+                  filterWorkflow === w ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25' : 'text-slate-300 hover:text-white'
+                }`}
               >
-                {w}
+                {w.replace('_', ' ')}
               </button>
             ))}
           </div>
+
+          <div className="h-6 w-px bg-white/15 mx-1 hidden sm:block" />
 
           <button
             onClick={async () => {
@@ -93,8 +112,7 @@ export const RunHistory: React.FC = () => {
                 loadRuns();
               }
             }}
-            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-400 hover:text-red-400 focus-ring"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 text-slate-300 hover:text-rose-400 bg-[#0e1320] border border-white/15 hover:border-rose-500/30 transition-all cursor-pointer"
           >
             <Trash2 size={13} aria-hidden="true" />
             <span>Clear Log</span>
@@ -103,8 +121,7 @@ export const RunHistory: React.FC = () => {
           <button
             onClick={loadRuns}
             disabled={loading}
-            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 focus-ring"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            className="btn-spring px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 text-slate-100 bg-[#0e1320] border border-white/15 hover:bg-[#182136] transition-all cursor-pointer"
           >
             <RotateCcw size={13} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
             <span>Refresh</span>
@@ -113,18 +130,24 @@ export const RunHistory: React.FC = () => {
       </section>
 
       {/* Runs Monospace Table */}
-      <section className="rounded-2xl overflow-hidden stagger-in" style={{ ...stagger(1), background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }} aria-label="Execution Audit Records">
+      <section className="rounded-2xl overflow-hidden bg-[#0e1320] border border-white/15 shadow-lg" aria-label="Execution Audit Records">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs mono">
             <thead>
-              <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                <th className="py-3 px-4 font-semibold">RUN ID</th>
-                <th className="py-3 px-4 font-semibold">WORKFLOW</th>
-                <th className="py-3 px-4 font-semibold">TARGET URL</th>
-                <th className="py-3 px-4 font-semibold">STATUS</th>
-                <th className="py-3 px-4 font-semibold">QUALITY</th>
-                <th className="py-3 px-4 font-semibold">DURATION</th>
-                <th className="py-3 px-4 font-semibold text-right">ACTION</th>
+              <tr className="bg-[#080b12] border-b border-white/10 text-slate-200">
+                <th className="py-3.5 px-4 font-bold cursor-pointer hover:text-white" onClick={() => handleSort('id')}>
+                  RUN ID ↕
+                </th>
+                <th className="py-3.5 px-4 font-bold">WORKFLOW</th>
+                <th className="py-3.5 px-4 font-bold">TARGET URL</th>
+                <th className="py-3.5 px-4 font-bold">STATUS</th>
+                <th className="py-3.5 px-4 font-bold cursor-pointer hover:text-white" onClick={() => handleSort('data_quality_score')}>
+                  QUALITY ↕
+                </th>
+                <th className="py-3.5 px-4 font-bold cursor-pointer hover:text-white" onClick={() => handleSort('duration_ms')}>
+                  DURATION ↕
+                </th>
+                <th className="py-3.5 px-4 font-bold text-right">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">

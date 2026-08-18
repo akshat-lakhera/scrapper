@@ -8,6 +8,7 @@ import {
   ShoppingBag, 
   Briefcase, 
   MessageCircle, 
+  MessageSquare,
   Camera, 
   MapPin, 
   Zap, 
@@ -46,7 +47,7 @@ const WORKFLOWS: WorkflowPreset[] = [
     workflow: 'products',
     icon: ShoppingBag,
     tag: 'Retail & Pricing',
-    description: 'Extract real-time BuyBox prices, stock availability, seller details, review counts, and high-res images.',
+    description: 'Extract BuyBox prices, stock availability, seller details, review metrics, and high-res images.',
     placeholder: 'https://www.amazon.com/dp/... or https://www.amazon.in/dp/...',
     presets: [
       { label: 'Sony WH-1000XM5 (Amazon US)', url: 'https://www.amazon.com/dp/B09XS7JWHH' },
@@ -60,7 +61,7 @@ const WORKFLOWS: WorkflowPreset[] = [
     workflow: 'tech_docs',
     icon: Code2,
     tag: 'API Docs & Guides',
-    description: 'Extract API guides, code snippets, documentation sections, and version changes from long-tail developer sites.',
+    description: 'Extract API guides, code snippets, documentation sections, and version changes from developer portals.',
     placeholder: 'https://fastapi.tiangolo.com/ or https://docs.example.com/...',
     presets: [
       { label: 'FastAPI Python Framework Docs', url: 'https://fastapi.tiangolo.com/' },
@@ -74,7 +75,7 @@ const WORKFLOWS: WorkflowPreset[] = [
     workflow: 'linkedin',
     icon: Briefcase,
     tag: 'Executive Talent',
-    description: 'Extract professional profile names, current organizations, locations, education, and connections.',
+    description: 'Extract professional profile names, current organizations, locations, titles, and public headlines.',
     placeholder: 'https://www.linkedin.com/in/username',
     presets: [
       { label: 'CodingStark Profile', url: 'https://www.linkedin.com/in/codingstark/' },
@@ -88,7 +89,7 @@ const WORKFLOWS: WorkflowPreset[] = [
     workflow: 'x',
     icon: MessageCircle,
     tag: 'Social Intelligence',
-    description: 'Extract live post text, author usernames, like counts, reposts, reply metrics, and timestamps.',
+    description: 'Extract live post text, author usernames, like counts, repost metrics, and accurate timestamps.',
     placeholder: 'https://x.com/username/status/...',
     presets: [
       { label: 'Konig Hiring Post', url: 'https://x.com/konig0000/status/2089565885149466685?s=20' },
@@ -115,25 +116,25 @@ const WORKFLOWS: WorkflowPreset[] = [
     workflow: 'instagram',
     icon: Camera,
     tag: 'Creator Metrics',
-    description: 'Extract creator handles, follower counts, following, post counts, and bios.',
+    description: 'Extract creator handles, follower counts, following stats, total post counts, and bios.',
     placeholder: 'https://www.instagram.com/username/',
     presets: [
-      { label: 'Cristiano Ronaldo (679M)', url: 'https://www.instagram.com/cristiano/' },
+      { label: 'Google Profile', url: 'https://www.instagram.com/google/' },
     ],
-    sampleAttributes: ['username', 'full_name', 'biography', 'followers_count', 'posts_count']
+    sampleAttributes: ['username', 'full_name', 'followers', 'following', 'posts_count', 'bio']
   },
   {
     id: 'reddit',
     name: 'Reddit Discussions',
     workflow: 'reddit',
-    icon: MessageCircle,
+    icon: MessageSquare,
     tag: 'Community Threads',
-    description: 'Extract thread titles, subreddits, user submissions, upvote counts, and comment volume.',
-    placeholder: 'https://www.reddit.com/r/.../comments/...',
+    description: 'Extract thread titles, subreddits, author submissions, upvote scores, and comment volume.',
+    placeholder: 'https://reddit.com/r/.../comments/...',
     presets: [
-      { label: 'Battlefield Update (2.1k Upvotes)', url: 'https://www.reddit.com/r/battlefield2042/comments/1cmqs1d/official_update_on_the_next_battlefield_game/' },
+      { label: 'Python Web Scraping Discussion', url: 'https://www.reddit.com/r/Python/comments/123456/best_web_scraping_tools/' },
     ],
-    sampleAttributes: ['title', 'subreddit', 'user_posted', 'upvotes', 'num_comments']
+    sampleAttributes: ['title', 'subreddit', 'author', 'score', 'num_comments', 'body']
   },
   {
     id: 'google_maps',
@@ -141,13 +142,13 @@ const WORKFLOWS: WorkflowPreset[] = [
     workflow: 'google_maps',
     icon: MapPin,
     tag: 'Local POI',
-    description: 'Extract business titles, physical addresses, review counts, ratings, and categories.',
-    placeholder: 'https://www.google.com/maps/place/...',
+    description: 'Extract business titles, physical addresses, review scores, ratings, and categories.',
+    placeholder: 'https://maps.google.com/?q=...',
     presets: [
-      { label: 'Pizza Inn Magdeburg (Germany)', url: 'https://www.google.com/maps/place/Pizza+Inn+Magdeburg/@52.1263086,11.6094743,761m/' },
+      { label: 'Blue Bottle Coffee SF', url: 'https://www.google.com/maps/place/Blue+Bottle+Coffee/@37.7825,-122.4075,17z' },
     ],
-    sampleAttributes: ['title', 'address', 'rating', 'reviews_count', 'phone', 'category']
-  },
+    sampleAttributes: ['title', 'address', 'rating', 'reviews_count', 'category', 'phone']
+  }
 ];
 
 interface WorkflowsStudioProps {
@@ -322,28 +323,35 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                 onClick={() => handleSelectWorkflow(wf)}
                 className={`bento-card p-5 cursor-pointer flex flex-col justify-between transition-all ${
                   isSelected
-                    ? 'border-blue-500 bg-[#151a26] shadow-xl shadow-blue-500/10 scale-[1.01]'
-                    : 'hover:bg-[#151824]'
+                    ? 'border-blue-400 bg-[#161d2d] shadow-xl shadow-blue-500/20 scale-[1.01]'
+                    : 'border-white/15 bg-[#0e1320] hover:bg-[#182136] hover:border-blue-400/40 shadow-sm'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-slate-400 border border-white/10'}`}>
-                      <Icon className="w-4 h-4" />
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isSelected ? 'bg-blue-500/25 text-blue-300 border border-blue-400/50' : 'bg-white/10 text-blue-400 border border-white/15'}`}>
+                      <Icon className="w-4.5 h-4.5" />
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-slate-200 border border-white/15 font-semibold">
                       {wf.tag}
                     </span>
                   </div>
                   <h3 className="text-sm font-bold text-white mb-1">{wf.name}</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{wf.description}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">{wf.description}</p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
-                  <span className={isSelected ? 'text-blue-400 font-bold' : 'text-slate-500'}>
-                    {isSelected ? '● Active Target' : 'Select'}
-                  </span>
-                  <ArrowRight className={`w-3.5 h-3.5 ${isSelected ? 'text-blue-400' : 'text-slate-600'}`} />
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
+                  {isSelected ? (
+                    <span className="text-blue-300 font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      <span>Active Target</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-200 font-semibold group-hover:text-white transition-colors">
+                      Select
+                    </span>
+                  )}
+                  <ArrowRight className={`w-3.5 h-3.5 transition-all ${isSelected ? 'text-blue-300' : 'text-slate-300 group-hover:text-blue-300 group-hover:translate-x-1'}`} />
                 </div>
               </div>
             );
@@ -355,41 +363,41 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Target Configuration (Span 5) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bento-card p-7 space-y-6">
+          <div className="bento-card p-7 space-y-6 bg-[#0e1320] border-white/15">
             <div className="space-y-1">
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-300">
                 Target Configuration
               </span>
               <h2 className="text-xl font-bold text-white">{selectedWorkflow.name}</h2>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 {selectedWorkflow.description}
               </p>
             </div>
 
             {/* Target URL Input */}
             <div className="space-y-2">
-              <label className="text-xs font-mono font-semibold text-slate-300">Target URL</label>
+              <label className="text-xs font-mono font-bold text-slate-200">Target URL</label>
               <input
                 type="text"
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
                 placeholder={selectedWorkflow.placeholder}
-                className="w-full bg-[#090c13] border border-white/15 rounded-xl px-4 py-3.5 text-xs sm:text-sm font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 shadow-inner"
+                className="w-full bg-[#080b12] border border-white/20 rounded-xl px-4 py-3.5 text-xs sm:text-sm font-mono text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-400 shadow-inner"
               />
             </div>
 
             {/* Verified Sample Presets */}
             <div className="space-y-2.5">
-              <span className="text-xs font-mono text-slate-400 block font-bold">Verified Presets:</span>
+              <span className="text-xs font-mono text-slate-200 block font-bold">Verified Presets:</span>
               <div className="space-y-2">
                 {selectedWorkflow.presets.map((p, idx) => (
                   <button
                     key={idx}
                     onClick={() => setTargetUrl(p.url)}
-                    className="w-full text-left p-3 rounded-xl bg-[#090c13] hover:bg-white/5 border border-white/10 text-xs font-mono text-slate-300 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
+                    className="w-full text-left p-3 rounded-xl bg-[#080b12] hover:bg-[#141b2e] border border-white/15 text-xs font-mono text-slate-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer font-medium shadow-sm"
                   >
                     <span className="truncate">{p.label}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-blue-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0" />
+                    <ArrowRight className="w-3.5 h-3.5 text-blue-400 opacity-75 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0" />
                   </button>
                 ))}
               </div>
@@ -397,12 +405,12 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
 
             {/* Schema Contract Attributes */}
             <div className="pt-4 border-t border-white/10 space-y-2">
-              <span className="text-[11px] font-mono uppercase text-slate-400 block font-bold">Schema Contract Attributes</span>
+              <span className="text-[11px] font-mono uppercase text-slate-300 block font-bold">Schema Contract Attributes</span>
               <div className="flex flex-wrap gap-1.5">
                 {selectedWorkflow.sampleAttributes.map((attr) => (
                   <span
                     key={attr}
-                    className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-white/5 text-slate-300 border border-white/10"
+                    className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-white/10 text-slate-200 border border-white/15 font-semibold"
                   >
                     {attr}
                   </span>
@@ -432,27 +440,27 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
         </div>
 
         {/* Right Column: Live Entity Inspector (Span 7) */}
-        <div className="lg:col-span-7 bento-card p-7 flex flex-col min-h-[540px]">
+        <div className="lg:col-span-7 bento-card p-7 flex flex-col min-h-[540px] bg-[#0e1320] border-white/15">
           <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
             <div className="flex items-center gap-2.5">
               <Terminal className="w-5 h-5 text-blue-400" />
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-slate-200">
+              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-slate-100">
                 Live Entity Inspector
               </h3>
             </div>
 
             {result && (
               <div className="flex items-center gap-2">
-                <div className="flex bg-[#090c13] p-1 rounded-lg border border-white/10 text-xs font-mono">
+                <div className="flex bg-[#080b12] p-1 rounded-lg border border-white/15 text-xs font-mono">
                   <button
                     onClick={() => setActiveView('card')}
-                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:text-white'}`}
                   >
                     Visual Card
                   </button>
                   <button
                     onClick={() => setActiveView('json')}
-                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:text-white'}`}
                   >
                     Raw JSON
                   </button>
@@ -460,7 +468,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
 
                 <button
                   onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-200 border border-white/10 transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-mono text-slate-100 border border-white/15 transition-colors cursor-pointer font-bold"
                 >
                   {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedJson ? 'Copied' : 'Copy'}</span>
@@ -473,24 +481,24 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
           {result ? (
             <div className="flex-1 space-y-5">
               {/* Telemetry Header */}
-              <div className="p-4 rounded-xl bg-[#090c13] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+              <div className="p-4 rounded-xl bg-[#080b12] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
                 <div className="flex items-center gap-3">
                   <StatusBadge status={result.status} />
-                  <span className="text-slate-400">
-                    Quality: <strong className="text-emerald-400">{result.quality_score}%</strong>
+                  <span className="text-slate-300">
+                    Quality: <strong className="text-emerald-400 font-bold">{result.quality_score}%</strong>
                   </span>
                 </div>
-                <div className="text-slate-400">
-                  Latency: <strong className="text-white">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-400">{result.selected_strategy}</strong>
+                <div className="text-slate-300">
+                  Latency: <strong className="text-white font-bold">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-300 font-bold">{result.selected_strategy}</strong>
                 </div>
               </div>
 
               {activeView === 'card' ? (
-                <div className="p-6 rounded-xl bg-[#090c13] border border-white/10 space-y-4">
+                <div className="p-6 rounded-xl bg-[#080b12] border border-white/15 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                     {/* Product Image Preview */}
                     {(result.extracted_data?.image_url || result.extracted_data?.image) && (
-                      <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-black/60 border border-white/15 p-2 flex items-center justify-center shrink-0 overflow-hidden group shadow-lg">
+                      <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-black/60 border border-white/20 p-2 flex items-center justify-center shrink-0 overflow-hidden group shadow-lg">
                         <img
                           src={result.extracted_data.image_url || result.extracted_data.image}
                           alt={result.extracted_data?.title || 'Product'}
@@ -508,7 +516,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                         href={result.target_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs font-mono text-blue-400 hover:underline flex items-center gap-1.5 truncate"
+                        className="text-xs font-mono text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 truncate font-medium"
                       >
                         <span>{result.target_url}</span>
                         <ExternalLink className="w-3 h-3" />
@@ -516,47 +524,91 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                     </div>
 
                     {result.extracted_data?.price !== undefined && (
-                      <div className="text-left sm:text-right shrink-0 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl">
+                      <div className="text-left sm:text-right shrink-0 bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 rounded-xl">
                         <span className="text-2xl font-extrabold font-mono text-emerald-400 block">
-                          {result.extracted_data?.currency || '$'} {result.extracted_data?.price}
+                          {result.extracted_data.currency || '$'}{typeof result.extracted_data.price === 'number' ? result.extracted_data.price.toFixed(2) : result.extracted_data.price}
                         </span>
-                        {result.extracted_data?.availability && (
-                          <span className="text-xs font-mono text-slate-300">
-                            {result.extracted_data?.availability}
-                          </span>
-                        )}
+                        <span className="text-[10px] font-mono text-emerald-300 uppercase font-bold">
+                          {result.extracted_data.availability || 'In Stock'}
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Attributes Matrix */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10 font-mono text-xs">
-                    {Object.entries(result.extracted_data || {}).map(([k, v]) => {
-                      if (k.includes('_url') || k === 'title' || k === 'price' || !v) return null;
+                  {/* Dynamic Attributes Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10">
+                    {Object.entries(result.extracted_data || {}).map(([key, value]) => {
+                      if (['title', 'name', 'job_title', 'doc_title', 'image_url', 'image', 'price', 'currency', 'availability'].includes(key)) {
+                        return null;
+                      }
                       return (
-                        <div key={k} className="p-3 rounded-lg bg-white/5 border border-white/5 space-y-1">
-                          <span className="text-[10px] text-slate-400 uppercase font-bold block">{k}</span>
-                          <div className="text-slate-200 text-sm">{formatFieldValue(v)}</div>
+                        <div key={key} className="p-3.5 rounded-xl bg-white/[0.04] border border-white/10">
+                          <span className="text-[10px] font-mono uppercase text-slate-300 font-bold block mb-1">
+                            {key.replace(/_/g, ' ')}
+                          </span>
+                          <div className="text-xs font-mono text-slate-100 break-words font-medium">
+                            {formatFieldValue(value)}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-                <pre className="p-6 rounded-xl bg-[#090c13] border border-white/10 text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px] leading-relaxed">
+                <pre className="p-6 rounded-xl bg-[#080b12] border border-white/15 text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px] leading-relaxed font-semibold">
                   {JSON.stringify(result.extracted_data, null, 2)}
                 </pre>
               )}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500 font-mono space-y-3">
-              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-600 mb-2">
-                <Layers className="w-8 h-8" />
+            /* Interactive Schema Contract Blueprint Preview */
+            <div className="flex-1 flex flex-col justify-between space-y-6">
+              <div className="p-5 rounded-2xl bg-[#080b12] border border-blue-500/20 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                    <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                      Schema Blueprint Contract: {selectedWorkflow.name}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold">
+                    Armed for Deployment
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  The multi-strategy pipeline is initialized. Once deployed, the extractor will execute the 5-stage waterfall and populate these structured attributes:
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
+                  {selectedWorkflow.sampleAttributes.map((attr, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col justify-between gap-1 shadow-sm"
+                    >
+                      <span className="text-[10px] font-mono text-blue-400 font-bold uppercase">{attr}</span>
+                      <span className="text-[11px] font-mono text-slate-300 italic">string · validated</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="text-sm font-bold text-slate-300">No Active Extraction Results</div>
-              <p className="text-xs max-w-md text-slate-500 leading-relaxed">
-                Select a target on the left and click "Deploy Scraper Pipeline" to view real-time extracted entities and JSON payloads.
-              </p>
+
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-950/20 to-cyan-950/20 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-bold text-white mb-0.5">Ready to Test Real-Time Extraction?</h4>
+                  <p className="text-xs text-slate-300 font-mono">
+                    Target URL: <span className="text-blue-300 font-medium">{targetUrl.substring(0, 45)}...</span>
+                  </p>
+                </div>
+                <button
+                  onClick={handleRunScrape}
+                  disabled={loading}
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer shrink-0"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>Execute Sample</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
