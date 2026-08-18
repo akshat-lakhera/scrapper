@@ -2,14 +2,15 @@
 
 <p align="center">
   <a href="https://github.com/akshat-lakhera/scrapper">
-    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=24&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=800&height=50&lines=Autonomous+Self-Healing+Web+Scraper;Zero+Data+Rot+via+Real-Time+DOM+Auto-Patching;Recursive+Deep+Crawler+%26+Link+Discovery;Conversational+Living+RAG+Nexus;Powered+by+Bright+Data+Web+Unlocker" alt="MarketScout Typing Header" />
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=24&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=800&height=50&lines=Autonomous+Self-Healing+Web+Scraper;Zero+Data+Rot+via+Real-Time+DOM+Auto-Patching;Recursive+Deep+Crawler+%26+Link+Discovery;Visual+DOM+Inspector+%26+Selector+Playground;Conversational+Living+RAG+Nexus;Powered+by+Bright+Data+Web+Unlocker" alt="MarketScout Typing Header" />
   </a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge&logo=fastapi&logoColor=white" alt="Status" />
-  <img src="https://img.shields.io/badge/Tests-57%2F57%20Passed%20(100%25)-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-62%2F62%20Passed%20(100%25)-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
   <img src="https://img.shields.io/badge/Self--Healing-Autonomous%20v2-blueviolet?style=for-the-badge&logo=dependabot&logoColor=white" alt="Self-Healing" />
+  <img src="https://img.shields.io/badge/DOM%20Inspector-Real--Time-cyan?style=for-the-badge&logo=target&logoColor=white" alt="DOM Inspector" />
   <img src="https://img.shields.io/badge/Proxy-Bright%20Data%20Unlocker-orange?style=for-the-badge&logo=databricks&logoColor=white" alt="Bright Data" />
   <img src="https://img.shields.io/badge/Living%20RAG-Groq%20%2B%20Gemini-purple?style=for-the-badge&logo=google&logoColor=white" alt="Living RAG" />
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
@@ -17,7 +18,7 @@
 
 ---
 
-**MarketScout** is an enterprise-grade autonomous web data intelligence platform that pairs **Bright Data Scraper Studio & Web Unlocker** with an **Autonomous Multi-Strategy Self-Healing Engine**, a **Recursive Deep Crawler**, and a **Conversational Living RAG Nexus**.
+**MarketScout** is an enterprise-grade autonomous web data intelligence platform that pairs **Bright Data Scraper Studio & Web Unlocker** with an **Autonomous Multi-Strategy Self-Healing Engine**, a **Recursive Deep Crawler**, a **Visual DOM Inspector & Selector Playground**, and a **Conversational Living RAG Nexus**.
 
 It completely eliminates scraper maintenance and data rot by continuously monitoring DOM template drift, synthesizing replacement CSS selectors, running holdout regression validations, and promoting versioned rule bundles with **zero human intervention**.
 
@@ -39,21 +40,28 @@ Breadth-first link discovery and pagination traversal engine with configurable c
 
 ---
 
-### 3. Living RAG Knowledge Nexus & Conversational Intelligence
+### 3. Interactive Visual DOM Inspector & Selector Playground
+Real-time CSS selector testing engine that evaluates matching nodes, computes hierarchy lineage paths, calculates selector stability scores ($0-100\%$), and synthesizes AI candidate selectors.
+
+![DOM Inspector](assets/images/dom_inspector.png)
+
+---
+
+### 4. Living RAG Knowledge Nexus & Conversational Intelligence
 Multi-LLM grounded conversational assistant (Groq `llama-3.3-70b-versatile` + Google Gemini 2.5 Flash) with verified field-level source citations and direct canonical URLs.
 
 ![Living RAG Assistant](assets/images/living_rag.png)
 
 ---
 
-### 4. Multi-Platform Extraction Studio
+### 5. Multi-Platform Extraction Studio
 Pre-configured production presets across 8 major web protocols with high-resolution product image extraction and custom schema selectors.
 
 ![Extraction Studio](assets/images/extraction_studio.png)
 
 ---
 
-### 5. Self-Healing Lab & Selector Synthesis Diff
+### 6. Self-Healing Lab & Selector Synthesis Diff
 Autonomous DOM drift diagnosis studio with visual side-by-side selector replacement diffs, stability scores, and versioned rule promotions ($v1 \rightarrow v2$).
 
 ![Self-Healing Lab](assets/images/self_healing_lab.png)
@@ -221,7 +229,14 @@ graph TD
 
 ---
 
-### 2. 🕸️ Autonomous Recursive Deep Crawler (`CrawlerService`)
+### 2. 🎯 Interactive Visual DOM Inspector (`DOMInspectorService`)
+* **Real-Time Selector Playground**: Type any CSS selector to inspect matched elements, hierarchy traces, and outer HTML previews.
+* **Stability Scoring Formula**: Evaluates selector resilience ($0-100\%$) penalizing volatile/hash classes and rewarding semantic attributes.
+* **AI Candidate Synthesis**: Instant 1-click candidate generator for `Price`, `Title`, `Availability`, `Rating`, and `Doc Body`.
+
+---
+
+### 3. 🕸️ Autonomous Recursive Deep Crawler (`CrawlerService`)
 * **Breadth-First Link Discovery**: Traverses internal hyperlinks, discovering entity URLs (`/dp/`, `/jobs/`, `/docs/`, `/catalogue/`).
 * **Automated Pagination Following**: Detects `rel=next`, `a.next`, and `page=\d+` query parameters.
 * **Safety & Asset Filters**: Automatically strips static assets (`.css`, `.jpg`, `.pdf`), external domains, and authentication loops.
@@ -229,7 +244,7 @@ graph TD
 
 ---
 
-### 3. 🧠 Living RAG Knowledge Nexus (`RAGService`)
+### 4. 🧠 Living RAG Knowledge Nexus (`RAGService`)
 * **Multi-LLM Backbone**: Powered by Groq `llama-3.3-70b-versatile` and Google Gemini 2.5 Flash.
 * **Conversational Intent Router**: Differentiates general conversational inquiries from entity-specific lookups.
 * **Target Relevance Scoring**: Whole-word semantic token matching to cite only the relevant target entity.
@@ -237,13 +252,13 @@ graph TD
 
 ---
 
-### 4. 📊 Competitive Intelligence & Diff Radar (`IntelService`)
+### 5. 📊 Competitive Intelligence & Diff Radar (`IntelService`)
 * **Historical Run Diffing**: Detects price fluctuations, stock status transitions, and newly added specifications.
 * **Automated Executive Briefings**: Generates real-time AI summaries of competitor movements.
 
 ---
 
-### 5. 📦 Batch Execution & Multi-Format Exporters
+### 6. 📦 Batch Execution & Multi-Format Exporters
 * **Concurrent Multi-Target Scraping**: Paste multi-line URL lists in the Omnibar to scrape concurrently.
 * **1-Click Exporters**: Export all verified records to **CSV**, **NDJSON**, or **JSON** directly via REST API or UI.
 
@@ -357,13 +372,13 @@ python -m app.cli intel --domain amazon.com
 
 ## 🧪 Testing & Quality Assurance
 
-Run the comprehensive unit, integration, and crawler test suite (**57/57 passing 100%**):
+Run the comprehensive unit, integration, crawler, and DOM inspector test suite (**62/62 passing 100%**):
 ```bash
 cd backend
 pytest -v
 ```
 ```
-======================= 57 passed, 2 warnings in 8.85s =======================
+======================= 62 passed, 2 warnings in 14.96s =======================
 ```
 
 ---

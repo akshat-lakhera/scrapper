@@ -241,6 +241,53 @@ export async function crawlRecursive(data: {
   });
 }
 
+export async function evaluateDOMSelector(data: {
+  selector: string;
+  html?: string;
+  run_id?: number;
+}): Promise<{
+  selector: string;
+  match_count: number;
+  stability_score: number;
+  is_unique: boolean;
+  matches: Array<{
+    index: number;
+    tag: string;
+    text: string;
+    attributes: Record<string, string>;
+    computed_path: string;
+    html_preview: string;
+  }>;
+  error?: string | null;
+}> {
+  return request(`${API_BASE}/inspector/evaluate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function suggestDOMSelectors(data: {
+  target_field: string;
+  html?: string;
+  run_id?: number;
+}): Promise<{
+  target_field: string;
+  suggestions: Array<{
+    selector: string;
+    match_count: number;
+    stability_score: number;
+    sample_text: string;
+    computed_path: string;
+  }>;
+}> {
+  return request(`${API_BASE}/inspector/suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
 export function getExportUrl(format: 'json' | 'csv' | 'ndjson'): string {
   return `${API_BASE}/export/runs?format=${format}`;
 }

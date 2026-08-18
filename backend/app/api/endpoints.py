@@ -619,6 +619,66 @@ async def simulate_dom_drift(req: DriftSimulateRequest, db: Session = Depends(ge
         }
     }
 
+class EvaluateSelectorRequest(BaseModel):
+    selector: str
+    html: Optional[str] = None
+    run_id: Optional[int] = None
+
+@router.post("/inspector/evaluate")
+def evaluate_dom_selector(req: EvaluateSelectorRequest, db: Session = Depends(get_db)):
+    """Evaluates a CSS selector against provided HTML or a stored Scrape Run."""
+    from app.services.dom_inspector_service import DOMInspectorService
+    html_content = req.html
+    if not html_content and req.run_id:
+        run = db.query(ScrapeRunDB).filter(ScrapeRunDB.id == req.run_id).first()
+        if run and run.raw_result:
+            try:
+                raw_json = json.loads(run.raw_result)
+                html_content = raw_json.get("html", "")
+            except Exception:
+                html_content = ""
+
+    if not html_content:
+        # Default fixture fallback if empty
+        import os
+        from app.config import settings
+        fixture_path = settings.FIXTURES_DIR / "product_v1.html"
+        if fixture_path.exists():
+            html_content = fixture_path.read_text(encoding="utf-8")
+
+    return DOMInspectorService.evaluate_selector(html_content or "", req.selector)
+
+class SuggestSelectorRequest(BaseModel):
+    target_field: str = "price"
+    html: Optional[str] = None
+    run_id: Optional[int] = None
+
+@router.post("/inspector/suggest")
+def suggest_dom_selectors(req: SuggestSelectorRequest, db: Session = Depends(get_db)):
+    """Suggests candidate CSS selectors for a target attribute."""
+    from app.services.dom_inspector_service import DOMInspectorService
+    html_content = req.html
+    if not html_content and req.run_id:
+        run = db.query(ScrapeRunDB).filter(ScrapeRunDB.id == req.run_id).first()
+        if run and run.raw_result:
+            try:
+                raw_json = json.loads(run.raw_result)
+                html_content = raw_json.get("html", "")
+            except Exception:
+                html_content = ""
+
+    if not html_content:
+        import os
+        from app.config import settings
+        fixture_path = settings.FIXTURES_DIR / "product_v1.html"
+        if fixture_path.exists():
+            html_content = fixture_path.read_text(encoding="utf-8")
+
+    return {
+        "target_field": req.target_field,
+        "suggestions": DOMInspectorService.suggest_selectors(html_content or "", req.target_field)
+    }
+
 @router.get("/export/runs")
 def export_runs(format: str = Query("json", regex="^(json|csv|ndjson)$"), db: Session = Depends(get_db)):
     """Exports all extracted entities in JSON, CSV, or NDJSON format."""

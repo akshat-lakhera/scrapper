@@ -19,17 +19,24 @@ import {
   Search,
   Code2,
   CheckCheck,
-  Zap
+  Zap,
+  Crosshair,
+  ListTree,
+  Eye,
+  Sliders,
+  Cpu
 } from 'lucide-react';
-import type { ScrapeRun, RepairAttempt } from '../types';
-import { fetchRuns, healScrapeRun, approveRepair, fetchCandidatePatches, executeScrape } from '../api';
+import type { ScrapeRun } from '../types';
+import { fetchRuns, healScrapeRun, approveRepair, fetchCandidatePatches, executeScrape, evaluateDOMSelector, suggestDOMSelectors } from '../api';
 import { StatusBadge } from './StatusBadge';
 import { useToast } from './ToastContext';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { CountUp } from './effects/CountUp';
+import { SpotlightCard } from './effects/SpotlightCard';
 
 export const RepairCenter: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'stream' | 'inspector'>('stream');
   const [runs, setRuns] = useState<ScrapeRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<ScrapeRun | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,6 +48,14 @@ export const RepairCenter: React.FC = () => {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
   const { showToast } = useToast();
+
+  // DOM Inspector States
+  const [targetSelector, setTargetSelector] = useState('.price-current');
+  const [inspectLoading, setInspectLoading] = useState(false);
+  const [evalResult, setEvalResult] = useState<any | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [copiedSelector, setCopiedSelector] = useState<string | null>(null);
 
   const loadRuns = async () => {
     try {
@@ -98,393 +113,540 @@ export const RepairCenter: React.FC = () => {
       showToast('success', 'Autonomous Patch Generated', `Regression tests passed with ${Math.round(res.confidence_score * 100)}% confidence`);
       await loadRuns();
     } catch (e: any) {
-      showToast('error', 'Synthesis Failed', e.message);
+      showToast('error', 'Patch Generation Failed', e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRetestLive = async () => {
+  const handleApprove = async () => {
+    if (!activePatch || !selectedRun) return;
+    try {
+      setLoading(true);
+      await approveRepair(selectedRun.id, activePatch.id);
+      showToast('success', 'Rule Bundle Promoted', `Promoted v${activePatch.to_version} to active rule set`);
+      await loadRuns();
+    } catch (e: any) {
+      showToast('error', 'Approval Failed', e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetest = async () => {
     if (!selectedRun) return;
     try {
       setRetestLoading(true);
-      showToast('info', 'Validating Healed Rule Bundle', `Executing live re-test on ${selectedRun.target_url.substring(0, 32)}...`);
       const res = await executeScrape({
         target_url: selectedRun.target_url,
         workflow_type: selectedRun.workflow_type,
         schema_name: selectedRun.workflow_type,
       });
       setRetestResult(res);
+      showToast('success', 'Live Re-Test Finished', `Score: ${res.quality_score}% · Strategy: ${res.selected_strategy}`);
       await loadRuns();
-      if (res.status === 'success' || res.status === 'repaired') {
-        showToast('success', 'Validation Successful', `Extracted with ${res.quality_score}% quality score using promoted rule bundle!`);
-      } else {
-        showToast('warning', 'Validation Incomplete', 'Extraction completed with warnings.');
-      }
     } catch (e: any) {
-      showToast('error', 'Re-test Failed', e.message);
+      showToast('error', 'Re-Test Failed', e.message);
     } finally {
       setRetestLoading(false);
     }
   };
 
-  const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedUrl(true);
-    setTimeout(() => setCopiedUrl(false), 2000);
-    showToast('info', 'URL Copied', 'Target URL copied to clipboard');
+  // DOM Inspector Handler
+  const handleEvaluateSelector = async (selToEval?: string) => {
+    const sel = (selToEval || targetSelector).trim();
+    if (!sel) return;
+    try {
+      setInspectLoading(true);
+      const res = await evaluateDOMSelector({
+        selector: sel,
+        run_id: selectedRun?.id,
+      });
+      setEvalResult(res);
+      if (res.error) {
+        showToast('error', 'Invalid Selector', res.error);
+      } else {
+        showToast('info', 'Evaluated Selector', `Found ${res.match_count} matches (Stability: ${res.stability_score}%)`);
+      }
+    } catch (e: any) {
+      showToast('error', 'Evaluation Failed', e.message);
+    } finally {
+      setInspectLoading(false);
+    }
   };
 
-  const handleCopyBundleJson = () => {
-    if (!activePatch) return;
-    navigator.clipboard.writeText(JSON.stringify(activePatch, null, 2));
-    setCopiedJson(true);
-    setTimeout(() => setCopiedJson(false), 2000);
-    showToast('info', 'JSON Copied', 'Rule bundle patch JSON copied to clipboard');
+  const handleSuggestField = async (fieldName: string) => {
+    try {
+      setSuggestLoading(true);
+      showToast('info', 'Scanning DOM Graph', `Synthesizing robust candidate selectors for "${fieldName}"...`);
+      const res = await suggestDOMSelectors({
+        target_field: fieldName,
+        run_id: selectedRun?.id,
+      });
+      setSuggestions(res.suggestions || []);
+      if (res.suggestions && res.suggestions.length > 0) {
+        setTargetSelector(res.suggestions[0].selector);
+        handleEvaluateSelector(res.suggestions[0].selector);
+        showToast('success', 'Candidates Found', `Ranked ${res.suggestions.length} candidates for "${fieldName}"`);
+      } else {
+        showToast('warning', 'No Direct Match', 'Try refining selector manually.');
+      }
+    } catch (e: any) {
+      showToast('error', 'Suggestion Failed', e.message);
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+
+  const handleCopySelectorText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSelector(text);
+    setTimeout(() => setCopiedSelector(null), 2000);
+    showToast('info', 'Copied Selector', text);
   };
 
   const filteredRuns = runs.filter((r) => {
-    if (filterType === 'repaired' && r.status !== 'repaired') return false;
-    if (filterType === 'degraded' && r.status !== 'degraded' && r.status !== 'healing_failed') return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return r.target_url.toLowerCase().includes(q) || r.workflow_type.toLowerCase().includes(q) || String(r.id).includes(q);
-    }
+    if (filterType === 'repaired') return r.status === 'repaired';
+    if (filterType === 'degraded') return r.status === 'degraded' || r.status === 'manual_review';
     return true;
-  });
-
-  const totalRepairs = runs.filter((r) => r.status === 'repaired').length;
-  const totalDegraded = runs.filter((r) => r.status === 'degraded' || r.status === 'healing_failed').length;
-  const autoRepairRate = runs.length > 0 ? Math.round((totalRepairs / Math.max(1, totalRepairs + totalDegraded)) * 100) : 100;
+  }).filter((r) => !searchQuery || r.target_url.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="space-y-6 animate-fade-in pb-16">
-      {/* ── TOP COMPACT TELEMETRY STRIP ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block font-bold">Auto-Recovery Rate</span>
-            <div className="text-xl font-black text-emerald-400 mono mt-0.5">
-              <CountUp end={autoRepairRate} suffix="%" />
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <CheckCircle2 size={16} />
-          </div>
+    <div className="space-y-8 pb-16">
+      {/* ── TOP HEADER & SUB-TAB SWITCHER ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+            <Wrench className="w-6 h-6 text-amber-400" />
+            <span>Autonomous Self-Healing Lab</span>
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Real-time DOM drift diagnostics, candidate selector synthesis, holdout validation, and visual selector testing.
+          </p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block font-bold">Promoted Rule Bundle</span>
-            <div className="text-xl font-black text-cyan-400 mono mt-0.5">
-              v2 <span className="text-xs font-normal text-slate-400 font-mono">Live</span>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <GitBranch size={16} />
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block font-bold">Validation Gate</span>
-            <div className="text-xl font-black text-white mono mt-0.5">
-              &ge; 70% <span className="text-xs font-normal text-slate-400 font-mono">Confidence</span>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300">
-            <ShieldCheck size={16} />
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block font-bold">Autonomous Cycle</span>
-            <div className="text-xl font-black text-purple-400 mono mt-0.5">
-              ~240ms <span className="text-xs font-normal text-slate-400 font-mono">Zero Touch</span>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-            <Zap size={16} />
-          </div>
+        <div className="flex items-center bg-[#090c13] p-1 rounded-xl border border-white/10 text-xs font-mono">
+          <button
+            onClick={() => setActiveTab('stream')}
+            className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'stream' ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>⚡ Repair Stream & Diff</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('inspector');
+              if (!evalResult) handleEvaluateSelector();
+            }}
+            className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'inspector' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+            <span>🎯 Visual DOM Inspector</span>
+          </button>
         </div>
       </div>
 
-      {/* ── RADICAL 3-PANE STUDIO WORKBENCH ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-auto lg:h-[750px]">
-        {/* ── PANE 1: INCIDENT TIMELINE DOCK (3 cols) ── */}
-        <div className="lg:col-span-3 flex flex-col h-full bg-[#060a12] border border-white/[0.08] rounded-2xl overflow-hidden">
-          <div className="p-3.5 border-b border-white/[0.06] space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity size={14} className="text-cyan-400" />
-                <span className="text-xs font-bold font-mono text-white">Incidents ({filteredRuns.length})</span>
+      {/* ── TAB 1: REPAIR STREAM & DIFF ── */}
+      {activeTab === 'stream' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Panel: Scrape Runs List (4 cols) */}
+          <SpotlightCard className="col-span-1 lg:col-span-4 p-0 flex flex-col justify-between min-h-[500px]">
+            <div className="p-4 border-b border-white/10 bg-[#0f131f] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Scrape Run Audits</span>
+                <span className="text-[11px] font-mono text-slate-400">{filteredRuns.length} Runs</span>
               </div>
-              <button 
-                onClick={loadRuns}
-                className="text-slate-500 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
-                title="Refresh Incidents"
-              >
-                <RotateCcw size={13} />
-              </button>
-            </div>
 
-            {/* Filter Tabs */}
-            <div className="flex gap-1 p-0.5 rounded-lg bg-black/40 border border-white/10 text-[11px]">
-              {(['all', 'repaired', 'degraded'] as const).map((f) => (
+              {/* Filter Tabs */}
+              <div className="flex bg-[#090c13] p-1 rounded-lg border border-white/10 text-[11px] font-mono">
                 <button
-                  key={f}
-                  onClick={() => setFilterType(f)}
-                  className={`flex-1 py-1 rounded-md font-semibold capitalize transition-all cursor-pointer ${
-                    filterType === f ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() => setFilterType('all')}
+                  className={`flex-1 py-1 rounded transition-colors cursor-pointer ${filterType === 'all' ? 'bg-white/10 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                 >
-                  {f}
+                  All
                 </button>
-              ))}
-            </div>
+                <button
+                  onClick={() => setFilterType('repaired')}
+                  className={`flex-1 py-1 rounded transition-colors cursor-pointer ${filterType === 'repaired' ? 'bg-amber-500/20 text-amber-300 font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Repaired
+                </button>
+                <button
+                  onClick={() => setFilterType('degraded')}
+                  className={`flex-1 py-1 rounded transition-colors cursor-pointer ${filterType === 'degraded' ? 'bg-rose-500/20 text-rose-300 font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Degraded
+                </button>
+              </div>
 
-            {/* Search Box */}
-            <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search target URL..."
-                className="w-full pl-7 pr-2 py-1 rounded-lg bg-black/40 border border-white/10 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-cyan-400"
+                placeholder="Filter target domain..."
+                className="w-full bg-[#090c13] border border-white/10 text-white font-mono text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-amber-500"
               />
-              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
             </div>
-          </div>
 
-          {/* Incident List Items */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-            {filteredRuns.map((r) => {
-              const isSelected = selectedRun?.id === r.id;
-              return (
-                <button
-                  key={r.id}
-                  onClick={() => handleSelectRun(r)}
-                  className={`w-full p-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer border flex flex-col gap-1.5 ${
-                    isSelected
-                      ? 'bg-cyan-500/15 border-cyan-500/40 shadow-sm'
-                      : 'bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.06] text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="mono text-xs font-bold text-white">Run #{r.id}</span>
-                    <StatusBadge status={r.status} size="sm" />
+            <div className="flex-1 p-3 overflow-y-auto space-y-2 font-mono text-xs max-h-[460px]">
+              {filteredRuns.map((r) => {
+                const isSelected = selectedRun?.id === r.id;
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => handleSelectRun(r)}
+                    className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500/10 border-amber-500/50 shadow-md shadow-amber-500/10'
+                        : 'bg-[#090c13] border-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-slate-400 font-bold">Run #{r.id}</span>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <span className="text-slate-200 truncate block text-[11px] mb-1">{r.target_url}</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span>Quality: <strong className="text-emerald-400">{r.data_quality_score}%</strong></span>
+                      <span>{r.duration_ms}ms</span>
+                    </div>
                   </div>
-                  <span className="mono text-[11px] text-slate-300 truncate block font-medium">
-                    {r.target_url}
-                  </span>
-                  <div className="flex items-center justify-between text-[10px] mono text-slate-500">
-                    <span className="uppercase font-semibold text-cyan-400">{r.workflow_type}</span>
-                    <span className="font-bold text-slate-300">Score: {r.data_quality_score}%</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── PANE 2: VISUAL SELECTOR DIFF & DOM REPLACEMENT STUDIO (5 cols) ── */}
-        <div className="lg:col-span-5 flex flex-col h-full bg-[#060a12] border border-white/[0.08] rounded-2xl overflow-hidden">
-          <div className="p-3.5 border-b border-white/[0.06] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileCode2 size={15} className="text-cyan-400" />
-              <span className="text-xs font-bold font-mono text-white">Selector Synthesis Diff</span>
+                );
+              })}
             </div>
-            {activePatch && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                v{activePatch.from_version || 1} &rarr; v{activePatch.to_version || 2}
-              </span>
-            )}
-          </div>
+          </SpotlightCard>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Right Panel: Selected Run Details & Repair Diff (8 cols) */}
+          <div className="col-span-1 lg:col-span-8 space-y-6">
             {selectedRun ? (
               <>
-                {/* Target URL Header */}
-                <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-slate-500 uppercase font-semibold">Active Drift Target</span>
-                    <button
-                      onClick={() => handleCopyUrl(selectedRun.target_url)}
-                      className="text-slate-500 hover:text-white p-0.5 transition-colors cursor-pointer"
-                      title="Copy URL"
-                    >
-                      {copiedUrl ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                    </button>
+                {/* Top Action Card */}
+                <SpotlightCard className="p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2.5 mb-1">
+                        <span className="text-lg font-bold text-white">Diagnostic Record for Run #{selectedRun.id}</span>
+                        <StatusBadge status={selectedRun.status} />
+                      </div>
+                      <span className="text-xs font-mono text-slate-400 truncate block max-w-xl">
+                        Target: {selectedRun.target_url}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleSynthesizeManualPatch}
+                        disabled={loading}
+                        className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                      >
+                        <Wrench className="w-3.5 h-3.5" />
+                        <span>Synthesize Patch</span>
+                      </button>
+
+                      <button
+                        onClick={handleRetest}
+                        disabled={retestLoading}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                        <span>{retestLoading ? 'Executing...' : 'Live Re-Test'}</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs font-mono text-white truncate font-bold">
-                    {selectedRun.target_url}
-                  </div>
+
+                  {/* Re-test result card if exists */}
+                  {retestResult && (
+                    <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs font-mono space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Re-Test Succeeded with Active Rule Set</span>
+                        </span>
+                        <span className="text-white">Quality: <strong className="text-emerald-400">{retestResult.quality_score}%</strong> · Latency: {retestResult.duration_ms}ms</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Patch diff card */}
+                  {activePatch ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <GitBranch className="w-4 h-4 text-amber-400" />
+                          <h3 className="text-sm font-bold text-white">
+                            Candidate Patch: v{activePatch.from_version} → v{activePatch.to_version}
+                          </h3>
+                        </div>
+                        <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono font-bold">
+                          Holdout Confidence: {(activePatch.confidence_score * 100).toFixed(0)}%
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+                        <div className="p-4 rounded-xl bg-black/40 border border-rose-500/20 space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-rose-400 block">Deprecated / Drifted Selectors:</span>
+                          {(Array.isArray(activePatch.broken_fields) 
+                            ? activePatch.broken_fields 
+                            : (() => { try { const p = JSON.parse(activePatch.broken_fields); return Array.isArray(p) ? p : [p]; } catch { return [activePatch.broken_fields || 'price']; } })()
+                          ).map((f: string) => (
+                            <div key={f} className="text-slate-400 flex items-center gap-2">
+                              <span className="text-rose-400">✗</span>
+                              <span>{f}: .product-price</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-emerald-400 block">Synthesized Replacement Selectors:</span>
+                          {Object.entries(
+                            typeof activePatch.selector_diff === 'object' && activePatch.selector_diff !== null
+                              ? activePatch.selector_diff
+                              : (() => { try { return JSON.parse(activePatch.selector_diff || '{}'); } catch { return { price: '.price-current' }; } })()
+                          ).map(([f, sel]: any) => {
+                            const selText = typeof sel === 'object' && sel !== null 
+                              ? (sel.new_selector || sel.selector || JSON.stringify(sel)) 
+                              : String(sel);
+                            return (
+                              <div key={f} className="text-slate-200 flex items-center gap-2">
+                                <span className="text-emerald-400">✓</span>
+                                <span>{f}: <strong className="text-emerald-300">{selText}</strong></span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {activePatch.status !== 'promoted' && (
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            onClick={handleApprove}
+                            disabled={loading}
+                            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                          >
+                            <Check className="w-4 h-4" />
+                            <span>Promote Candidate to Rule Bundle</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500 font-mono text-xs">
+                      No active candidate patch required for this run. Select a degraded run or simulate drift.
+                    </div>
+                  )}
+                </SpotlightCard>
+              </>
+            ) : (
+              <div className="text-center py-20 text-slate-500 font-mono text-xs">
+                Select a run from the audit stream to inspect self-healing telemetry.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ── TAB 2: INTERACTIVE VISUAL DOM INSPECTOR & SELECTOR TESTER ── */
+        <div className="space-y-6">
+          {/* Top Control Bar & Live Omnibar */}
+          <SpotlightCard className="p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Crosshair className="w-5 h-5 text-blue-400" />
+                  <span>Real-Time DOM Selector Playground</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Type any CSS selector to evaluate matching nodes, compute hierarchy paths, and calculate stability scores against the loaded DOM tree.
+                </p>
+              </div>
+
+              {/* AI Suggest Quick Action Chips */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-mono text-slate-500 mr-1 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>AI Suggest:</span>
+                </span>
+                {['price', 'title', 'availability', 'rating', 'doc_body'].map((field) => (
+                  <button
+                    key={field}
+                    onClick={() => handleSuggestField(field)}
+                    disabled={suggestLoading}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-mono text-slate-300 hover:text-white capitalize transition-all cursor-pointer"
+                  >
+                    {field.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Selector Omnibar */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={targetSelector}
+                  onChange={(e) => setTargetSelector(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleEvaluateSelector(); }}
+                  placeholder="Enter CSS selector (e.g. .price-current, h1.title, span[data-asin], div.job-desc)..."
+                  className="w-full bg-[#090c13] border border-white/15 text-white font-mono text-sm sm:text-base py-3.5 pl-4 pr-32 rounded-xl focus:border-blue-500 focus:outline-none transition-colors shadow-inner"
+                />
+                <button
+                  onClick={() => handleEvaluateSelector()}
+                  disabled={inspectLoading}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {inspectLoading ? 'Evaluating...' : 'Test Selector'}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Preset Selector Chips */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 text-xs font-mono text-slate-400">
+              <span className="text-[11px] text-slate-500">Presets:</span>
+              {['.price-current', 'h1', '.product-title', '.availability', 'article', 'span.price', 'div[class*="price"]'].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => {
+                    setTargetSelector(preset);
+                    handleEvaluateSelector(preset);
+                  }}
+                  className="px-2.5 py-1 rounded bg-white/[0.03] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[11px] cursor-pointer"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </SpotlightCard>
+
+          {/* Evaluation Results & Elements Stream */}
+          {evalResult && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Telemetry Summary (4 cols) */}
+              <SpotlightCard className="col-span-1 lg:col-span-4 p-6 space-y-5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Selector Telemetry</span>
+                  <span className={`px-2.5 py-0.5 rounded text-[11px] font-mono font-bold ${
+                    evalResult.match_count > 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  }`}>
+                    {evalResult.match_count > 0 ? 'MATCH FOUND' : 'NO MATCH'}
+                  </span>
                 </div>
 
-                {/* Split Diff Table */}
-                <div className="rounded-xl overflow-hidden border border-white/10 bg-black/60 font-mono text-xs">
-                  <div className="px-3 py-2 bg-white/[0.03] border-b border-white/10 text-slate-400 font-bold text-[10px] uppercase flex justify-between">
-                    <span>Field & DOM Transformation</span>
-                    <span>Confidence</span>
+                <div className="space-y-4 font-mono text-xs">
+                  <div>
+                    <span className="text-slate-500 text-[11px] block mb-1">Target Selector:</span>
+                    <div className="p-2.5 rounded-lg bg-black/40 border border-white/10 text-cyan-300 font-bold break-all flex items-center justify-between">
+                      <span>{evalResult.selector}</span>
+                      <button
+                        onClick={() => handleCopySelectorText(evalResult.selector)}
+                        className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                      >
+                        {copiedSelector === evalResult.selector ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="divide-y divide-white/5">
-                    {activePatch?.selector_diff && Object.keys(activePatch.selector_diff).length > 0 ? (
-                      Object.entries(activePatch.selector_diff).map(([fName, diff]: [string, any]) => (
-                        <div key={fName} className="p-3 space-y-2 hover:bg-white/[0.02]">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-cyan-300">{fName}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-bold">
-                              {diff.stability_score ? `${Math.round(diff.stability_score * 100)}% Match` : '98% Match'}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-[#090c13] border border-white/5">
+                      <span className="text-slate-500 text-[10px] uppercase font-bold block mb-1">Total Matches</span>
+                      <span className="text-2xl font-extrabold text-white">{evalResult.match_count}</span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-[#090c13] border border-white/5">
+                      <span className="text-slate-500 text-[10px] uppercase font-bold block mb-1">Uniqueness</span>
+                      <span className={`text-sm font-bold block mt-1 ${evalResult.is_unique ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {evalResult.is_unique ? '✓ Unique Node' : 'Multi-Node Match'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-slate-400 text-[11px]">Stability Rating:</span>
+                      <strong className="text-emerald-400">{evalResult.stability_score}%</strong>
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          evalResult.stability_score >= 80 ? 'bg-emerald-500' : (evalResult.stability_score >= 50 ? 'bg-amber-500' : 'bg-rose-500')
+                        }`}
+                        style={{ width: `${evalResult.stability_score}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </SpotlightCard>
+
+              {/* Matched Elements Inspector List (8 cols) */}
+              <SpotlightCard className="col-span-1 lg:col-span-8 p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-2">
+                    <ListTree className="w-4 h-4 text-blue-400" />
+                    <h3 className="text-sm font-bold text-white">Matched DOM Nodes Hierarchy ({evalResult.matches?.length || 0})</h3>
+                  </div>
+                  <span className="text-xs font-mono text-slate-500">Live HTML Node Traces</span>
+                </div>
+
+                {evalResult.matches && evalResult.matches.length > 0 ? (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto font-mono text-xs">
+                    {evalResult.matches.map((m: any) => (
+                      <div
+                        key={m.index}
+                        className="p-4 rounded-xl bg-[#090c13] border border-white/10 hover:border-blue-500/40 transition-colors space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">
+                              &lt;{m.tag}&gt; #{m.index}
+                            </span>
+                            <span className="text-slate-300 font-bold text-xs truncate max-w-sm">
+                              {m.computed_path}
                             </span>
                           </div>
 
-                          {/* Red Strikethrough Failing Selector */}
-                          <div className="p-2 rounded bg-red-950/25 border border-red-500/20 text-red-400 line-through text-[11px] truncate">
-                            - {diff.old_selector || 'div.posting-desc-old'}
-                          </div>
+                          <button
+                            onClick={() => handleCopySelectorText(m.computed_path)}
+                            className="text-[11px] text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Copy Path</span>
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
 
-                          {/* Emerald Promoted Synthesized Selector */}
-                          <div className="p-2 rounded bg-emerald-950/25 border border-emerald-500/20 text-emerald-300 font-bold text-[11px] truncate flex items-center justify-between">
-                            <span>+ {diff.new_selector || 'div.posting-desc, h1.title'}</span>
-                            <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                        {/* Text Snippet Preview */}
+                        {m.text && (
+                          <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 text-slate-200">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Inner Text:</span>
+                            <span className="text-emerald-300 text-xs font-mono leading-relaxed">{m.text}</span>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-cyan-300">description</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-bold">98% Match</span>
-                        </div>
-                        <div className="p-2 rounded bg-red-950/25 border border-red-500/20 text-red-400 line-through text-[11px]">
-                          - div.posting-desc-old
-                        </div>
-                        <div className="p-2 rounded bg-emerald-950/25 border border-emerald-500/20 text-emerald-300 font-bold text-[11px] flex items-center justify-between">
-                          <span>+ div.posting-desc</span>
-                          <CheckCircle2 size={13} className="text-emerald-400" />
-                        </div>
+                        )}
+
+                        {/* Attribute Tags */}
+                        {m.attributes && Object.keys(m.attributes).length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {Object.entries(m.attributes).map(([attr, val]: any) => (
+                              <span key={attr} className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-[10px] text-slate-400">
+                                <strong className="text-slate-300">{attr}</strong>="{String(val).substring(0, 40)}"
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
-                </div>
-
-                {/* Synthesis Trigger if degraded */}
-                {(selectedRun.status === 'degraded' || selectedRun.status === 'healing_failed') && (
-                  <Button
-                    variant="glow"
-                    size="md"
-                    onClick={handleSynthesizeManualPatch}
-                    isLoading={loading}
-                    leftIcon={<Sparkles size={14} />}
-                    className="w-full"
-                  >
-                    Re-Synthesize Candidate Patch
-                  </Button>
+                ) : (
+                  <div className="text-center py-16 text-slate-500 font-mono text-xs">
+                    No elements matched this selector. Try a broader tag or use AI Suggest.
+                  </div>
                 )}
-              </>
-            ) : (
-              <div className="p-12 text-center text-xs text-slate-500 mono">
-                Select an incident from the left pane to inspect selector synthesis.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── PANE 3: REGRESSION MATRIX & LIVE RE-TEST LAB (4 cols) ── */}
-        <div className="lg:col-span-4 flex flex-col h-full bg-[#060a12] border border-white/[0.08] rounded-2xl overflow-hidden">
-          <div className="p-3.5 border-b border-white/[0.06] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={15} className="text-emerald-400" />
-              <span className="text-xs font-bold font-mono text-white">Regression Suite & Proof</span>
+              </SpotlightCard>
             </div>
-            <button
-              onClick={handleCopyBundleJson}
-              className="text-slate-500 hover:text-white p-1 rounded transition-colors cursor-pointer"
-              title="Copy Patch JSON"
-            >
-              {copiedJson ? <Check size={13} className="text-emerald-400" /> : <Code2 size={13} />}
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Live Re-Test Action Button */}
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleRetestLive}
-              isLoading={retestLoading}
-              leftIcon={<Play size={14} fill="currentColor" />}
-              className="w-full"
-            >
-              Run Live Re-Test On URL
-            </Button>
-
-            {/* Live Re-Test Preview Result */}
-            {retestResult && (
-              <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 mono">
-                    <CheckCheck size={14} />
-                    <span>Live Re-Test: PASS</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">
-                    Quality: {retestResult.quality_score}%
-                  </span>
-                </div>
-                <div className="space-y-1 text-xs mono">
-                  {Object.entries(retestResult.extracted_data || {}).slice(0, 3).map(([k, v]) => (
-                    <div key={k} className="p-1.5 rounded bg-black/40 border border-white/5 truncate">
-                      <span className="text-[9px] text-slate-500 uppercase block">{k}</span>
-                      <span className="font-semibold text-white truncate block">{String(v || '—')}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Holdout Test Suite Verification Samples */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-mono text-slate-500 uppercase font-bold block">
-                Multi-Sample Holdout Verification
-              </span>
-
-              <div className="space-y-2">
-                <div className="p-3 rounded-xl bg-black/40 border border-emerald-500/20 flex items-center justify-between text-xs mono">
-                  <div>
-                    <span className="font-bold text-white block">Sample A: Degraded DOM</span>
-                    <span className="text-[10px] text-slate-400">degraded_fixture.html</span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
-                    100% PASS
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-black/40 border border-emerald-500/20 flex items-center justify-between text-xs mono">
-                  <div>
-                    <span className="font-bold text-white block">Sample B: Golden Baseline</span>
-                    <span className="text-[10px] text-slate-400">baseline_golden.html</span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
-                    100% PASS
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-black/40 border border-cyan-500/20 flex items-center justify-between text-xs mono">
-                  <div>
-                    <span className="font-bold text-white block">Autonomous Promotion</span>
-                    <span className="text-[10px] text-slate-400">Rule Bundle v2</span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                    PROMOTED
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
