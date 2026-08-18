@@ -686,7 +686,7 @@ def suggest_dom_selectors(req: SuggestSelectorRequest, db: Session = Depends(get
     }
 
 @router.get("/export/runs")
-def export_runs(format: str = Query("json", regex="^(json|csv|ndjson)$"), db: Session = Depends(get_db)):
+def export_runs(format: str = Query("json", pattern="^(json|csv|ndjson)$"), db: Session = Depends(get_db)):
     """Exports all extracted entities in JSON, CSV, or NDJSON format."""
     runs = db.query(ScrapeRunDB).filter(ScrapeRunDB.status.in_(["success", "repaired"])).order_by(ScrapeRunDB.id.desc()).all()
     records = []

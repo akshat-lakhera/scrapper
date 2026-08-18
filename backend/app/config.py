@@ -10,7 +10,7 @@ else:
 
 class Settings:
     PROJECT_NAME: str = "MarketScout"
-    VERSION: str = "1.1.0"
+    VERSION: str = "2.5.0"
     
     SCRAPER_PROVIDER: str = os.getenv("SCRAPER_PROVIDER", "local").lower()
     
