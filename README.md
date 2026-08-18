@@ -33,38 +33,45 @@ Interactive single-target, batch multi-URL, and deep crawl deployment with real-
 
 ---
 
-### 2. Autonomous Recursive Deep Crawler
-Breadth-first link discovery and pagination traversal engine with configurable crawl depth ($1-3$) and page limits.
+### 2. Multi-Platform Extraction Studio & Schema Engine
+Production-ready schema presets across 8 major web protocols (Amazon, Tech Docs, LinkedIn, X, Lever, Instagram, Reddit, Google Maps) with live entity inspection and blueprint contracts.
 
-![Deep Crawler Mode](assets/images/deep_crawler.png)
+![Extraction Studio](assets/images/extraction_studio.png)
 
 ---
 
-### 3. Interactive Visual DOM Inspector & Selector Playground
+### 3. Living RAG Knowledge Nexus & Grounded Intelligence
+Multi-LLM grounded conversational assistant (Groq `llama-3.3-70b-versatile` + Google Gemini) with real-time HTML comparison tables, exact field-level source citations, and zero hallucinations.
+
+![Living RAG Assistant](assets/images/living_rag.png)
+
+---
+
+### 4. Self-Healing Lab & Selector Synthesis Diff
+Autonomous DOM drift diagnosis studio with visual side-by-side selector replacement diffs, AST regression prevention checks, and versioned rule bundle promotions ($v1 \rightarrow v2$).
+
+![Self-Healing Lab](assets/images/self_healing_lab.png)
+
+---
+
+### 5. Interactive Visual DOM Inspector & Selector Playground
 Real-time CSS selector testing engine that evaluates matching nodes, computes hierarchy lineage paths, calculates selector stability scores ($0-100\%$), and synthesizes AI candidate selectors.
 
 ![DOM Inspector](assets/images/dom_inspector.png)
 
 ---
 
-### 4. Living RAG Knowledge Nexus & Conversational Intelligence
-Multi-LLM grounded conversational assistant (Groq `llama-3.3-70b-versatile` + Google Gemini 2.5 Flash) with verified field-level source citations and direct canonical URLs.
+### 6. Autonomous Recursive Deep Crawler
+Breadth-first link discovery and pagination traversal engine with configurable crawl depth ($1-3$) and page limits.
 
-![Living RAG Assistant](assets/images/living_rag.png)
-
----
-
-### 5. Multi-Platform Extraction Studio
-Pre-configured production presets across 8 major web protocols with high-resolution product image extraction and custom schema selectors.
-
-![Extraction Studio](assets/images/extraction_studio.png)
+![Deep Crawler Mode](assets/images/deep_crawler.png)
 
 ---
 
-### 6. Self-Healing Lab & Selector Synthesis Diff
-Autonomous DOM drift diagnosis studio with visual side-by-side selector replacement diffs, stability scores, and versioned rule promotions ($v1 \rightarrow v2$).
+### 7. System Administration & Enterprise Provider Hub
+Complete enterprise control center for managing Bright Data Web Unlocker authentication, rate-limiting worker pools, autonomous healing policies, and real-time webhook pipeline dispatchers.
 
-![Self-Healing Lab](assets/images/self_healing_lab.png)
+![System Settings](assets/images/settings_admin.png)
 
 ---
 
