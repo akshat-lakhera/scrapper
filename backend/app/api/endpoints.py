@@ -512,8 +512,8 @@ async def get_intel_report(domain: Optional[str] = None, db: Session = Depends(g
 
 class BatchScrapeRequest(BaseModel):
     urls: List[str]
-    workflow_type: Optional[str] = "products"
-    schema_name: Optional[str] = "products"
+    workflow_type: Optional[str] = None
+    schema_name: Optional[str] = None
 
 @router.post("/scrape/batch")
 async def batch_scrape(req: BatchScrapeRequest, db: Session = Depends(get_db)):
@@ -527,7 +527,7 @@ async def batch_scrape(req: BatchScrapeRequest, db: Session = Depends(get_db)):
                 db,
                 target_url=u.strip(),
                 workflow_type=req.workflow_type or "products",
-                schema_name=req.schema_name or "products"
+                schema_name=req.schema_name or req.workflow_type or "products"
             )
             return {
                 "run_id": run.id,
@@ -554,8 +554,8 @@ async def batch_scrape(req: BatchScrapeRequest, db: Session = Depends(get_db)):
 
 class CrawlRequest(BaseModel):
     start_url: str
-    workflow_type: Optional[str] = "products"
-    schema_name: Optional[str] = "products"
+    workflow_type: Optional[str] = None
+    schema_name: Optional[str] = None
     max_depth: Optional[int] = 2
     max_pages: Optional[int] = 5
     custom_headers: Optional[Dict[str, str]] = None

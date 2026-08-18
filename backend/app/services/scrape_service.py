@@ -78,15 +78,39 @@ class ScrapeService:
         for f in schema.fields:
             primary = None
             if f.name == "price":
-                primary = ".product-price"
+                primary = ".product-price, .price, span.a-price, [data-price]"
             elif f.name == "title":
-                primary = ".product-title"
+                primary = ".product-title, h1, #productTitle, [data-title]"
+            elif f.name == "currency":
+                primary = ".currency, .price-currency, span.a-price-symbol"
+            elif f.name == "availability":
+                primary = ".availability, #availability, span.in-stock"
             elif f.name == "job_title":
-                primary = ".job-title"
+                primary = ".job-title, h1.posting-headline, [data-job-title], h1"
             elif f.name == "company":
-                primary = ".company-name"
+                primary = ".company-name, .company, [data-company], .employer"
+            elif f.name == "location":
+                primary = ".location, [data-location], .workplace-types"
             elif f.name == "description" and workflow_type == "jobs":
-                primary = ".job-description"
+                primary = ".job-description, .description, .section-page, article"
+            elif f.name == "doc_title":
+                primary = "h1, .doc-title, title, .header-title"
+            elif f.name == "section_heading":
+                primary = "h2, h3, .section-heading"
+            elif f.name == "content_body":
+                primary = "main, article, .md-content, .document, .content"
+            elif f.name == "code_snippet":
+                primary = "pre code, pre, code"
+            elif f.name == "name" and workflow_type == "linkedin":
+                primary = "h1, .profile-name, .text-heading-xlarge"
+            elif f.name == "headline" and workflow_type == "linkedin":
+                primary = ".text-body-medium, .headline"
+            elif f.name == "user_posted":
+                primary = '[data-testid="User-Name"], .username, .author'
+            elif f.name == "username":
+                primary = "header h2, header h1, .username"
+            elif f.name == "address":
+                primary = '[data-item-id="address"], button[data-tooltip*="address"]'
 
             default_rules[f.name] = FieldRule(
                 field_name=f.name,
