@@ -1,15 +1,25 @@
 # MarketScout — Autonomous Self-Healing Web Scraper & Intelligence Platform
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/tests-57%2F57%20passed%20(100%25)-emerald.svg)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg)]()
-[![Bright Data](https://img.shields.io/badge/Bright%20Data-Web%20Unlocker%20%26%20Datasets%20v3-orange.svg)]()
-[![Living RAG](https://img.shields.io/badge/Living%20RAG-Groq%20%2B%20Gemini%202.5-purple.svg)]()
+<p align="center">
+  <a href="https://github.com/akshat-lakhera/scrapper">
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=24&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=800&height=50&lines=Autonomous+Self-Healing+Web+Scraper;Zero+Data+Rot+via+Real-Time+DOM+Auto-Patching;Recursive+Deep+Crawler+%26+Link+Discovery;Conversational+Living+RAG+Nexus;Powered+by+Bright+Data+Web+Unlocker" alt="MarketScout Typing Header" />
+  </a>
+</p>
 
-**MarketScout** is an enterprise-grade autonomous web data intelligence platform powered by **Bright Data Scraper Studio & Web Unlocker**, an **Autonomous Multi-Strategy Self-Healing Engine**, a **Recursive Deep Crawler**, and a **Conversational Living RAG Nexus**.
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge&logo=fastapi&logoColor=white" alt="Status" />
+  <img src="https://img.shields.io/badge/Tests-57%2F57%20Passed%20(100%25)-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
+  <img src="https://img.shields.io/badge/Self--Healing-Autonomous%20v2-blueviolet?style=for-the-badge&logo=dependabot&logoColor=white" alt="Self-Healing" />
+  <img src="https://img.shields.io/badge/Proxy-Bright%20Data%20Unlocker-orange?style=for-the-badge&logo=databricks&logoColor=white" alt="Bright Data" />
+  <img src="https://img.shields.io/badge/Living%20RAG-Groq%20%2B%20Gemini-purple?style=for-the-badge&logo=google&logoColor=white" alt="Living RAG" />
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
+</p>
 
-It delivers continuous 0% data rot by automatically diagnosing DOM structural mutations, synthesizing candidate replacement CSS selectors, running holdout regression tests, and promoting versioned rule bundles with **zero human intervention**.
+---
+
+**MarketScout** is an enterprise-grade autonomous web data intelligence platform that pairs **Bright Data Scraper Studio & Web Unlocker** with an **Autonomous Multi-Strategy Self-Healing Engine**, a **Recursive Deep Crawler**, and a **Conversational Living RAG Nexus**.
+
+It completely eliminates scraper maintenance and data rot by continuously monitoring DOM template drift, synthesizing replacement CSS selectors, running holdout regression validations, and promoting versioned rule bundles with **zero human intervention**.
 
 ---
 
@@ -50,7 +60,121 @@ Autonomous DOM drift diagnosis studio with visual side-by-side selector replacem
 
 ---
 
-## 🚀 Key Architectural Pillars
+## ⚡ Interactive Platform & Workflow Matrix
+
+<table>
+  <thead>
+    <tr style="background-color: #0f131f;">
+      <th align="center">🌐 Platform Preset</th>
+      <th align="center">🛡️ Unblocking Strategy</th>
+      <th align="center">⚡ Autonomous Healing</th>
+      <th align="center">📦 Schema Contract</th>
+      <th align="left">🔍 Extracted Attributes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>🛒 Amazon E-Commerce</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Web%20Unlocker-ACTIVE-emerald?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Auto--Heal-v1%20%E2%86%92%20v2-blue?style=flat-square" /></td>
+      <td align="center"><code>PRODUCT_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 8 Attributes</b></summary>
+          <code>title</code>, <code>price</code>, <code>currency</code>, <code>availability</code>, <code>rating</code>, <code>review_count</code>, <code>seller</code>, <code>image_url</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>📑 Tech Docs & APIs</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Direct%20%2F%20Proxy-ACTIVE-emerald?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Heuristics-PASS-cyan?style=flat-square" /></td>
+      <td align="center"><code>TECH_DOCS_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 6 Attributes</b></summary>
+          <code>doc_title</code>, <code>section_heading</code>, <code>content_body</code>, <code>code_snippet</code>, <code>last_updated</code>, <code>doc_url</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>💼 Talent & Job Boards</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Web%20Unlocker-ACTIVE-emerald?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Auto--Heal-READY-blue?style=flat-square" /></td>
+      <td align="center"><code>JOB_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 7 Attributes</b></summary>
+          <code>job_title</code>, <code>company</code>, <code>location</code>, <code>employment_type</code>, <code>salary</code>, <code>description</code>, <code>posted_date</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>👔 LinkedIn Profiles</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Datasets%20v3-ACTIVE-purple?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Schema.org-SYNC-emerald?style=flat-square" /></td>
+      <td align="center"><code>LINKEDIN_PROFILE_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 7 Attributes</b></summary>
+          <code>name</code>, <code>headline</code>, <code>current_company</code>, <code>location</code>, <code>about</code>, <code>connections</code>, <code>education</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>🐦 X (Twitter) Posts</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Datasets%20v3-ACTIVE-purple?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Meta%20Graph-PASS-cyan?style=flat-square" /></td>
+      <td align="center"><code>X_POST_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 7 Attributes</b></summary>
+          <code>user_posted</code>, <code>description</code>, <code>likes</code>, <code>reposts</code>, <code>replies</code>, <code>views</code>, <code>date_posted</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>📸 Instagram Profiles</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Datasets%20v3-ACTIVE-purple?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/OpenGraph-SYNC-emerald?style=flat-square" /></td>
+      <td align="center"><code>INSTAGRAM_PROFILE_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 6 Attributes</b></summary>
+          <code>username</code>, <code>full_name</code>, <code>biography</code>, <code>followers_count</code>, <code>following_count</code>, <code>posts_count</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>💬 Reddit Communities</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Datasets%20v3-ACTIVE-purple?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Auto--Heal-READY-blue?style=flat-square" /></td>
+      <td align="center"><code>REDDIT_POST_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 6 Attributes</b></summary>
+          <code>title</code>, <code>subreddit</code>, <code>user_posted</code>, <code>description</code>, <code>upvotes</code>, <code>num_comments</code>
+        </details>
+      </td>
+    </tr>
+    <tr>
+      <td><b>📍 Google Maps POI</b></td>
+      <td align="center"><img src="https://img.shields.io/badge/Datasets%20v3-ACTIVE-purple?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Geo--JSON-SYNC-cyan?style=flat-square" /></td>
+      <td align="center"><code>GOOGLE_MAPS_SCHEMA</code></td>
+      <td>
+        <details>
+          <summary><b>View 8 Attributes</b></summary>
+          <code>title</code>, <code>address</code>, <code>phone</code>, <code>rating</code>, <code>reviews_count</code>, <code>category</code>, <code>latitude</code>, <code>longitude</code>
+        </details>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## 🌊 5-Stage Multi-Strategy Waterfall
 
 ```mermaid
 graph TD
@@ -87,6 +211,8 @@ graph TD
 
 ---
 
+## 🔬 Core Architectural Pillars
+
 ### 1. 🛡️ Autonomous Self-Healing Pipeline
 * **DOM Skeleton Hash Fingerprinting (`TemplateFingerprinter`)**: Isolates unique structural layouts across millions of URLs.
 * **Candidate Selector Synthesizer (`RepairEngine`)**: Traverses mutated DOM trees to compute optimal replacement selectors with stability metrics.
@@ -120,21 +246,6 @@ graph TD
 ### 5. 📦 Batch Execution & Multi-Format Exporters
 * **Concurrent Multi-Target Scraping**: Paste multi-line URL lists in the Omnibar to scrape concurrently.
 * **1-Click Exporters**: Export all verified records to **CSV**, **NDJSON**, or **JSON** directly via REST API or UI.
-
----
-
-## 🌐 Supported Platforms & Schemas
-
-| Workflow / Platform | Dataset / Collector | Target Schema | Key Attributes Extracted |
-|---|---|---|---|
-| **Amazon E-Commerce** | `gd_l7q7dkf244hwjntr0` | `PRODUCT_SCHEMA` | `title`, `price`, `currency`, `availability`, `rating`, `review_count`, `seller`, `image_url` |
-| **Tech Docs & APIs** | `c_*` (Scraper Studio) | `TECH_DOCS_SCHEMA` | `doc_title`, `section_heading`, `content_body`, `code_snippet`, `last_updated`, `doc_url` |
-| **Talent & Job Openings** | `BRIGHTDATA_JOB_DATASET_ID` | `JOB_SCHEMA` | `job_title`, `company`, `location`, `employment_type`, `salary`, `description`, `posted_date` |
-| **LinkedIn Profiles** | `gd_l1viktl72bvl7bjuj0` | `LINKEDIN_PROFILE_SCHEMA` | `name`, `headline`, `current_company`, `location`, `about`, `connections`, `education` |
-| **X (Twitter)** | `gd_lwxkxvnf1cynvib9co` | `X_POST_SCHEMA` | `user_posted`, `description`, `likes`, `reposts`, `replies`, `views`, `date_posted` |
-| **Instagram Creators** | `gd_l1vikfch901nx3by4` | `INSTAGRAM_PROFILE_SCHEMA` | `username`, `full_name`, `biography`, `followers_count`, `following_count`, `posts_count` |
-| **Reddit Discussions** | `gd_lvz8ah06191smkebj4` | `REDDIT_POST_SCHEMA` | `title`, `subreddit`, `user_posted`, `description`, `upvotes`, `num_comments` |
-| **Google Maps Places** | `gd_m8ebnr0q2qlklc02fz` | `GOOGLE_MAPS_SCHEMA` | `title`, `address`, `phone`, `rating`, `reviews_count`, `category`, `latitude`, `longitude` |
 
 ---
 
