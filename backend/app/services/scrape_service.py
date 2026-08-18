@@ -215,9 +215,15 @@ class ScrapeService:
         elif "maps.google" in target_lower or "google.com/maps" in target_lower:
             workflow_type = "google_maps"
             schema_name = "google_maps"
+        elif "fastapi.tiangolo.com" in target_lower or "readthedocs.io" in target_lower or "/docs" in target_lower or "docs." in target_lower:
+            workflow_type = workflow_type if workflow_type and workflow_type != "products" else "tech_docs"
+            schema_name = "tech_docs"
         else:
             workflow_type = workflow_type or "products"
-            schema_name = schema_name or workflow_type or "products"
+            if workflow_type != "products" and (not schema_name or schema_name == "products"):
+                schema_name = workflow_type
+            else:
+                schema_name = schema_name or workflow_type or "products"
 
         schema = get_schema_by_name(schema_name or workflow_type) or PRODUCT_SCHEMA
         provider = get_scraper_provider()

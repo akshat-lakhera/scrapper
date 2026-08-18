@@ -152,8 +152,8 @@ def get_scraper(id: int, db: Session = Depends(get_db)):
 
 class RunScraperRequest(BaseModel):
     target_url: str = Field(..., json_schema_extra={"example": "https://www.flipkart.com/laptops/pr?sid=6bo,b5g"})
-    workflow_type: Optional[str] = "products"
-    schema_name: Optional[str] = "products"
+    workflow_type: Optional[str] = None
+    schema_name: Optional[str] = None
 
 @router.post("/scrapers/{id}/run")
 async def run_scraper(id: int, req: RunScraperRequest, db: Session = Depends(get_db)):
@@ -161,7 +161,7 @@ async def run_scraper(id: int, req: RunScraperRequest, db: Session = Depends(get
         db,
         target_url=req.target_url,
         workflow_type=req.workflow_type or "products",
-        schema_name=req.schema_name or "products",
+        schema_name=req.schema_name or req.workflow_type or "products",
         scraper_id=id
     )
     return {
@@ -181,7 +181,7 @@ async def direct_scrape(req: RunScraperRequest, db: Session = Depends(get_db)):
         db,
         target_url=req.target_url,
         workflow_type=req.workflow_type or "products",
-        schema_name=req.schema_name or "products"
+        schema_name=req.schema_name or req.workflow_type or "products"
     )
 
     # Attach heal_outcome from the auto-heal patch if one was created for this run
