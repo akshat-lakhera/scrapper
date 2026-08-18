@@ -1,42 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  ArrowRight, 
-  RotateCcw, 
+  Activity, 
   Sparkles, 
   ShoppingBag, 
   Briefcase, 
-  Cpu, 
   Wrench, 
   CheckCircle2, 
   ShieldCheck, 
-  Zap,
-  Globe,
-  Play,
-  Copy,
-  Check,
-  ExternalLink,
-  Activity,
-  Layers,
-  Terminal,
-  Database,
-  Search,
-  MessageCircle,
-  MapPin,
-  TrendingUp,
-  Radio,
-  Sliders,
+  Zap, 
+  Globe, 
+  Play, 
+  Copy, 
+  Check, 
+  ExternalLink, 
+  Layers, 
+  Terminal, 
+  Database, 
+  MessageCircle, 
+  MapPin, 
+  TrendingUp, 
+  Radio, 
   Code2,
+  Clock,
+  ArrowRight,
+  Shield,
+  FileCode,
   CheckCheck
 } from 'lucide-react';
 import type { Metrics, ConfigModeResponse, ScrapeRun } from '../types';
-import { fetchMetrics, fetchRuns, resetDemo, executeScrape } from '../api';
+import { fetchMetrics, fetchRuns, executeScrape } from '../api';
 import { StatusBadge } from './StatusBadge';
 import { useToast } from './ToastContext';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
 import { CountUp } from './effects/CountUp';
-import { AnimatedGauge } from './effects/AnimatedGauge';
-import { CodeExportModal } from './CodeExportModal';
 
 interface OverviewProps {
   configMode: ConfigModeResponse | null;
@@ -44,13 +39,13 @@ interface OverviewProps {
 }
 
 const PRESET_PLATFORMS = [
-  { id: 'google_maps', label: 'Google Maps', icon: MapPin, color: '#10b981', url: 'https://www.google.com/maps/place/Pizza+Inn+Magdeburg/@52.1263086,11.6094743,761m/' },
-  { id: 'linkedin', label: 'LinkedIn', icon: Briefcase, color: '#3b82f6', url: 'https://www.linkedin.com/in/elad-moshe-05a90413/' },
-  { id: 'x', label: 'X / Twitter', icon: MessageCircle, color: '#06b6d4', url: 'https://x.com/FabrizioRomano/status/1683559267524136962' },
-  { id: 'products', label: 'Amazon Products', icon: ShoppingBag, color: '#ec4899', url: 'https://www.amazon.com/dp/B09XS7JWHH' },
-  { id: 'instagram', label: 'Instagram', icon: Sparkles, color: '#f59e0b', url: 'https://www.instagram.com/cristiano/' },
-  { id: 'reddit', label: 'Reddit', icon: MessageCircle, color: '#ef4444', url: 'https://www.reddit.com/r/technology/comments/1example_thread/' },
-  { id: 'jobs', label: 'Talent & Jobs', icon: Briefcase, color: '#8b5cf6', url: 'https://jobs.lever.co/stripe/staff-backend-engineer' },
+  { id: 'products', label: 'Amazon Products', icon: ShoppingBag, tag: 'E-Commerce', url: 'https://www.amazon.com/dp/B09XS7JWHH' },
+  { id: 'tech_docs', label: 'Tech Docs & APIs', icon: Code2, tag: 'Developer Docs', url: 'https://demo.local/tech_docs_v1.html' },
+  { id: 'jobs', label: 'Talent & Jobs', icon: Briefcase, tag: 'Careers', url: 'https://jobs.lever.co/stripe/staff-backend-engineer' },
+  { id: 'linkedin', label: 'LinkedIn Profiles', icon: Briefcase, tag: 'Talent Lead', url: 'https://www.linkedin.com/in/codingstark/' },
+  { id: 'x', label: 'X (Twitter)', icon: MessageCircle, tag: 'Social Pulse', url: 'https://x.com/konig0000/status/2089565885149466685?s=20' },
+  { id: 'reddit', label: 'Reddit Discussions', icon: MessageCircle, tag: 'Communities', url: 'https://www.reddit.com/r/battlefield2042/comments/1cmqs1d/official_update_on_the_next_battlefield_game/' },
+  { id: 'google_maps', label: 'Google Maps', icon: MapPin, tag: 'Local Intel', url: 'https://www.google.com/maps/place/Pizza+Inn+Magdeburg/@52.1263086,11.6094743,761m/' },
 ];
 
 export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) => {
@@ -60,9 +55,8 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
   const [urlInput, setUrlInput] = useState(PRESET_PLATFORMS[0].url);
   const [loading, setLoading] = useState(false);
   const [extractedResult, setExtractedResult] = useState<any>(null);
-  const [showCodeModal, setShowCodeModal] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
-  const isLive = configMode?.provider === 'brightdata';
+  const [activeView, setActiveView] = useState<'card' | 'json'>('card');
   const { showToast } = useToast();
 
   const loadData = async () => {
@@ -71,13 +65,13 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
       if (m) setMetrics(m);
       if (r) setRecentRuns(r.slice(0, 6));
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load metrics or runs', e);
     }
   };
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
+    const interval = setInterval(loadData, 6000);
     return () => clearInterval(interval);
   }, []);
 
@@ -99,14 +93,14 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
         schema_name: activePlatform.id,
       });
       setExtractedResult(res);
-      await loadData();
       if (res.status === 'success' || res.status === 'repaired') {
-        showToast('success', 'Extraction Complete', `Extracted with ${res.quality_score}% schema compliance`);
+        showToast('success', 'Extraction Completed', `Extracted with ${res.quality_score}% quality score`);
       } else {
-        showToast('warning', 'Extraction Degraded', 'Run recorded with schema drift warnings');
+        showToast('warning', 'Extraction Degraded', 'Drift detected — routed to Self-Healing Lab');
       }
-    } catch (err: any) {
-      showToast('error', 'Execution Error', err.message);
+      loadData();
+    } catch (e: any) {
+      showToast('error', 'Execution Error', e.message);
     } finally {
       setLoading(false);
     }
@@ -117,323 +111,334 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
     navigator.clipboard.writeText(JSON.stringify(extractedResult.extracted_data, null, 2));
     setCopiedJson(true);
     setTimeout(() => setCopiedJson(false), 2000);
-    showToast('info', 'JSON Copied', 'Extracted payload copied to clipboard');
+    showToast('info', 'Copied JSON', 'Structured payload copied to clipboard');
   };
 
-  const reliabilityScore = metrics?.overall_reliability ? Math.round(metrics.overall_reliability * 100) : 98;
-  const selfHealingRate = metrics?.healing_success_rate ? Math.round(metrics.healing_success_rate * 100) : 100;
-
   return (
-    <div className="space-y-8 animate-fade-in pb-16">
-      {/* ── HERO COCKPIT: INTERACTIVE LIVE EXTRACTION DOCK ── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#080e1a] via-[#050811] to-[#030712] border border-white/[0.08] p-6 sm:p-8 shadow-2xl shadow-cyan-950/20">
-        {loading && <div className="radar-scan-line" />}
-        
-        {/* Glow backdrop */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 space-y-6">
-          {/* Header Title & Mode Pill */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[11px] font-mono font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span>UNIVERSAL WEB INTELLIGENCE ENGINE</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
-                Autonomous Extraction Cockpit
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
-                Zero-downtime DOM reverse-engineering, heuristic multi-strategy fallback, and real-time schema normalization across 7 global data ecosystems.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                onClick={() => setShowCodeModal(true)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-xs font-mono font-semibold text-white transition-all cursor-pointer"
-              >
-                <Code2 size={15} className="text-cyan-400" />
-                <span>API Snippet</span>
-              </button>
-              <Button
-                variant="glow"
-                size="sm"
-                onClick={() => setActiveTab('studio')}
-                rightIcon={<ArrowRight size={14} />}
-              >
-                Studio Workspace
-              </Button>
-            </div>
+    <div className="space-y-6 pb-12">
+      {/* ── 1. CLUSTER TELEMETRY & HARDWARE METRICS BENTO ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Total Extractions */}
+        <div className="hw-panel p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider">Total Scrapes</span>
+            <Activity size={14} className="text-blue-400" />
           </div>
-
-          {/* 7-Platform Interactive Switcher Pills */}
-          <div className="space-y-2 pt-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Select Live Pipeline Target:
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-white">
+              <CountUp end={metrics?.total_runs || 0} />
             </span>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_PLATFORMS.map((p) => {
-                const isSelected = activePlatform.id === p.id;
-                const Icon = p.icon;
-                return (
+            <span className="text-[11px] font-mono text-emerald-400">Active</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500 mt-1">Universal across all 8 workflows</span>
+        </div>
+
+        {/* Metric 2: Cluster Reliability */}
+        <div className="hw-panel p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider">Data Reliability</span>
+            <ShieldCheck size={14} className="text-emerald-400" />
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-emerald-400">
+              <CountUp end={metrics?.overall_reliability || 96} suffix="%" />
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">Gated</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500 mt-1">Strict Pydantic schema validation</span>
+        </div>
+
+        {/* Metric 3: Autonomous Healing Rate */}
+        <div className="hw-panel p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider">Self-Healing Rate</span>
+            <Wrench size={14} className="text-amber-400" />
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-amber-400">
+              <CountUp end={metrics?.healing_success_rate || 100} suffix="%" />
+            </span>
+            <span className="text-[10px] font-mono text-amber-400/80">Autonomous</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500 mt-1">Multi-page holdout regression tested</span>
+        </div>
+
+        {/* Metric 4: DOM Template Signatures */}
+        <div className="hw-panel p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-400">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider">Active Rule Bundles</span>
+            <Database size={14} className="text-cyan-400" />
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-cyan-400">
+              <CountUp end={metrics?.template_count || 4} />
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">Partitions</span>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500 mt-1">Domain + DOM skeleton hash keyed</span>
+        </div>
+      </div>
+
+      {/* ── 2. INTERACTIVE TARGET LAUNCHER & STAGE PIPELINE ── */}
+      <div className="hw-panel p-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+          <div>
+            <h2 className="text-lg font-bold font-sans text-white flex items-center gap-2">
+              <Terminal size={18} className="text-blue-400" />
+              Live Target Ingestion & Autonomous Extraction
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Input any target URL or select a platform preset. The Multi-Strategy engine automatically resolves schemas and heals on drift.
+            </p>
+          </div>
+
+          {/* Quick Platform Chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {PRESET_PLATFORMS.map((p) => {
+              const Icon = p.icon;
+              const isSelected = activePlatform.id === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectPlatform(p)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono transition-all hw-btn ${
+                    isSelected
+                      ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                      : 'bg-white/[0.03] text-slate-400 hover:text-slate-200 border border-white/[0.06]'
+                  }`}
+                >
+                  <Icon size={12} />
+                  <span>{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* URL Input & Launch Bar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="Enter canonical target URL..."
+              className="w-full bg-[#0c0e14] border border-white/[0.1] rounded-lg px-4 py-3 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 shadow-inner"
+            />
+            <span className="absolute right-3 top-3 px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.05] text-slate-400 border border-white/[0.08]">
+              {activePlatform.tag}
+            </span>
+          </div>
+
+          <button
+            onClick={handleExecuteLiveScrape}
+            disabled={loading || !urlInput.trim()}
+            className="hw-btn px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 shrink-0 cursor-pointer"
+          >
+            {loading ? (
+              <>
+                <Zap size={14} className="animate-spin text-white" />
+                <span>Executing Pipeline...</span>
+              </>
+            ) : (
+              <>
+                <Play size={14} />
+                <span>Extract Target</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* ── 3. 5-STAGE EXTRACTION WATERFALL VISUALIZER ── */}
+        <div className="p-4 rounded-lg bg-[#0c0e14] border border-white/[0.06] space-y-3">
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+            <span className="font-bold text-slate-300">MULTI-STRATEGY PIPELINE WATERFALL</span>
+            <span>{loading ? 'STATUS: EXECUTING...' : (extractedResult ? 'STATUS: COMPLETE' : 'STATUS: READY')}</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px] font-mono">
+            {/* Stage 1 */}
+            <div className={`p-2.5 rounded border transition-all ${
+              loading ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-white/[0.02] border-white/[0.05] text-slate-500')
+            }`}>
+              <div className="font-bold">01 INGESTION</div>
+              <div className="text-[10px] text-slate-400 truncate">Bright Data Cluster</div>
+            </div>
+
+            {/* Stage 2 */}
+            <div className={`p-2.5 rounded border transition-all ${
+              loading ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-white/[0.02] border-white/[0.05] text-slate-500')
+            }`}>
+              <div className="font-bold">02 FINGERPRINT</div>
+              <div className="text-[10px] text-slate-400 truncate">DOM Hash tpl_*</div>
+            </div>
+
+            {/* Stage 3 */}
+            <div className={`p-2.5 rounded border transition-all ${
+              loading ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-white/[0.02] border-white/[0.05] text-slate-500')
+            }`}>
+              <div className="font-bold">03 STRATEGY</div>
+              <div className="text-[10px] text-slate-400 truncate">{extractedResult?.selected_strategy || 'JSON-LD / Rules'}</div>
+            </div>
+
+            {/* Stage 4 */}
+            <div className={`p-2.5 rounded border transition-all ${
+              loading ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-white/[0.02] border-white/[0.05] text-slate-500')
+            }`}>
+              <div className="font-bold">04 QUALITY GATE</div>
+              <div className="text-[10px] text-slate-400 truncate">{extractedResult ? `${extractedResult.quality_score}% Pass` : 'Pydantic Gating'}</div>
+            </div>
+
+            {/* Stage 5 */}
+            <div className={`p-2.5 rounded border transition-all ${
+              loading ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : (extractedResult?.status === 'repaired' ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' : (extractedResult ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-white/[0.02] border-white/[0.05] text-slate-500'))
+            }`}>
+              <div className="font-bold">05 AUTO-HEAL</div>
+              <div className="text-[10px] text-slate-400 truncate">{extractedResult?.status === 'repaired' ? 'Auto-Healed v2' : 'Verified'}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 4. EXTRACTED PAYLOAD VIEW (HOLOGRAPHIC CARD / JSON TREE) ── */}
+        {extractedResult && (
+          <div className="p-4 rounded-lg bg-[#0c0e14] border border-white/[0.08] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <StatusBadge status={extractedResult.status} />
+                <span className="text-xs font-mono text-slate-400">
+                  Quality Score: <strong className="text-white">{extractedResult.quality_score}%</strong> · Duration: <strong className="text-white">{extractedResult.duration_ms}ms</strong>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex bg-[#161a26] p-0.5 rounded-lg border border-white/[0.06] text-xs font-mono">
                   <button
-                    key={p.id}
-                    onClick={() => handleSelectPlatform(p)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all duration-150 cursor-pointer border ${
-                      isSelected
-                        ? 'bg-cyan-500/20 text-white border-cyan-500/40 shadow-sm shadow-cyan-500/20'
-                        : 'bg-white/[0.02] hover:bg-white/[0.06] text-slate-400 hover:text-slate-200 border-white/[0.06]'
-                    }`}
+                    onClick={() => setActiveView('card')}
+                    className={`px-3 py-1 rounded transition-colors ${activeView === 'card' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white'}`}
                   >
-                    <Icon size={14} style={{ color: p.color }} />
-                    <span>{p.label}</span>
+                    Card
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                  <button
+                    onClick={() => setActiveView('json')}
+                    className={`px-3 py-1 rounded transition-colors ${activeView === 'json' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    JSON
+                  </button>
+                </div>
 
-          {/* Precision URL Dock & Execution Bar */}
-          <div className="p-2 rounded-2xl bg-black/60 border border-white/15 backdrop-blur-md shadow-inner flex flex-col sm:flex-row items-center gap-2">
-            <div className="flex-1 flex items-center gap-2.5 px-3 w-full">
-              <Globe size={16} className="text-cyan-400 shrink-0" />
-              <input
-                type="text"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="Enter live target URL or select a preset..."
-                className="w-full bg-transparent text-xs sm:text-sm font-mono text-white placeholder-slate-500 focus:outline-none"
-              />
+                <button
+                  onClick={handleCopyJson}
+                  className="hw-btn flex items-center gap-1 px-3 py-1 rounded-md bg-white/[0.05] hover:bg-white/[0.1] text-xs font-mono text-slate-300 border border-white/[0.08]"
+                >
+                  {copiedJson ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  <span>{copiedJson ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
             </div>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleExecuteLiveScrape}
-              isLoading={loading}
-              leftIcon={<Play size={14} fill="currentColor" />}
-              className="w-full sm:w-auto shrink-0 shadow-lg shadow-cyan-500/20"
-            >
-              {loading ? 'Scraping...' : 'Extract Live Data'}
-            </Button>
-          </div>
 
-          {/* Real-time Extracted Data Explorer */}
-          {extractedResult && (
-            <div className="p-5 rounded-2xl bg-black/50 border border-cyan-500/30 space-y-4 animate-fade-in">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={extractedResult.status} size="md" />
-                  <div>
-                    <span className="text-xs font-mono font-bold text-white block">
-                      Run #{extractedResult.run_id} · Strategy: <span className="text-cyan-400">{extractedResult.selected_strategy}</span>
-                    </span>
-                    <span className="text-[11px] mono text-slate-400 truncate max-w-md block">
-                      {extractedResult.target_url}
-                    </span>
+            {/* View 1: Formatted Entity Card */}
+            {activeView === 'card' ? (
+              <div className="p-4 rounded-lg bg-[#12151e] border border-white/[0.06] space-y-3 font-sans">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-white leading-snug">
+                      {extractedResult.extracted_data?.title || extractedResult.extracted_data?.name || extractedResult.extracted_data?.job_title || extractedResult.extracted_data?.doc_title || 'Structured Web Entity'}
+                    </h3>
+                    <a
+                      href={extractedResult.target_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-mono text-blue-400 hover:underline flex items-center gap-1 truncate max-w-xl"
+                    >
+                      <span>{extractedResult.target_url}</span>
+                      <ExternalLink size={11} />
+                    </a>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                    Quality Score: {extractedResult.quality_score}%
-                  </span>
-                  <button
-                    onClick={handleCopyJson}
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer border border-white/10"
-                    title="Copy Extracted JSON"
-                  >
-                    {copiedJson ? <CheckCheck size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Data Grid Preview */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {Object.entries(extractedResult.extracted_data || {}).map(([key, val]) => {
-                  if (val === null || val === undefined) return null;
-                  return (
-                    <div key={key} className="p-3 rounded-xl bg-white/[0.025] border border-white/[0.06] truncate">
-                      <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block truncate">
-                        {key.replace(/_/g, ' ')}
+                  {extractedResult.extracted_data?.price !== undefined && (
+                    <div className="text-right shrink-0">
+                      <span className="text-2xl font-bold font-mono text-emerald-400">
+                        {extractedResult.extracted_data?.currency || '$'} {extractedResult.extracted_data?.price}
                       </span>
-                      <span className="text-xs font-mono text-white font-semibold truncate block mt-0.5" title={String(val)}>
-                        {String(val)}
-                      </span>
+                      {extractedResult.extracted_data?.availability && (
+                        <span className="block text-[11px] font-mono text-slate-400">
+                          {extractedResult.extracted_data?.availability}
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+
+                {/* Attribute Matrix Chips */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/[0.05] font-mono text-xs">
+                  {Object.entries(extractedResult.extracted_data || {}).map(([key, value]) => {
+                    if (key.includes('_url') || key === 'title' || key === 'price' || !value) return null;
+                    return (
+                      <div key={key} className="p-2 rounded bg-black/40 border border-white/[0.04]">
+                        <span className="text-[10px] text-slate-500 uppercase block">{key}</span>
+                        <span className="text-slate-200 truncate block">{String(value)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+            ) : (
+              /* View 2: Raw Syntax JSON */
+              <pre className="p-4 rounded-lg bg-black/60 border border-white/[0.06] text-xs font-mono text-emerald-300 overflow-x-auto max-h-80">
+                {JSON.stringify(extractedResult.extracted_data, null, 2)}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── 5. RECENT EXTRACTION AUDIT FEED ── */}
+      <div className="hw-panel p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+          <div className="flex items-center gap-2">
+            <Clock size={15} className="text-slate-400" />
+            <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-300">
+              Recent Extraction Audit Feed
+            </h3>
+          </div>
+          <button
+            onClick={() => setActiveTab('runs')}
+            className="text-xs font-mono text-blue-400 hover:underline flex items-center gap-1"
+          >
+            <span>View Full Timeline</span>
+            <ArrowRight size={11} />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {recentRuns.length > 0 ? (
+            recentRuns.map((r) => (
+              <div
+                key={r.id}
+                className="p-3 rounded-lg bg-[#0c0e14] border border-white/[0.05] flex items-center justify-between text-xs font-mono"
+              >
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <span className="text-slate-500 shrink-0">#{r.id}</span>
+                  <StatusBadge status={r.status} />
+                  <span className="text-slate-300 truncate max-w-md">{r.target_url}</span>
+                </div>
+
+                <div className="flex items-center gap-4 text-slate-400 shrink-0">
+                  <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[10px]">
+                    {r.workflow_type}
+                  </span>
+                  <span>{r.duration_ms}ms</span>
+                  <span className="text-emerald-400 font-bold">{r.data_quality_score}%</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center text-xs text-slate-500 font-mono">
+              No scrape runs recorded yet. Execute an extraction above to populate the audit feed.
             </div>
           )}
         </div>
       </div>
-
-      {/* ── 4-BENTO TELEMETRY ENGINE GRID ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Reliability Gauge */}
-        <div className="p-5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex items-center justify-between group hover:border-cyan-500/30 transition-all">
-          <div className="space-y-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Schema Reliability
-            </span>
-            <div className="text-2xl font-black text-white mono tracking-tight">
-              <CountUp end={reliabilityScore} suffix="%" />
-            </div>
-            <span className="text-[11px] mono text-slate-400 block">
-              {metrics?.successful_runs || 0} / {metrics?.total_runs || 0} valid extractions
-            </span>
-          </div>
-          <AnimatedGauge value={reliabilityScore} size={64} strokeWidth={6} />
-        </div>
-
-        {/* Metric 2: Autonomous Self-Healing */}
-        <div 
-          onClick={() => setActiveTab('repair')}
-          className="p-5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex flex-col justify-between group hover:border-emerald-500/30 transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Self-Healing Rate
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <Wrench size={14} />
-            </div>
-          </div>
-          <div className="space-y-0.5 my-2">
-            <div className="text-2xl font-black text-emerald-400 mono tracking-tight">
-              <CountUp end={selfHealingRate} suffix="%" />
-            </div>
-            <span className="text-[11px] mono text-slate-400 block">
-              {metrics?.healed_runs || 0} DOM drift recoveries
-            </span>
-          </div>
-          <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-            <span>Open Diagnostic Lab</span>
-            <ArrowRight size={11} />
-          </div>
-        </div>
-
-        {/* Metric 3: Active Rule Bundles */}
-        <div 
-          onClick={() => setActiveTab('repair')}
-          className="p-5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex flex-col justify-between group hover:border-cyan-500/30 transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Promoted Bundles
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-              <Cpu size={14} />
-            </div>
-          </div>
-          <div className="space-y-0.5 my-2">
-            <div className="text-2xl font-black text-cyan-400 mono tracking-tight">
-              v2.4 <span className="text-xs font-normal text-slate-400 font-mono">Live</span>
-            </div>
-            <span className="text-[11px] mono text-slate-400 block">
-              Versioned CSS + JSON-LD
-            </span>
-          </div>
-          <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-cyan-400 group-hover:translate-x-0.5 transition-transform">
-            <span>Inspect Rule Trees</span>
-            <ArrowRight size={11} />
-          </div>
-        </div>
-
-        {/* Metric 4: Mean Extraction Latency */}
-        <div className="p-5 rounded-2xl bg-[#060a12] border border-white/[0.08] flex flex-col justify-between group hover:border-purple-500/30 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Extraction Latency
-            </span>
-            <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-              <Zap size={14} />
-            </div>
-          </div>
-          <div className="space-y-0.5 my-2">
-            <div className="text-2xl font-black text-purple-400 mono tracking-tight">
-              <CountUp end={Math.round(metrics?.avg_duration_ms || 280)} suffix="ms" />
-            </div>
-            <span className="text-[11px] mono text-slate-400 block">
-              Zero-overhead heuristic pass
-            </span>
-          </div>
-          <span className="text-[10px] font-mono text-slate-500 block">
-            p95 Benchmark: ~340ms
-          </span>
-        </div>
-      </div>
-
-      {/* ── RECENT OPERATIONAL AUDIT LOG ── */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Activity size={16} className="text-cyan-400" />
-            <h2 className="text-sm font-bold text-white mono uppercase tracking-wider">
-              Live Provenance & Extraction Stream
-            </h2>
-          </div>
-          <button
-            onClick={() => setActiveTab('runs')}
-            className="flex items-center gap-1.5 text-xs font-mono font-semibold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
-          >
-            <span>View Full Audit Timeline</span>
-            <ArrowRight size={13} />
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-white/[0.08] bg-[#060a12] overflow-hidden">
-          <div className="divide-y divide-white/[0.05]">
-            {recentRuns.map((r) => (
-              <div 
-                key={r.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={r.status} size="sm" />
-                  <div className="overflow-hidden">
-                    <div className="flex items-center gap-2">
-                      <span className="mono text-xs font-bold text-white">Run #{r.id}</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold bg-white/5 text-cyan-300">
-                        {r.workflow_type}
-                      </span>
-                      <span className="text-[11px] mono text-slate-500">
-                        {r.selected_strategy || 'rule_bundle_v1'}
-                      </span>
-                    </div>
-                    <span className="mono text-xs text-slate-400 truncate block max-w-xl font-medium pt-0.5">
-                      {r.target_url}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 shrink-0 text-xs mono">
-                  <span className={`font-bold ${r.data_quality_score >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    Score: {r.data_quality_score}%
-                  </span>
-                  <button
-                    onClick={() => setActiveTab('runs')}
-                    className="text-slate-500 hover:text-white p-1 rounded transition-colors cursor-pointer"
-                    title="View Run in Audit Timeline"
-                  >
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Code Export Modal */}
-      <CodeExportModal
-        isOpen={showCodeModal}
-        onClose={() => setShowCodeModal(false)}
-        targetUrl={urlInput}
-        workflowType={activePlatform.id}
-      />
     </div>
   );
 };

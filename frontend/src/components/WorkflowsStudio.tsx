@@ -1,40 +1,27 @@
 import React, { useState } from 'react';
 import { 
-  Sparkles, 
+  Layers, 
   Play, 
   ExternalLink, 
   Copy, 
   Check, 
-  Globe, 
   ShoppingBag, 
   Briefcase, 
   MessageCircle, 
-  UserCheck, 
   Camera, 
   MapPin, 
-  MessageSquare,
-  Zap,
-  Wrench,
-  TrendingUp,
-  XCircle,
-  ChevronRight,
+  Zap, 
+  Code2, 
+  ArrowRight,
   ShieldCheck,
-  Shield,
-  Layers,
-  Code2,
-  CheckCheck,
-  CheckCircle2,
+  FileCode,
+  Sparkles,
   Terminal,
   Activity
 } from 'lucide-react';
 import { executeScrape } from '../api';
 import { useToast } from './ToastContext';
-import { ScrapeProgressTimeline } from './ScrapeProgressTimeline';
 import { StatusBadge } from './StatusBadge';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { CountUp } from './effects/CountUp';
 import { CodeExportModal } from './CodeExportModal';
 
 interface WorkflowPreset {
@@ -42,7 +29,7 @@ interface WorkflowPreset {
   name: string;
   workflow: string;
   icon: React.ElementType;
-  badge: string;
+  tag: string;
   description: string;
   placeholder: string;
   presets: { label: string; url: string }[];
@@ -51,72 +38,84 @@ interface WorkflowPreset {
 
 const WORKFLOWS: WorkflowPreset[] = [
   {
-    id: 'google_maps',
-    name: 'Google Maps Places',
-    workflow: 'google_maps',
-    icon: MapPin,
-    badge: 'Local Listings',
-    description: 'Extract business titles, physical addresses, review counts, ratings, and categories.',
-    placeholder: 'https://www.google.com/maps/place/...',
+    id: 'products',
+    name: 'Amazon E-Commerce',
+    workflow: 'products',
+    icon: ShoppingBag,
+    tag: 'Retail & Pricing',
+    description: 'Extract real-time BuyBox prices, stock availability, seller details, review counts, and high-res images.',
+    placeholder: 'https://www.amazon.com/dp/... or https://www.amazon.in/dp/...',
     presets: [
-      { label: 'Pizza Inn Magdeburg (Germany)', url: 'https://www.google.com/maps/place/Pizza+Inn+Magdeburg/@52.1263086,11.6094743,761m/' },
-      { label: 'The CrossFit Bar', url: 'https://www.google.com/maps/place/The+CrossFit+Bar/@-32.7434276,151.856234,17z' },
+      { label: 'Sony WH-1000XM5 (Amazon US)', url: 'https://www.amazon.com/dp/B09XS7JWHH' },
+      { label: 'Portronics Toofan Fan (Amazon IN)', url: 'https://www.amazon.in/Portronics-Rechargeable-Handheld-High-Speed-Charging/dp/B0H5Q91GST' },
     ],
-    sampleAttributes: ['title', 'address', 'rating', 'reviews_count', 'phone', 'category']
+    sampleAttributes: ['title', 'price', 'currency', 'availability', 'rating', 'seller']
+  },
+  {
+    id: 'tech_docs',
+    name: 'Tech Docs & API Specs',
+    workflow: 'tech_docs',
+    icon: Code2,
+    tag: 'Scraper Studio Custom',
+    description: 'Extract API guides, code snippets, documentation sections, and version changes from long-tail developer sites.',
+    placeholder: 'https://docs.example.com/...',
+    presets: [
+      { label: 'Scraper Studio DCA Guide v1', url: 'https://demo.local/tech_docs_v1.html' },
+      { label: 'Scraper Studio Redesigned v2', url: 'https://demo.local/tech_docs_redesign.html' },
+    ],
+    sampleAttributes: ['doc_title', 'section_heading', 'content_body', 'code_snippet', 'last_updated']
   },
   {
     id: 'linkedin',
     name: 'LinkedIn Profiles',
     workflow: 'linkedin',
-    icon: UserCheck,
-    badge: 'Executive Talent',
-    description: 'Extract professional profiles, titles, current organizations, locations, and connections.',
+    icon: Briefcase,
+    tag: 'Executive Talent',
+    description: 'Extract professional profile names, current organizations, locations, education, and connections.',
     placeholder: 'https://www.linkedin.com/in/username',
     presets: [
+      { label: 'CodingStark Profile', url: 'https://www.linkedin.com/in/codingstark/' },
       { label: 'Elad Moshe (Director)', url: 'https://www.linkedin.com/in/elad-moshe-05a90413/' },
-      { label: 'Aviv Tal (Tech Executive)', url: 'https://www.linkedin.com/in/aviv-tal-75b81/' },
     ],
-    sampleAttributes: ['name', 'headline', 'current_company', 'location', 'about', 'connections']
+    sampleAttributes: ['name', 'headline', 'current_company', 'location', 'education', 'connections']
   },
   {
     id: 'x',
-    name: 'X (Twitter)',
+    name: 'X (Twitter) Feed',
     workflow: 'x',
     icon: MessageCircle,
-    badge: 'Social Pulse',
-    description: 'Extract post content, author handles, likes, reposts, reply counts, and timestamps.',
+    tag: 'Social Intelligence',
+    description: 'Extract live post text, author usernames, like counts, reposts, reply metrics, and timestamps.',
     placeholder: 'https://x.com/username/status/...',
     presets: [
-      { label: 'Fabrizio Romano Post', url: 'https://x.com/FabrizioRomano/status/1683559267524136962' },
-      { label: 'CNN Breaking News', url: 'https://x.com/CNN/status/1796673270344810776' },
+      { label: 'Konig Hiring Post', url: 'https://x.com/konig0000/status/2089565885149466685?s=20' },
+      { label: 'Fabrizio Romano Breaking', url: 'https://x.com/FabrizioRomano/status/1683559267524136962' },
     ],
     sampleAttributes: ['user_posted', 'description', 'likes', 'reposts', 'replies', 'date_posted']
   },
   {
-    id: 'products',
-    name: 'Amazon E-Commerce',
-    workflow: 'products',
-    icon: ShoppingBag,
-    badge: 'Retail Intelligence',
-    description: 'Extract live product prices, BuyBox stock status, ratings, sellers, and images.',
-    placeholder: 'https://www.amazon.com/dp/...',
+    id: 'jobs',
+    name: 'Talent & Job Careers',
+    workflow: 'jobs',
+    icon: Briefcase,
+    tag: 'Labor Markets',
+    description: 'Extract career postings, hiring organizations, compensation, locations, and requirements.',
+    placeholder: 'https://jobs.lever.co/... or careers URL',
     presets: [
-      { label: 'Sony WH-1000XM5', url: 'https://www.amazon.com/dp/B09XS7JWHH' },
-      { label: 'Apple iPhone 15', url: 'https://www.amazon.com/dp/B0CHX1W1XY' },
+      { label: 'Stripe Staff Architect (Lever)', url: 'https://jobs.lever.co/stripe/staff-backend-engineer' },
     ],
-    sampleAttributes: ['title', 'price', 'currency', 'availability', 'rating', 'seller']
+    sampleAttributes: ['job_title', 'company', 'location', 'employment_type', 'description']
   },
   {
     id: 'instagram',
     name: 'Instagram Profiles',
     workflow: 'instagram',
     icon: Camera,
-    badge: 'Creator Metrics',
+    tag: 'Creator Metrics',
     description: 'Extract creator handles, follower counts, following, post counts, and bios.',
     placeholder: 'https://www.instagram.com/username/',
     presets: [
-      { label: 'Cristiano Ronaldo', url: 'https://www.instagram.com/cristiano/' },
-      { label: 'Dogs of Instagram', url: 'https://www.instagram.com/dogsofinstagram/' },
+      { label: 'Cristiano Ronaldo (679M)', url: 'https://www.instagram.com/cristiano/' },
     ],
     sampleAttributes: ['username', 'full_name', 'biography', 'followers_count', 'posts_count']
   },
@@ -124,57 +123,42 @@ const WORKFLOWS: WorkflowPreset[] = [
     id: 'reddit',
     name: 'Reddit Discussions',
     workflow: 'reddit',
-    icon: MessageSquare,
-    badge: 'Community Threads',
-    description: 'Extract thread titles, subreddits, user submissions, upvote counts, and comments.',
+    icon: MessageCircle,
+    tag: 'Community Threads',
+    description: 'Extract thread titles, subreddits, user submissions, upvote counts, and comment volume.',
     placeholder: 'https://www.reddit.com/r/.../comments/...',
     presets: [
-      { label: 'Technology Discussion', url: 'https://www.reddit.com/r/technology/comments/1example_thread/' },
-      { label: 'Battlefield Update', url: 'https://www.reddit.com/r/battlefield2042/comments/1cmqs1d/official_update_on_the_next_battlefield_game/' },
+      { label: 'Battlefield Update (2.1k Upvotes)', url: 'https://www.reddit.com/r/battlefield2042/comments/1cmqs1d/official_update_on_the_next_battlefield_game/' },
     ],
-    sampleAttributes: ['title', 'subreddit', 'user_posted', 'description', 'upvotes']
+    sampleAttributes: ['title', 'subreddit', 'user_posted', 'upvotes', 'num_comments']
   },
   {
-    id: 'jobs',
-    name: 'Talent & Job Postings',
-    workflow: 'jobs',
-    icon: Briefcase,
-    badge: 'Labor Markets',
-    description: 'Extract role titles, organizations, locations, compensation, and descriptions.',
-    placeholder: 'https://jobs.lever.co/... or careers URL',
+    id: 'google_maps',
+    name: 'Google Maps Places',
+    workflow: 'google_maps',
+    icon: MapPin,
+    tag: 'Local POI',
+    description: 'Extract business titles, physical addresses, review counts, ratings, and categories.',
+    placeholder: 'https://www.google.com/maps/place/...',
     presets: [
-      { label: 'Staff Backend Architect', url: 'https://jobs.lever.co/stripe/staff-backend-engineer' },
+      { label: 'Pizza Inn Magdeburg (Germany)', url: 'https://www.google.com/maps/place/Pizza+Inn+Magdeburg/@52.1263086,11.6094743,761m/' },
     ],
-    sampleAttributes: ['job_title', 'company', 'location', 'employment_type', 'description']
-  },
-  {
-    id: 'tech_docs',
-    name: 'Tech Docs & API Specs',
-    workflow: 'tech_docs',
-    icon: Code2,
-    badge: 'Scraper Studio Custom',
-    description: 'Extract API guides, code snippets, documentation sections, and version changes from long-tail developer websites.',
-    placeholder: 'https://docs.example.com/...',
-    presets: [
-      { label: 'Scraper Studio DCA Guide v1', url: 'https://demo.local/tech_docs_v1.html' },
-      { label: 'Scraper Studio DCA Redesigned v2', url: 'https://demo.local/tech_docs_redesign.html' },
-    ],
-    sampleAttributes: ['doc_title', 'section_heading', 'content_body', 'code_snippet', 'last_updated']
+    sampleAttributes: ['title', 'address', 'rating', 'reviews_count', 'phone', 'category']
   },
 ];
-
 
 interface WorkflowsStudioProps {
   setActiveTab?: (tab: string) => void;
 }
 
-export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = ({ setActiveTab }) => {
+export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowPreset>(WORKFLOWS[0]);
   const [targetUrl, setTargetUrl] = useState<string>(WORKFLOWS[0].presets[0].url);
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<any>(null);
-  const [activeInspectorView, setActiveInspectorView] = useState<'visual' | 'json' | 'code'>('visual');
-  const [copiedAll, setCopiedAll] = useState<boolean>(false);
+  const [activeView, setActiveView] = useState<'card' | 'json' | 'code'>('card');
+  const [copiedJson, setCopiedJson] = useState<boolean>(false);
+  const [showCodeModal, setShowCodeModal] = useState<boolean>(false);
   const { showToast } = useToast();
 
   const handleSelectWorkflow = (wf: WorkflowPreset) => {
@@ -210,268 +194,249 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = ({ setActiveTab }
   const handleCopyJson = () => {
     if (!result) return;
     navigator.clipboard.writeText(JSON.stringify(result.extracted_data, null, 2));
-    setCopiedAll(true);
-    setTimeout(() => setCopiedAll(false), 2000);
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
     showToast('info', 'JSON Copied', 'Extracted payload copied to clipboard');
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-16">
-      {/* ── WORKSPACE HEADER ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.07] pb-5">
+    <div className="space-y-6 pb-12 font-sans">
+      {/* ── TOP HEADER ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Universal Extraction Studio
+          <h1 className="text-xl font-bold font-sans text-white flex items-center gap-2">
+            <Layers size={18} className="text-blue-400" />
+            Extraction Studio & Multi-Schema Matrix
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Production schema pipeline with multi-strategy fallback and automated regression verification.
+          <p className="text-xs text-slate-400 mt-0.5">
+            Select a target workflow, paste any URL, or test built-in production presets.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-semibold px-3 py-1 rounded-xl bg-white/[0.04] text-slate-300 border border-white/10">
-            Active Engine: Multi-Strategy v2.4
-          </span>
+          <button
+            onClick={() => setShowCodeModal(true)}
+            className="hw-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 text-xs font-mono"
+          >
+            <FileCode size={13} className="text-cyan-400" />
+            <span>Generate SDK Code</span>
+          </button>
         </div>
       </div>
 
-      {/* ── SPLIT WORKBENCH: 35% LEFT CONTROL DOCK / 65% RIGHT LIVE STAGE ── */}
+      {/* ── WORKFLOW TABS ROW ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+        {WORKFLOWS.map((wf) => {
+          const Icon = wf.icon;
+          const isSelected = selectedWorkflow.id === wf.id;
+          return (
+            <button
+              key={wf.id}
+              onClick={() => handleSelectWorkflow(wf)}
+              className={`hw-panel p-3 text-left transition-all hw-btn ${
+                isSelected
+                  ? 'border-blue-500 bg-blue-600/10 shadow-sm'
+                  : 'hover:bg-white/[0.02]'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <Icon size={14} className={isSelected ? 'text-blue-400' : 'text-slate-500'} />
+                <span className="text-[9px] font-mono text-slate-500">{wf.tag}</span>
+              </div>
+              <div className="text-xs font-bold text-white truncate">{wf.name}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── MAIN WORKSPACE SPLIT: TARGET CONTROLS & LIVE INSPECTOR ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Control Deck (4 cols) */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* Platform Preset Selector */}
-          <div className="p-4 rounded-2xl bg-[#0e1017] border border-white/[0.08] space-y-3">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Platform Pipelines ({WORKFLOWS.length})
-            </span>
+        {/* Left Column: Target Configuration */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="hw-panel p-5 space-y-4">
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                Target Platform Specification
+              </span>
+              <h2 className="text-base font-bold text-white">{selectedWorkflow.name}</h2>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {selectedWorkflow.description}
+              </p>
+            </div>
 
+            {/* URL Input */}
             <div className="space-y-1.5">
-              {WORKFLOWS.map((wf) => {
-                const isSelected = selectedWorkflow.id === wf.id;
-                const Icon = wf.icon;
-                return (
-                  <button
-                    key={wf.id}
-                    onClick={() => handleSelectWorkflow(wf)}
-                    className={`w-full p-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer border flex items-center justify-between group ${
-                      isSelected
-                        ? 'bg-indigo-600/15 border-indigo-500/40 text-white shadow-sm shadow-indigo-500/10'
-                        : 'bg-white/[0.015] hover:bg-white/[0.04] border-white/[0.05] text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-slate-400 group-hover:text-white'}`}>
-                        <Icon size={16} />
-                      </div>
-                      <div>
-                        <span className="text-xs font-semibold block">{wf.name}</span>
-                        <span className="text-[10px] mono text-slate-500 block">{wf.badge}</span>
-                      </div>
-                    </div>
-
-                    <ChevronRight size={14} className={isSelected ? 'text-indigo-400' : 'text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity'} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Target URL Input Dock */}
-          <div className="p-4 rounded-2xl bg-[#0e1017] border border-white/[0.08] space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
-                Target URL
-              </span>
-              <span className="text-[10px] mono text-indigo-400 font-bold uppercase">
-                {selectedWorkflow.workflow}
-              </span>
-            </div>
-
-            <div className="relative">
+              <label className="text-xs font-mono font-semibold text-slate-300">Target URL</label>
               <input
                 type="text"
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
                 placeholder={selectedWorkflow.placeholder}
-                className="w-full pl-3 pr-8 py-2 rounded-xl bg-black/50 border border-white/10 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#0c0e14] border border-white/[0.1] rounded-lg px-3.5 py-2.5 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
               />
-              <Globe size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
             </div>
 
-            {/* Quick Sample URL Presets */}
-            {selectedWorkflow.presets.length > 0 && (
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] font-mono text-slate-500 block">Sample Live Fixtures:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedWorkflow.presets.map((pr) => (
-                    <button
-                      key={pr.label}
-                      onClick={() => setTargetUrl(pr.url)}
-                      className="px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-[11px] font-mono text-slate-300 transition-colors cursor-pointer"
-                    >
-                      {pr.label}
-                    </button>
-                  ))}
+            {/* Built-in Presets */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-mono text-slate-400 block">Verified Sample Targets:</span>
+              <div className="space-y-1.5">
+                {selectedWorkflow.presets.map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setTargetUrl(p.url)}
+                    className="w-full text-left p-2 rounded bg-[#0c0e14] hover:bg-white/[0.04] border border-white/[0.06] text-xs font-mono text-slate-300 hover:text-white transition-all flex items-center justify-between group"
+                  >
+                    <span className="truncate">{p.label}</span>
+                    <ArrowRight size={12} className="text-blue-400 opacity-50 group-hover:opacity-100 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Schema Attributes Chip List */}
+            <div className="pt-3 border-t border-white/[0.06] space-y-1.5">
+              <span className="text-[10px] font-mono uppercase text-slate-400 block">Schema Contract Attributes</span>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedWorkflow.sampleAttributes.map((attr) => (
+                  <span
+                    key={attr}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] text-slate-300 border border-white/[0.06]"
+                  >
+                    {attr}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Execute Button */}
+            <button
+              onClick={handleRunScrape}
+              disabled={loading || !targetUrl.trim()}
+              className="w-full hw-btn py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <Zap size={14} className="animate-spin text-white" />
+                  <span>Extracting Live Dataset...</span>
+                </>
+              ) : (
+                <>
+                  <Play size={14} />
+                  <span>Execute Extraction</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Live Holographic Entity Inspector */}
+        <div className="lg:col-span-7 hw-panel p-5 flex flex-col min-h-[480px]">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Terminal size={15} className="text-blue-400" />
+              <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-300">
+                Live Entity Inspector
+              </h3>
+            </div>
+
+            {result && (
+              <div className="flex items-center gap-2">
+                <div className="flex bg-[#0c0e14] p-0.5 rounded-lg border border-white/[0.06] text-xs font-mono">
+                  <button
+                    onClick={() => setActiveView('card')}
+                    className={`px-3 py-1 rounded transition-colors ${activeView === 'card' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    Card
+                  </button>
+                  <button
+                    onClick={() => setActiveView('json')}
+                    className={`px-3 py-1 rounded transition-colors ${activeView === 'json' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    JSON
+                  </button>
                 </div>
+
+                <button
+                  onClick={handleCopyJson}
+                  className="hw-btn flex items-center gap-1 px-3 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-xs font-mono text-slate-300 border border-white/[0.08]"
+                >
+                  {copiedJson ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+                </button>
               </div>
             )}
-
-            {/* Run Button */}
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleRunScrape}
-              isLoading={loading}
-              leftIcon={<Play size={14} fill="currentColor" />}
-              className="w-full shadow-lg shadow-indigo-500/20"
-            >
-              {loading ? 'Executing Extraction Pipeline...' : 'Run Extraction Pipeline'}
-            </Button>
           </div>
 
-          {/* Schema Attributes Checklist */}
-          <div className="p-4 rounded-2xl bg-[#0e1017] border border-white/[0.08] space-y-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
-              Schema Target Contract
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedWorkflow.sampleAttributes.map((attr) => (
-                <span 
-                  key={attr}
-                  className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/10 text-[10px] mono text-slate-300"
-                >
-                  +{attr}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Live Data Inspector Stage (8 cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="rounded-2xl bg-[#0e1017] border border-white/[0.08] overflow-hidden flex flex-col min-h-[580px]">
-            {/* Inspector Top Bar */}
-            <div className="p-4 border-b border-white/[0.07] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.01]">
-              <div className="flex items-center gap-3">
-                {result ? (
-                  <>
-                    <StatusBadge status={result.status} size="sm" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-white">
-                          Run #{result.run_id}
-                        </span>
-                        <span className="text-slate-600">·</span>
-                        <span className="text-xs mono text-indigo-400 font-semibold">
-                          {result.selected_strategy || 'multi_strategy_engine'}
-                        </span>
-                      </div>
-                      <span className="text-[11px] mono text-slate-500 truncate block max-w-md">
-                        {result.target_url}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-                    <Terminal size={15} className="text-indigo-400" />
-                    <span>Awaiting Execution Output</span>
-                  </div>
-                )}
-              </div>
-
-              {/* View Switcher & Actions */}
-              <div className="flex items-center gap-2">
-                <div className="flex p-1 rounded-xl bg-black/40 border border-white/10 text-xs">
-                  <button
-                    onClick={() => setActiveInspectorView('visual')}
-                    className={`px-3 py-1 rounded-lg font-mono font-bold transition-all cursor-pointer ${
-                      activeInspectorView === 'visual' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Visual Grid
-                  </button>
-                  <button
-                    onClick={() => setActiveInspectorView('json')}
-                    className={`px-3 py-1 rounded-lg font-mono font-bold transition-all cursor-pointer ${
-                      activeInspectorView === 'json' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Raw JSON
-                  </button>
-                </div>
-
-                {result && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleCopyJson}
-                    leftIcon={copiedAll ? <CheckCheck size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                  >
-                    {copiedAll ? 'Copied' : 'Copy'}
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Inspector Canvas Body */}
-            <div className="flex-1 p-5">
-              {loading ? (
-                <div className="h-full min-h-[400px] flex flex-col items-center justify-center space-y-4">
-                  <div className="w-10 h-10 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-                  <span className="text-xs font-mono text-slate-400">
-                    Extracting DOM structures & executing heuristic normalizers...
+          {/* Results Body */}
+          {result ? (
+            <div className="flex-1 space-y-4">
+              {/* Telemetry Header */}
+              <div className="p-3 rounded-lg bg-[#0c0e14] border border-white/[0.06] flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2.5">
+                  <StatusBadge status={result.status} />
+                  <span className="text-slate-400">
+                    Quality: <strong className="text-emerald-400">{result.quality_score}%</strong>
                   </span>
                 </div>
-              ) : result ? (
-                activeInspectorView === 'visual' ? (
-                  <div className="space-y-4 animate-fade-in">
-                    {/* Quality Banner */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                      <span className="text-xs font-mono text-slate-400">Schema Validation Score:</span>
-                      <span className="text-sm font-mono font-bold text-emerald-400">
-                        <CountUp end={result.quality_score} suffix="%" />
-                      </span>
-                    </div>
-
-                    {/* Key Value Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {Object.entries(result.extracted_data || {}).map(([key, val]) => {
-                        if (val === null || val === undefined) return null;
-                        return (
-                          <div key={key} className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-1">
-                            <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block">
-                              {key.replace(/_/g, ' ')}
-                            </span>
-                            <span className="text-xs font-mono text-white font-semibold block truncate" title={String(val)}>
-                              {String(val)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl bg-black/60 border border-white/10 font-mono text-xs text-emerald-300 overflow-x-auto max-h-[500px] animate-fade-in">
-                    <pre>
-                      <code>{JSON.stringify(result.extracted_data, null, 2)}</code>
-                    </pre>
-                  </div>
-                )
-              ) : (
-                <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-slate-500">
-                    <Terminal size={20} />
-                  </div>
-                  <h3 className="text-sm font-semibold text-white">No Active Extraction</h3>
-                  <p className="text-xs text-slate-500 max-w-sm">
-                    Select a platform preset on the left or enter a custom target URL, then click Run Extraction Pipeline.
-                  </p>
+                <div className="text-slate-400">
+                  Duration: <strong className="text-white">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-400">{result.selected_strategy}</strong>
                 </div>
+              </div>
+
+              {activeView === 'card' ? (
+                /* Formatted Entity Card */
+                <div className="p-4 rounded-lg bg-[#0c0e14] border border-white/[0.06] space-y-3">
+                  <h4 className="text-base font-bold text-white">
+                    {result.extracted_data?.title || result.extracted_data?.name || result.extracted_data?.job_title || result.extracted_data?.doc_title || 'Extracted Entity'}
+                  </h4>
+
+                  {result.extracted_data?.price !== undefined && (
+                    <div className="text-lg font-mono font-bold text-emerald-400">
+                      {result.extracted_data?.currency || '$'} {result.extracted_data?.price}
+                    </div>
+                  )}
+
+                  {/* Attribute Chips Grid */}
+                  <div className="grid grid-cols-2 gap-2 font-mono text-xs pt-2 border-t border-white/[0.04]">
+                    {Object.entries(result.extracted_data || {}).map(([k, v]) => {
+                      if (k.includes('_url') || k === 'title' || k === 'price' || !v) return null;
+                      return (
+                        <div key={k} className="p-2 rounded bg-black/40 border border-white/[0.04]">
+                          <span className="text-[10px] text-slate-500 uppercase block">{k}</span>
+                          <span className="text-slate-200 truncate block">{String(v)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* Raw Syntax JSON Tree */
+                <pre className="p-4 rounded-lg bg-black/60 border border-white/[0.06] text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px]">
+                  {JSON.stringify(result.extracted_data, null, 2)}
+                </pre>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 font-mono space-y-2">
+              <Layers size={32} className="text-slate-700 mb-2" />
+              <div className="text-xs text-slate-400">No active extraction results</div>
+              <p className="text-[11px] max-w-sm">
+                Click "Execute Extraction" to trigger the multi-strategy pipeline and view live structured payloads.
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Code Export Modal */}
+      {showCodeModal && (
+        <CodeExportModal
+          isOpen={showCodeModal}
+          onClose={() => setShowCodeModal(false)}
+          targetUrl={targetUrl}
+          workflowType={selectedWorkflow.workflow}
+        />
+      )}
     </div>
   );
 };
