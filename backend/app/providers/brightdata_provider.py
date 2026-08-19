@@ -370,7 +370,7 @@ class BrightDataProvider(ScraperProvider):
                 if html_res.status_code == 200 and len(html_res.text) > 100:
                     return {
                         "status": "success",
-                        "provider_run_id": "live_web_unlocker",
+                        "provider_run_id": "live_web_fetch",
                         "dataset_id": dataset_id or f"web_{schema.name}",
                         "raw_html": html_res.text,
                         "raw_result": {}

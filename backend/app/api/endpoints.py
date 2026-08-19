@@ -725,5 +725,10 @@ def export_runs(format: str = Query("json", pattern="^(json|csv|ndjson)$"), db: 
     else:
         return {"total_records": len(records), "records": records}
 
+@router.get("/metrics")
+def get_system_metrics(db: Session = Depends(get_db)):
+    """Computes and returns live system reliability, execution speed, healing, and rule bundle metrics."""
+    return MetricsService.get_metrics(db)
+
 
 

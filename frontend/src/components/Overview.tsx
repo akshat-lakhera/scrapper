@@ -217,7 +217,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setScrapeMode('single')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+            className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
               scrapeMode === 'single' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
             }`}
           >
@@ -225,7 +225,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </button>
           <button
             onClick={() => setScrapeMode('batch')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               scrapeMode === 'batch' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
             }`}
           >
@@ -234,7 +234,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </button>
           <button
             onClick={() => setScrapeMode('crawl')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               scrapeMode === 'crawl' ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
             }`}
           >
@@ -248,7 +248,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           <button
             onClick={handleSimulateDrift}
             disabled={simulatingDrift}
-            className="px-3.5 py-1.5 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-white/20 hover:border-amber-400/50 text-slate-200 hover:text-amber-200 text-xs font-mono font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            className="tactile-press px-3.5 py-1.5 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-white/20 hover:border-amber-400/50 text-slate-200 hover:text-amber-200 text-xs font-mono font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
             title="Simulate upstream DOM breaking changes and trigger autonomous selector synthesis"
           >
             <Wrench className={`w-3.5 h-3.5 text-amber-400 ${simulatingDrift ? 'animate-spin' : ''}`} />
@@ -259,7 +259,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
       {/* ── DEEP CRAWLER RESULTS ACCORDION (Shown if crawl executed) ── */}
       {crawlResult && (
-        <SpotlightCard className="p-6 border-purple-500/30 bg-purple-950/10 space-y-4">
+        <SpotlightCard className="enter-fade-up p-6 border-purple-500/30 bg-purple-950/10 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
@@ -296,7 +296,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
       {/* ── DRIFT SIMULATION HIGHLIGHT CARD (Shown if drift simulated) ── */}
       {driftResult && (
-        <SpotlightCard className="p-6 border-amber-500/30 bg-amber-950/10 space-y-4">
+        <SpotlightCard className="enter-fade-up p-6 border-amber-500/30 bg-amber-950/10 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
@@ -332,12 +332,17 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             <div>
               <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-1">Promoted Hot-Patch Selectors:</span>
               <div className="space-y-1 text-slate-300">
-                {Object.entries(driftResult.patch_details?.selector_diff || {}).map(([f, sel]: any) => (
-                  <div key={f} className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>{f}: <strong className="text-emerald-300">{sel}</strong></span>
-                  </div>
-                ))}
+                {Object.entries(driftResult.patch_details?.selector_diff || {}).map(([f, sel]: any) => {
+                  const selText = typeof sel === 'object' && sel !== null
+                    ? (sel.new_selector || sel.selector || JSON.stringify(sel))
+                    : String(sel);
+                  return (
+                    <div key={f} className="flex items-center gap-2">
+                      <span className="text-emerald-400">✓</span>
+                      <span>{f}: <strong className="text-emerald-300">{typeof selText === 'object' ? JSON.stringify(selText) : String(selText)}</strong></span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -463,16 +468,16 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           {/* Action Row */}
           <div className="mt-8 pt-4 border-t border-white/10 flex items-center justify-between">
             <span className="text-xs font-mono text-slate-300 font-medium">
-              Autonomous unblocking via Bright Data Web Unlocker
+              Provider: Bright Data Scraper Studio & Datasets v3
             </span>
 
-            <button
-              onClick={handleExecuteLiveScrape}
-              disabled={loading || (scrapeMode !== 'batch' && !urlInput.trim())}
-              className={`btn-pulse px-8 py-3.5 rounded-xl text-white font-bold text-sm flex items-center gap-2.5 shadow-xl transition-all disabled:opacity-50 cursor-pointer ${
-                scrapeMode === 'crawl' ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
-              }`}
-            >
+              <button
+                onClick={handleExecuteLiveScrape}
+                disabled={loading || (scrapeMode !== 'batch' && !urlInput.trim())}
+                className={`btn-pulse tactile-press px-8 py-3.5 rounded-xl text-white font-bold text-sm flex items-center gap-2.5 shadow-xl transition-all disabled:opacity-50 cursor-pointer ${
+                  scrapeMode === 'crawl' ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
+                }`}
+              >
               {loading ? (
                 <>
                   <Zap className="w-4 h-4 animate-spin text-white" />
@@ -566,10 +571,10 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                   
                   <div className="space-y-2 text-[11px] text-slate-200 font-mono">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-300">Proxy Gateway:</span>
+                      <span className="text-slate-300">Active Provider:</span>
                       <span className="text-emerald-400 font-bold flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Bright Data Unlocker
+                        Bright Data Datasets v3
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -659,7 +664,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 <span className="font-bold text-white text-sm">01 CRAWL</span>
                 <span className="text-[10px] text-slate-100 bg-white/15 px-2 py-0.5 rounded-full font-bold border border-white/10">Bright Data</span>
               </div>
-              <p className="text-xs text-slate-100 font-semibold leading-relaxed">Web Unlocker & Proxy Cluster</p>
+              <p className="text-xs text-slate-100 font-semibold leading-relaxed">Scraper Studio / Datasets v3</p>
             </div>
 
             {/* Step 2 */}
@@ -726,7 +731,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
               </span>
               <span className="text-slate-600 hidden sm:inline">|</span>
               <div className="flex items-center gap-1 text-[11px] text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-0.5 rounded-full font-bold">
-                <span>Tunnel: Bright Data Unlocker (US/EU/APAC)</span>
+                <span>Provider: Bright Data Datasets v3 / Studio</span>
               </div>
             </div>
           </div>
@@ -739,9 +744,9 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             <div className="space-y-1">
               <span className="text-xs font-mono text-slate-400 font-bold uppercase">Data Reliability</span>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.overall_reliability || 96} suffix="%" />
+                <CountUp end={metrics?.overall_reliability !== undefined ? metrics.overall_reliability : 100} suffix="%" />
               </div>
-              <span className="text-[11px] text-slate-400 block">Strict Pydantic contracts</span>
+              <span className="text-[11px] text-slate-400 block">Pydantic validation rate</span>
             </div>
             <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
               <svg className="w-full h-full" viewBox="0 0 36 36">
@@ -754,7 +759,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 />
                 <path
                   className="text-emerald-400 progress-ring-circle"
-                  strokeDasharray="96, 100"
+                  strokeDasharray={`${metrics?.overall_reliability || 100}, 100`}
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   stroke="currentColor"
@@ -771,9 +776,9 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             <div className="space-y-1">
               <span className="text-xs font-mono text-slate-400 font-bold uppercase">Mean Speed</span>
               <div className="text-3xl font-extrabold font-mono text-white">
-                12<span className="text-base text-blue-400 font-normal">ms</span>
+                <CountUp end={metrics?.avg_duration_ms !== undefined ? Math.round(metrics.avg_duration_ms) : 0} /><span className="text-base text-blue-400 font-normal">ms</span>
               </div>
-              <span className="text-[11px] text-slate-400 block">Zero-latency extraction</span>
+              <span className="text-[11px] text-slate-400 block">Average execution latency</span>
             </div>
             <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
               <svg className="w-full h-full" viewBox="0 0 36 36">
@@ -786,7 +791,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 />
                 <path
                   className="text-blue-400 progress-ring-circle"
-                  strokeDasharray="85, 100"
+                  strokeDasharray="80, 100"
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   stroke="currentColor"
@@ -803,7 +808,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             <div className="space-y-1">
               <span className="text-xs font-mono text-slate-400 font-bold uppercase">Self-Healing Rate</span>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.healing_success_rate || 100} suffix="%" />
+                <CountUp end={metrics?.healing_success_rate !== undefined ? Math.round(metrics.healing_success_rate) : 100} suffix="%" />
               </div>
               <span className="text-[11px] text-slate-400 block">Holdout validated (≥ 70%)</span>
             </div>
@@ -818,7 +823,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 />
                 <path
                   className="text-amber-400 progress-ring-circle"
-                  strokeDasharray="100, 100"
+                  strokeDasharray={`${metrics?.healing_success_rate || 100}, 100`}
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   stroke="currentColor"
@@ -835,7 +840,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             <div className="space-y-1">
               <span className="text-xs font-mono text-slate-400 font-bold uppercase">Rule Bundles</span>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.template_count || 4} />
+                <CountUp end={metrics?.template_count !== undefined ? metrics.template_count : 1} />
               </div>
               <span className="text-[11px] text-slate-400 block">DOM Hash Keyed</span>
             </div>
@@ -881,13 +886,13 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                 <div className="flex bg-[#090c13] p-1 rounded-lg border border-white/10 text-xs font-mono">
                   <button
                     onClick={() => setActiveView('card')}
-                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                    className={`tactile-press px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                   >
                     Visual Card
                   </button>
                   <button
                     onClick={() => setActiveView('json')}
-                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                    className={`tactile-press px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                   >
                     Raw JSON
                   </button>
@@ -895,7 +900,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
                 <button
                   onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-200 border border-white/10 transition-colors cursor-pointer"
+                  className="tactile-press flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-slate-200 border border-white/10 transition-colors cursor-pointer"
                 >
                   {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
@@ -904,7 +909,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
             </div>
 
             {activeView === 'card' ? (
-              <div className="bg-[#090c13] border border-white/10 rounded-xl p-6 space-y-4">
+              <div key="card" className="crossfade-view bg-[#090c13] border border-white/10 rounded-xl p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                   {/* Product Image Preview */}
                   {(extractedResult.extracted_data?.image_url || extractedResult.extracted_data?.image) && (

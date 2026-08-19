@@ -21,14 +21,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newToast: ToastItem = { id, type, title, message, duration };
 
       setToasts((prev) => [...prev.slice(-4), newToast]); // keep max 5 toasts
-
-      if (duration > 0) {
-        setTimeout(() => {
-          dismissToast(id);
-        }, duration);
-      }
     },
-    [dismissToast]
+    []
   );
 
   const showCopyToast = useCallback(

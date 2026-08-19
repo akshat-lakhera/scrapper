@@ -113,7 +113,7 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
               </div>
             </div>
             <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold">
-              ● Web Unlocker Active
+              ● {isLive ? 'Datasets v3 / Scraper Studio' : 'Offline Mode'}
             </span>
           </div>
 

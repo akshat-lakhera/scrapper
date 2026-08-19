@@ -46,13 +46,13 @@ class RAGService:
         
         if any(re.search(pat, q_lower) for pat in general_patterns):
             answer = (
-                "**Hello! I am MarketScout Intelligence Assistant**, your autonomous AI agent for web data extraction, living RAG, and self-healing scraping.\n\n"
+                "**Hello! I am MarketScout Intelligence Assistant**, your AI agent for web data extraction, grounded RAG, and validation-gated self-healing scraping.\n\n"
                 "### Key Capabilities:\n"
-                "- **8 Platform Schemas**: Amazon E-Commerce, LinkedIn Profiles, X (Twitter), Talent/Jobs (Lever/Indeed), Tech Docs & API Specs, Instagram, Reddit, and Google Maps.\n"
-                "- **Bright Data Web Unlocker**: Bypasses CAPTCHAs, bot protections, and geo-blocks autonomously.\n"
-                "- **Multi-Strategy Pipeline**: Uses JSON-LD schema, OpenGraph meta tags, and semantic DOM heuristics with 0% data rot.\n"
-                "- **Self-Healing Engine**: Automatically diagnoses DOM structural drifts and hot-patches CSS selectors without downtime.\n\n"
-                "**How to use**: Navigate to **Command Center** or **Extraction Studio**, paste any target URL, click **Deploy Scraper Pipeline**, and then ask me anything about your scraped data!"
+                "- **8 Target Schema Contracts**: Amazon E-Commerce, LinkedIn Profiles, X (Twitter), Talent/Jobs, Tech Docs & API Specs, Instagram, Reddit, and Google Maps.\n"
+                "- **Bright Data Scraper Studio & Datasets v3**: Manages structured web scraping and custom data collectors.\n"
+                "- **Multi-Strategy Pipeline**: Uses JSON-LD schema, OpenGraph meta tags, and semantic DOM heuristics with Pydantic validation.\n"
+                "- **Validation-Gated Self-Healing**: Diagnoses DOM structural drift, synthesizes candidate CSS selectors, and enforces regression approval before rule promotion.\n\n"
+                "**How to use**: Navigate to **Command Center** or **Extraction Studio**, paste any target URL, click **Deploy Agent**, and then ask me anything about your scraped data!"
             )
             return {
                 "query": query,

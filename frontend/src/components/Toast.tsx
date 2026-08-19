@@ -25,6 +25,24 @@ interface ToastProps {
 }
 
 export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
+  const [isExiting, setIsExiting] = React.useState(false);
+
+  const handleDismiss = React.useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onDismiss(toast.id);
+    }, 160);
+  }, [onDismiss, toast.id]);
+
+  React.useEffect(() => {
+    if (toast.duration && toast.duration > 0) {
+      const timer = setTimeout(() => {
+        handleDismiss();
+      }, toast.duration);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.duration, handleDismiss]);
+
   const getIcon = () => {
     switch (toast.type) {
       case 'success':
@@ -68,7 +86,7 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   return (
     <div
       role="alert"
-      className="stagger-in flex items-start gap-3 p-4 rounded-xl shadow-2xl backdrop-blur-xl pointer-events-auto max-w-sm w-full transition-all duration-200"
+      className={`${isExiting ? 'toast-exiting' : 'toast-entering'} flex items-start gap-3 p-4 rounded-xl shadow-2xl backdrop-blur-xl pointer-events-auto max-w-sm w-full`}
       style={{
         background: 'rgba(14, 14, 18, 0.94)',
         border: `1px solid ${getBorderColor()}`,
@@ -87,8 +105,8 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
         )}
       </div>
       <button
-        onClick={() => onDismiss(toast.id)}
-        className="shrink-0 p-1 rounded-md text-slate-400 hover:text-white transition-colors focus-ring"
+        onClick={handleDismiss}
+        className="shrink-0 p-1 rounded-md text-slate-400 hover:text-white transition-colors focus-ring cursor-pointer"
         aria-label="Dismiss notification"
       >
         <X size={14} />

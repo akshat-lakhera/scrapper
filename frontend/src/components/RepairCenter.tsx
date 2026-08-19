@@ -341,7 +341,7 @@ export const RepairCenter: React.FC = () => {
                       <button
                         onClick={handleSynthesizeManualPatch}
                         disabled={loading}
-                        className="px-4 py-2 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-mono font-medium flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                        className="tactile-press px-4 py-2 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-mono font-medium flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                       >
                         <Wrench className="w-3.5 h-3.5" />
                         <span>Synthesize Patch</span>
@@ -350,7 +350,7 @@ export const RepairCenter: React.FC = () => {
                       <button
                         onClick={handleRetest}
                         disabled={retestLoading}
-                        className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50"
+                        className="tactile-press px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50"
                       >
                         <Play className="w-3.5 h-3.5 fill-white" />
                         <span>{retestLoading ? 'Executing...' : 'Live Re-Test & Validate'}</span>
@@ -360,7 +360,7 @@ export const RepairCenter: React.FC = () => {
 
                   {/* Re-test result card if exists */}
                   {retestResult && (
-                    <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs font-mono space-y-2">
+                    <div className="enter-fade-up p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs font-mono space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-emerald-400 font-bold flex items-center gap-1.5">
                           <CheckCircle2 className="w-4 h-4" />
@@ -373,7 +373,7 @@ export const RepairCenter: React.FC = () => {
 
                   {/* Patch diff card */}
                   {activePatch ? (
-                    <div className="space-y-4">
+                    <div className="enter-fade-up space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <GitBranch className="w-4 h-4 text-amber-400" />
@@ -387,7 +387,7 @@ export const RepairCenter: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                        <div className="p-4 rounded-xl bg-black/40 border border-rose-500/20 space-y-2">
+                        <div className="enter-fade-up stagger-1 p-4 rounded-xl bg-black/40 border border-rose-500/20 space-y-2">
                           <span className="text-[10px] uppercase font-bold text-rose-400 block">Deprecated / Drifted Selectors:</span>
                           {(Array.isArray(activePatch.broken_fields) 
                             ? activePatch.broken_fields 
@@ -400,7 +400,7 @@ export const RepairCenter: React.FC = () => {
                           ))}
                         </div>
 
-                        <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2">
+                        <div className="enter-fade-up stagger-2 p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2">
                           <span className="text-[10px] uppercase font-bold text-emerald-400 block">Synthesized Replacement Selectors:</span>
                           {Object.entries(
                             typeof activePatch.selector_diff === 'object' && activePatch.selector_diff !== null
@@ -413,7 +413,7 @@ export const RepairCenter: React.FC = () => {
                             return (
                               <div key={f} className="text-slate-200 flex items-center gap-2">
                                 <span className="text-emerald-400">✓</span>
-                                <span>{f}: <strong className="text-emerald-300">{selText}</strong></span>
+                                <span>{f}: <strong className="text-emerald-300">{typeof selText === 'object' ? JSON.stringify(selText) : String(selText)}</strong></span>
                               </div>
                             );
                           })}

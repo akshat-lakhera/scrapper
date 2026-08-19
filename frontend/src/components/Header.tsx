@@ -66,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-mono">
               <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse' : 'bg-amber-400'}`} />
-              <span className="text-slate-300 font-medium">{isLive ? 'Bright Data Web Unlocker' : 'Offline Local Fixtures'}</span>
+              <span className="text-slate-300 font-medium">{isLive ? 'Bright Data Live Provider' : 'Offline Local Fixtures'}</span>
             </div>
           </div>
         </div>

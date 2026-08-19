@@ -1,17 +1,17 @@
-# MarketScout — Web Scraper & Intelligence Platform
+# MarketScout — Web Scraper & Monitoring Platform
 
 <p align="center">
   <a href="https://github.com/akshat-lakhera/scrapper">
-    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=24&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=800&height=50&lines=Web+Scraper+%26+Monitoring+Platform;Validation-Gated+Self-Healing+Workflow;Recursive+Deep+Crawler+%26+Link+Discovery;Visual+DOM+Inspector+%26+Selector+Playground;Conversational+Living+RAG+Nexus;Powered+by+Bright+Data+Datasets+v3" alt="MarketScout Typing Header" />
+    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=700&size=24&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=800&height=50&lines=Web+Scraper+%26+Monitoring+Platform;Bright+Data+Scraper+Studio+Integration;Validation-Gated+Self-Healing+Workflow;Recursive+Deep+Crawler+%26+Link+Discovery;Interactive+DOM+Inspector+%26+Playground;Grounded+RAG+Knowledge+Assistant" alt="MarketScout Typing Header" />
   </a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Hackathon%20Prototype-blue?style=for-the-badge" alt="Status" />
-  <img src="https://img.shields.io/badge/Tests-67%20Passed-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-Passing-emerald?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests" />
   <img src="https://img.shields.io/badge/Self--Healing-Validation--Gated-blueviolet?style=for-the-badge&logo=dependabot&logoColor=white" alt="Self-Healing" />
   <img src="https://img.shields.io/badge/DOM%20Inspector-Interactive-cyan?style=for-the-badge&logo=target&logoColor=white" alt="DOM Inspector" />
-  <img src="https://img.shields.io/badge/Provider-Bright%20Data%20Datasets%20v3-orange?style=for-the-badge&logo=databricks&logoColor=white" alt="Bright Data" />
+  <img src="https://img.shields.io/badge/Provider-Bright%20Data%20Scraper%20Studio-orange?style=for-the-badge&logo=databricks&logoColor=white" alt="Bright Data" />
   <img src="https://img.shields.io/badge/RAG%20LLM-Groq%20Llama%203.3-purple?style=for-the-badge&logo=meta&logoColor=white" alt="Groq Llama 3.3" />
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
 </p>
@@ -22,30 +22,49 @@
 
 **MarketScout** is a hackathon prototype web-data monitoring and scraping platform that demonstrates structured extraction, data-quality validation, degradation detection, and repair-oriented scraper workflows.
 
-The currently verified live integration uses **Bright Data Datasets v3** for Amazon product extraction. The application also includes product/job/tech-docs schemas, offline validation tests, a validation-gated repair state machine, execution run history, a recursive deep crawler, an interactive DOM inspector, and a dark-mode dashboard.
+> **Live-Integration Limitation**: The repository currently verifies the managed Amazon Datasets v3 path live. Scraper Studio custom-collector creation, healing, approval, and rerun are integration wrappers unless a live `c_...` collector test is supplied. Offline selector repair is deterministic and independent of the managed provider.
 
-> **Provider Notice**: The verified live path currently uses **Bright Data Datasets v3** for Amazon product extraction. Bright Data Scraper Studio custom-collector creation (`c_...`) and live healing are separate capabilities that require separate verification. Bright Data Web Unlocker is an independent proxy/unblocking API and is not claimed as active unless specifically configured and tested.
+The project models the **Bright Data Scraper Studio** custom collector lifecycle (`create` $\rightarrow$ `run` $\rightarrow$ `heal` $\rightarrow$ `approve` $\rightarrow$ `rerun`). **Bright Data Datasets v3** is also integrated as a secondary managed-data pipeline for Amazon product extraction. The application includes a dark-mode dashboard, execution run history, a recursive deep crawler, an interactive DOM inspector, and a grounded RAG knowledge assistant.
 
 ---
 
-## 📊 Capability Status
+## 🎬 Hackathon Demo Workflow
 
-| Capability | Status | Evidence / Notes |
+MarketScout models the Bright Data Scraper Studio lifecycle with explicit validation gating:
+
+1. **Create Custom Collector**: Initialize a custom collector (`c_...`) from a target URL and schema instruction.
+2. **Execute Initial Scrape**: Run the collector to ingest structured JSON output.
+3. **Detect Degradation / Drift**: Flag missing fields or schema contract failures when upstream layouts change.
+4. **Request an AI Repair Proposal**: Submit a repair request (`bdata scraper heal` / Scraper Studio AI Flow).
+5. **Review & Approval Gate**: Review proposed repair details and approval status before applying updates (`bdata scraper approve`).
+6. **Rerun & Validate**: Re-execute the same collector ID to confirm field recovery and display the before/after diff.
+
+```
+[bdata scraper create] ──> [bdata scraper run] ──> [Detect Drift / Degradation]
+                                                            │
+[bdata scraper run again] <── [bdata scraper approve] <── [bdata scraper heal]
+```
+
+> **Collector Persistence**: The custom collector maintains its unique ID (`c_...`) throughout the repair process. The dashboard records the collector ID, run status, repair attempt, approval decision, validation score, and normalized output.
+
+---
+
+## 📊 Capability Status Matrix
+
+| Capability | Status | Implementation / Verification Notes |
 |:---|:---|:---|
-| **Amazon Product Live Extraction** | **Verified Live** | Tested against live Amazon URLs via Bright Data Datasets v3 API |
+| **Scraper Studio Custom Collector Creation** | **Scaffolded / API Integration Present** | CLI and backend API wrappers implemented for custom `c_...` collector lifecycle |
+| **Live Custom Collector Healing** | **Scaffolded / API Integration Present** | Backend commands/API wrappers for requesting and recording Scraper Studio repair proposals |
+| **Amazon Datasets v3 Live Extraction** | **Verified Live** | Secondary managed-data extraction tested against live Amazon product URLs |
 | **Structured Entity Normalization** | **Verified** | Standardized pricing, ratings, currency, and timestamps (`normalizer.py`) |
 | **Pydantic Schema Validation** | **Verified** | Field type checks and data quality scoring ($\ge 70\%$) (`validator.py`) |
-| **Offline Drift Degradation Detection** | **Verified** | Detects broken selectors against mutated HTML fixtures (`test_milestone2_repair_proof.py`) |
-| **Offline Repair State Machine & AST Synthesis** | **Verified Offline** | Synthesizes replacement selectors and runs holdout regression tests (`repair_engine.py`) |
-| **Scraper Studio Custom Collector Creation** | **Requires Live Verification** | Endpoint and CLI scaffolded; requires active Bright Data custom collector |
-| **Live Custom Collector Healing** | **Requires Live Verification** | Workflow scaffolded; requires active Scraper Studio session |
+| **Local / Offline Repair State Machine** | **Verified Offline** | Proposes replacement CSS selectors and runs holdout regression tests (`repair_engine.py`) |
 | **Job Board Extraction** | **Verified Offline** | Local fixtures tested; live path requires `BRIGHTDATA_JOB_DATASET_ID` |
 | **SERP Keyword Search** | **Configured** | Scaffolded; requires active SERP API zone credentials |
-| **Web Unlocker Integration** | **Configured / Fallback** | Proxy tunnel path implemented; requires Web Unlocker zone verification |
+| **Web Unlocker Proxy Tunnel** | **Configured** | Proxy client implemented; requires active Web Unlocker credentials |
 | **Recursive Deep Crawler** | **Verified Offline / Experimental** | Traverses internal links with configurable depth (1–3) (`crawler_service.py`) |
-| **Visual DOM Inspector & Selector Tester** | **Verified Offline** | Evaluates CSS selectors and computes stability metrics in real time (`dom_inspector_service.py`) |
-| **Living RAG Knowledge Assistant** | **Verified Local / Groq** | Grounded retrieval over SQLite index via Groq `llama-3.3-70b-versatile` |
-| **Google Gemini Integration** | **Not Configured** | Active implementation uses Groq Llama-3.3-70B for LLM synthesis |
+| **Interactive Visual DOM Inspector** | **Verified Offline** | Evaluates CSS selectors and computes stability metrics on local/scraped HTML |
+| **Grounded RAG Knowledge Assistant** | **Verified Local / Groq** | Grounded retrieval over SQLite index via Groq `llama-3.3-70b-versatile` |
 | **PostgreSQL Deployment** | **Not Verified** | Uses SQLite with WAL mode by default |
 
 ---
@@ -60,13 +79,13 @@ Interactive single-target, batch multi-URL, and deep crawl deployment with 5-sta
 ---
 
 ### 2. Multi-Platform Extraction Studio & Schema Engine
-Pre-configured schema contracts across 8 major web protocols with live entity inspection and blueprint contracts.
+Pre-configured schema contracts for eight target categories. Live-provider status varies by category and is listed in the capability matrix.
 
 ![Extraction Studio](assets/images/extraction_studio.png)
 
 ---
 
-### 3. Living RAG Knowledge Nexus & Grounded Intelligence
+### 3. Grounded RAG Knowledge Assistant
 Grounded conversational assistant powered by Groq `llama-3.3-70b-versatile` with structured HTML comparison tables and field-level database citations.
 
 ![Living RAG Assistant](assets/images/living_rag.png)
@@ -81,7 +100,7 @@ DOM drift diagnosis studio with visual side-by-side selector replacement diffs, 
 ---
 
 ### 5. Interactive Visual DOM Inspector & Selector Playground
-Real-time CSS selector testing engine that evaluates matching nodes, computes hierarchy lineage paths, calculates selector stability scores ($0-100\%$), and synthesizes candidate selectors.
+Interactive CSS selector testing engine that evaluates matching nodes, computes hierarchy lineage paths, calculates selector stability scores ($0-100\%$), and synthesizes candidate selectors.
 
 ![DOM Inspector](assets/images/dom_inspector.png)
 
@@ -95,18 +114,23 @@ Breadth-first link discovery and pagination traversal engine with configurable c
 ---
 
 ### 7. System Administration & Provider Hub
-Control center for inspecting Bright Data Datasets v3 status, adjusting crawler concurrency worker sliders, configuring healing policies, and viewing webhook pipeline dispatchers.
+Control center for inspecting Bright Data provider status, adjusting crawler concurrency worker sliders, configuring healing policies, and viewing webhook pipeline dispatchers.
 
 ![System Settings](assets/images/settings_admin.png)
 
 ---
 
-## ⚡ Workflow & Protocol Status Matrix
+## ⚡ Workflow & Target Protocol Matrix
+
+> **Status Legend**:
+> - `VERIFIED LIVE`: Tested against live upstream providers.
+> - `VERIFIED OFFLINE`: Deterministically tested against local HTML fixtures.
+> - `CONFIGURED`: Pydantic schema contract and provider mappings exist; live behavior requires active API tokens.
 
 <table>
   <thead>
     <tr style="background-color: #0f131f;">
-      <th align="center">🌐 Platform Preset</th>
+      <th align="center">🌐 Target Category</th>
       <th align="center">🛡️ Integration Path</th>
       <th align="center">⚡ Healing Strategy</th>
       <th align="center">📦 Schema Contract</th>
@@ -117,7 +141,7 @@ Control center for inspecting Bright Data Datasets v3 status, adjusting crawler 
     <tr>
       <td><b>🛒 Amazon E-Commerce</b></td>
       <td align="center"><img src="https://img.shields.io/badge/Datasets%20v3-VERIFIED%20LIVE-emerald?style=flat-square" /></td>
-      <td align="center"><img src="https://img.shields.io/badge/Validation--Gated-v1%20%E2%86%92%20v2-blue?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Validation--Gated%20Local-v1%20%E2%86%92%20v2-blue?style=flat-square" /></td>
       <td align="center"><code>PRODUCT_SCHEMA</code></td>
       <td>
         <details>
@@ -128,7 +152,7 @@ Control center for inspecting Bright Data Datasets v3 status, adjusting crawler 
     </tr>
     <tr>
       <td><b>📑 Tech Docs & APIs</b></td>
-      <td align="center"><img src="https://img.shields.io/badge/Local%20Heuristics-VERIFIED-cyan?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Local%20Heuristics-VERIFIED%20OFFLINE-cyan?style=flat-square" /></td>
       <td align="center"><img src="https://img.shields.io/badge/AST%20Synthesis-PASS-cyan?style=flat-square" /></td>
       <td align="center"><code>TECH_DOCS_SCHEMA</code></td>
       <td>
@@ -140,7 +164,7 @@ Control center for inspecting Bright Data Datasets v3 status, adjusting crawler 
     </tr>
     <tr>
       <td><b>💼 Talent & Job Boards</b></td>
-      <td align="center"><img src="https://img.shields.io/badge/Offline%20Fixture-VERIFIED-blue?style=flat-square" /></td>
+      <td align="center"><img src="https://img.shields.io/badge/Offline%20Fixture-VERIFIED%20OFFLINE-blue?style=flat-square" /></td>
       <td align="center"><img src="https://img.shields.io/badge/Validation--Gated-READY-blue?style=flat-square" /></td>
       <td align="center"><code>JOB_SCHEMA</code></td>
       <td>
@@ -215,40 +239,75 @@ Control center for inspecting Bright Data Datasets v3 status, adjusting crawler 
 
 ---
 
-## 🌊 5-Stage Multi-Strategy Waterfall
+## 🌊 Pipeline Architecture: Live vs. Offline Repair Paths
 
 ```mermaid
 graph TD
-    A[Target Web URL / Batch / Crawler] --> B[Bright Data Datasets v3 / Local Scraper Provider]
-    B --> C[Template Fingerprinter - DOM Skeleton Hash]
-    C --> D[Multi-Strategy Extraction Waterfall]
-    
-    subgraph Multi-Strategy Extraction Hierarchy
-        D1[1. Active Versioned CSS/XPath Rules]
-        D2[2. Schema.org JSON-LD Parser]
-        D3[3. OpenGraph & Twitter Meta Tags]
-        D4[4. Semantic HTML5 DOM Heuristics]
-        D5[5. Groq Llama-3.3-70B / Rule Normalizer]
+    subgraph Live Provider Paths
+        A1[Target URL] --> A2[Scraper Studio Collector c_...]
+        A1 --> A3[Bright Data Datasets v3]
+        A2 --> A4[Structured JSON Payload]
+        A3 --> A4
+        A4 --> A5[Pydantic Contract Validation]
+        A5 --> A6[SQLite WAL Storage]
     end
-    
-    D --> D1 --> D2 --> D3 --> D4 --> D5
-    D5 --> E{Validator Gate >= 70% Quality}
-    
-    E -- Pass --> F[Normalized Pydantic Payload]
-    E -- Drift Detected --> G[Validation-Gated Repair Engine]
-    
-    subgraph Self-Healing Loop
-        G --> H[Synthesize Candidate Selectors]
-        H --> I[Regression Validator on Holdouts]
-        I --> J[Approval Gate: Promote Bundle vN+1]
+
+    subgraph Offline Repair Demonstration
+        B1[HTML Fixture / Mutated DOM] --> B2[DOM Skeleton Fingerprinter]
+        B2 --> B3[Multi-Strategy Extraction & Heuristics]
+        B3 --> B4{Quality Gate >= 70%}
+        B4 -- Pass --> A6
+        B4 -- Drift Detected --> B5[RepairEngine: Candidate Selector Synthesis]
+        B5 --> B6[RegressionValidator on Holdouts]
+        B6 --> B7[Explicit Approval Gate: Promote vN+1]
+        B7 --> B3
     end
-    
-    J --> D
-    F --> K[SQLite WAL Storage]
-    K --> L[Living RAG Conversational Nexus]
-    K --> M[Competitive Diff Radar]
-    K --> N[Data Exporters CSV / NDJSON / JSON]
+
+    A6 --> C1[Grounded RAG Assistant]
+    A6 --> C2[Competitive Diff Radar]
+    A6 --> C3[Data Exporters: JSON / CSV / NDJSON]
 ```
+
+---
+
+## 🕷️ Bright Data Scraper Studio Workflow
+
+MarketScout includes integration wrappers for the Bright Data Scraper Studio CLI / API lifecycle for managing custom collectors (`c_...`):
+
+### 1. Bright Data CLI Setup
+The Scraper Studio workflow can be executed directly using the official Bright Data CLI. Verify your installation:
+```bash
+bdata --help
+bdata scraper --help
+```
+
+### 2. Collector Creation & Initial Run
+```bash
+bdata login
+
+# Create a custom collector with a natural-language prompt
+bdata scraper create "https://your-public-target.example" \
+  "Extract the item title, URL, category, price, and availability as structured JSON."
+
+# Execute the custom collector against a target URL
+bdata scraper run c_your_collector_id "https://your-public-target.example"
+```
+
+### 3. Validation-Gated Healing & Approval
+When upstream layout changes cause missing fields or validation failures:
+```bash
+# Request an AI repair proposal for broken fields
+bdata scraper heal c_your_collector_id \
+  "The price and availability fields are missing due to class name changes. Repair extraction while preserving the existing schema."
+
+# Review the proposed fix and approve the update
+bdata scraper approve c_your_collector_id
+
+# Rerun the repaired collector to verify recovered fields
+bdata scraper run c_your_collector_id "https://your-public-target.example"
+```
+
+> **Security Note**: Never commit API keys, customer IDs, collector tokens, `.env` files, or proprietary scrape results to version control.
 
 ---
 
@@ -263,7 +322,7 @@ graph TD
 ---
 
 ### 2. 🎯 Interactive Visual DOM Inspector (`DOMInspectorService`)
-* **Real-Time Selector Tester**: Evaluates CSS selectors against local or scraped HTML, calculating node counts and hierarchy paths.
+* **Interactive Selector Tester**: Evaluates CSS selectors against local or scraped HTML, calculating node counts and hierarchy paths.
 * **Stability Scoring Formula**: Penalizes volatile/hashed class names and rewards semantic tag hierarchies ($0-100\%$).
 * **Candidate Selector Suggestions**: Proposes potential selectors for key fields like `price` and `title`.
 
@@ -277,9 +336,9 @@ graph TD
 
 ---
 
-### 4. 🧠 Living RAG Knowledge Assistant (`RAGService`)
+### 4. 🧠 Grounded RAG Knowledge Assistant (`RAGService`)
 * **LLM Engine**: Powered by Groq `llama-3.3-70b-versatile`.
-* **Grounded Retrieval**: Queries the local SQLite database of extracted entities to synthesize answers without external hallucinations.
+* **Grounded Retrieval**: The assistant answers from locally stored extraction runs; freshness depends on the configured scrape schedule and successful ingestion.
 * **Source Citations**: Returns field-level provenance linking each extracted metric back to its original scrape run.
 
 ---
@@ -292,6 +351,33 @@ graph TD
 
 ### 6. 📦 Data Exporters
 * **Multi-Format Export**: Export verified scrape runs directly to **JSON**, **CSV**, or **NDJSON** via REST API endpoints (`/api/export/runs?format=json`).
+
+---
+
+## ✅ Demo Evidence
+
+The repository demonstrates or documents:
+
+### Verified Live
+- Amazon product extraction through Bright Data Datasets v3.
+- Structured normalization and Pydantic schema validation.
+- SQLite run history and exported JSON/CSV/NDJSON data.
+- Groq-grounded retrieval over stored extraction runs with source citations.
+
+### Verified Offline
+- DOM drift detection against mutated HTML fixtures.
+- Candidate selector synthesis with structural tree heuristics.
+- Holdout regression validation against historical snapshots.
+- Explicit repair approval and rule-bundle versioning ($v1 \rightarrow v2$).
+- Recursive crawler behavior and loop protection.
+- DOM selector inspection and stability scoring.
+
+### Integration Scaffolded, Not Live-Verified
+- Bright Data Scraper Studio custom collector creation.
+- Custom collector execution through the backend wrapper.
+- Scraper Studio healing and approval lifecycle.
+
+> The Scraper Studio commands are documented as the intended hackathon integration path. A live `c_...` collector demo will be claimed as verified only after the same collector completes create, run, heal, approve, rerun, and post-rerun validation.
 
 ---
 
@@ -309,15 +395,18 @@ cd scrapper
 cp .env.example .env
 ```
 
-Configure your `.env` credentials with your own keys:
+Configure your `.env` credentials:
 ```env
 SCRAPER_PROVIDER=brightdata
 BRIGHTDATA_API_KEY=your_brightdata_api_key_here
 BRIGHTDATA_BASE_URL=https://api.brightdata.com
+BRIGHTDATA_SCRAPER_STUDIO_COLLECTOR_ID=c_your_collector_id_here
 BRIGHTDATA_PRODUCT_DATASET_ID=your_product_dataset_id
 GROQ_API_KEY=your_groq_api_key_here
 DATABASE_URL=sqlite:///./data/marketscout.db
 ```
+
+> **Note**: `BRIGHTDATA_SCRAPER_STUDIO_COLLECTOR_ID` is optional for the offline demo and required only for the live Scraper Studio integration.
 
 ### 3. Build & Run (Unified Single-Port Mode)
 ```bash
@@ -365,35 +454,58 @@ curl -X POST "http://localhost:8000/api/scrape" \
 ## 🤖 Headless CLI Runner (`python -m app.cli`)
 
 Execute scrapers and inspection tools from your terminal:
+
+### 1. MarketScout Local Validation Workflow
 ```bash
-# Check provider and cluster status
+# Check provider and cluster configuration status
 python -m app.cli status
+
+# Inspect registered Scraper Studio collectors
+python -m app.cli collectors
 
 # Scrape target with validation-gated healing flag
 python -m app.cli run "https://fastapi.tiangolo.com/" --workflow tech_docs --auto-heal --json
 
-# Run CI verification (exits 0 on pass, 1 on failure)
+# Trigger validation-gated healing proposal for a degraded run
+python -m app.cli heal 1 --json
+
+# Approve repair proposal and promote rule bundle
+python -m app.cli approve 1 1 --json
+
+# Run CI verification on local fixture (exits 0 on pass, 1 on failure)
 python -m app.cli ci-run "https://demo.local/product_v1.html" --workflow products --strict
 
-# Query the grounded Living RAG assistant
+# Query the grounded RAG knowledge assistant
 python -m app.cli ask "What is the price of the Sony headphones?"
 
 # Generate competitor intelligence diff summary
 python -m app.cli intel --domain amazon.com
 ```
 
+### 2. Bright Data Scraper Studio Workflow
+```bash
+# Request an AI repair proposal for broken fields on a live custom collector
+bdata scraper heal c_your_collector_id "The price field is missing due to class rename."
+
+# Approve the proposed fix
+bdata scraper approve c_your_collector_id
+
+# Rerun the repaired collector
+bdata scraper run c_your_collector_id "https://your-target.example"
+```
+
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-Run the comprehensive pytest suite:
+Run the test suite:
 ```bash
 cd backend
 pytest -q
 ```
 ```
 ...................................................................      [100%]
-67 passed, 1 warning in 15.68s
+67 passed, 1 warning in 12.33s
 ```
 
 ---

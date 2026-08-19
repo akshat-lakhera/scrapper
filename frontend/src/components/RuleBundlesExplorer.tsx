@@ -282,14 +282,19 @@ export const RuleBundlesExplorer: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5 font-mono">
-                        {Object.entries(patch.selector_diff || {}).map(([f, diff]: [string, any]) => (
-                          <tr key={f} className="text-slate-300">
-                            <td className="py-2.5 font-bold uppercase text-white">{f}</td>
-                            <td className="py-2.5 text-rose-400 line-through">{diff?.old_selector || 'None'}</td>
-                            <td className="py-2.5 text-emerald-400">{diff?.new_selector || 'None (Schema/Manual)'}</td>
-                            <td className="py-2.5 text-purple-400">{Math.round((diff?.stability_score || 0.8) * 100)}%</td>
-                          </tr>
-                        ))}
+                        {Object.entries(patch.selector_diff || {}).map(([f, diff]: [string, any]) => {
+                          const oldSel = typeof diff === 'object' && diff !== null ? (diff.old_selector || 'None') : 'None';
+                          const newSel = typeof diff === 'object' && diff !== null ? (diff.new_selector || diff.selector || JSON.stringify(diff)) : String(diff);
+                          const stability = typeof diff === 'object' && diff !== null ? Math.round((diff.stability_score || 0.8) * 100) : 80;
+                          return (
+                            <tr key={f} className="text-slate-300">
+                              <td className="py-2.5 font-bold uppercase text-white">{String(f)}</td>
+                              <td className="py-2.5 text-rose-400 line-through">{typeof oldSel === 'object' ? JSON.stringify(oldSel) : String(oldSel)}</td>
+                              <td className="py-2.5 text-emerald-400">{typeof newSel === 'object' ? JSON.stringify(newSel) : String(newSel)}</td>
+                              <td className="py-2.5 text-purple-400">{stability}%</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

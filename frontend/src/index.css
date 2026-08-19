@@ -26,6 +26,12 @@
 
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+
+    /* Animation Vocabulary & Easing Tokens (animate / emilkowalski) */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   html, body {
@@ -62,6 +68,85 @@
   background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.04), transparent 70%);
   pointer-events: none;
 }
+
+/* ── TACTILE PRESS MICRO-FEEDBACK ── */
+.tactile-press {
+  transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tactile-press:active {
+    transform: scale(0.97);
+  }
+}
+
+/* ── ENTRANCES & EXITS (ANIMATION-VOCABULARY) ── */
+@keyframes enter-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.enter-fade-up {
+  animation: enter-fade-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes crossfade-view {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.crossfade-view {
+  animation: crossfade-view 140ms ease-out both;
+}
+
+/* ── SYMMETRIC TOAST MOTION ── */
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+.toast-entering {
+  animation: toast-slide-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-exiting {
+  animation: toast-slide-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* ── STAGGERED REVEALS ── */
+.stagger-1 { animation-delay: 40ms; }
+.stagger-2 { animation-delay: 80ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 160ms; }
 
 /* ── AMBIENT BACKDROP GLOWS ── */
 .ambient-glow-primary {
@@ -125,4 +210,13 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #2e3b56;
+}
+
+/* ── PREFERS REDUCED MOTION GATING ── */
+@media (prefers-reduced-motion: reduce) {
+  .enter-fade-up, .crossfade-view, .toast-entering, .toast-exiting, .btn-pulse {
+    animation: none !important;
+    transition: opacity 120ms ease !important;
+    transform: none !important;
+  }
 }

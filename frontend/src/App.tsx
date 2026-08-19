@@ -789,7 +789,7 @@ export function AppContent() {
             <span>ENGINE ONLINE</span>
           </div>
           <span className="text-slate-600">|</span>
-          <span className="text-slate-300">Cluster: <strong className="text-white font-semibold">{configMode?.display_name || 'Bright Data Live Unlocker'}</strong></span>
+          <span className="text-slate-300">Cluster: <strong className="text-white font-semibold">{configMode?.display_name || 'Bright Data Live Provider'}</strong></span>
           <span className="text-slate-600 hidden sm:inline">|</span>
           <span className="hidden sm:inline text-slate-300">Reliability: <strong className="text-emerald-400 font-bold">{metrics?.overall_reliability || 96}%</strong></span>
         </div>

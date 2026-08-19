@@ -189,9 +189,89 @@ async def cmd_intel(args):
     finally:
         db.close()
 
+async def cmd_heal(args):
+    print_header("TRIGGER VALIDATION-GATED HEALING")
+    db = SessionLocal()
+    try:
+        run_id = args.run_id
+        print(f"[*] Requesting autonomous repair proposal for Scrape Run #{run_id}...")
+        attempt = await ScrapeService.heal_scrape_run(db, run_id=run_id)
+        
+        if args.json:
+            print(json.dumps({
+                "attempt_id": attempt.id,
+                "scrape_run_id": attempt.scrape_run_id,
+                "external_repair_id": attempt.external_repair_id,
+                "instruction": attempt.instruction,
+                "approval_status": attempt.approval_status,
+                "missing_fields": json.loads(attempt.missing_fields) if attempt.missing_fields else []
+            }, indent=2))
+        else:
+            print(f"\n[+] Repair Proposal Synthesized Successfully!")
+            print(f"    - Attempt ID:      {attempt.id}")
+            print(f"    - Repair ID:       {attempt.external_repair_id}")
+            print(f"    - Approval Status: {attempt.approval_status.upper()}")
+            print(f"    - Missing Fields:  {attempt.missing_fields}")
+            print("-" * 60)
+            print(f"Repair Instruction:\n{attempt.instruction}")
+            print("\n[!] Run 'python -m app.cli approve {run_id} {attempt.id}' to review and promote.")
+    finally:
+        db.close()
+
+async def cmd_approve(args):
+    print_header("APPROVE REPAIR & PROMOTE RULE BUNDLE")
+    db = SessionLocal()
+    try:
+        run_id = args.run_id
+        attempt_id = args.attempt_id
+        print(f"[*] Approving Repair Attempt #{attempt_id} for Run #{run_id}...")
+        res = await ScrapeService.approve_repair_attempt(db, run_id=run_id, attempt_id=attempt_id)
+        run = res["scrape_run"]
+        attempt = res["repair_attempt"]
+        
+        if args.json:
+            print(json.dumps({
+                "run_id": run.id,
+                "status": run.status,
+                "quality_score": run.data_quality_score,
+                "strategy": run.selected_strategy,
+                "attempt_result": attempt.result
+            }, indent=2))
+        else:
+            print(f"\n[+] Repair Approved and Promoted!")
+            print(f"    - New Run Status:  {run.status.upper()}")
+            print(f"    - Quality Score:   {run.data_quality_score}%")
+            print(f"    - Active Strategy: {run.selected_strategy}")
+            print(f"    - Result Note:     {attempt.result}")
+    finally:
+        db.close()
+
+async def cmd_collectors(args):
+    print_header("BRIGHT DATA SCRAPER STUDIO COLLECTORS")
+    db = SessionLocal()
+    try:
+        scrapers = db.query(ScraperDB).order_by(ScraperDB.id.desc()).all()
+        if args.json:
+            print(json.dumps([
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "collector_id": s.external_scraper_id,
+                    "workflow": s.workflow_type,
+                    "status": s.status,
+                    "created_at": s.created_at
+                } for s in scrapers
+            ], indent=2))
+        else:
+            print(f"Found {len(scrapers)} registered collectors:\n")
+            for s in scrapers:
+                print(f"  • ID #{s.id:<3} | Collector: {s.external_scraper_id:<25} | Workflow: {s.workflow_type:<12} | Status: {s.status}")
+    finally:
+        db.close()
+
 def main():
     init_db()
-    parser = argparse.ArgumentParser(description="MarketScout Headless CLI & Self-Healing Agent Bridge")
+    parser = argparse.ArgumentParser(description="MarketScout Headless CLI & Bright Data Scraper Studio Bridge")
     subparsers = parser.add_subparsers(dest="command", help="CLI Subcommands")
 
     # status command
@@ -212,6 +292,21 @@ def main():
     run_p.add_argument("--schema", default=None, help="Schema name")
     run_p.add_argument("--auto-heal", action="store_true", help="Enable autonomous self-healing if extraction degrades")
     run_p.add_argument("--json", action="store_true", help="Output raw JSON")
+
+    # heal command
+    heal_p = subparsers.add_parser("heal", help="Trigger validation-gated healing proposal for a degraded run")
+    heal_p.add_argument("run_id", type=int, help="Scrape Run ID to repair")
+    heal_p.add_argument("--json", action="store_true", help="Output raw JSON")
+
+    # approve command
+    approve_p = subparsers.add_parser("approve", help="Approve repair proposal and promote rule bundle")
+    approve_p.add_argument("run_id", type=int, help="Scrape Run ID")
+    approve_p.add_argument("attempt_id", type=int, help="Repair Attempt ID to approve")
+    approve_p.add_argument("--json", action="store_true", help="Output raw JSON")
+
+    # collectors command
+    collectors_p = subparsers.add_parser("collectors", help="List all registered Scraper Studio collectors")
+    collectors_p.add_argument("--json", action="store_true", help="Output raw JSON")
 
     # ci-run command
     ci_p = subparsers.add_parser("ci-run", help="Headless CI runner with auto-healing and strict status exit codes")
@@ -242,6 +337,12 @@ def main():
         asyncio.run(cmd_create(args))
     elif args.command == "run":
         asyncio.run(cmd_run(args))
+    elif args.command == "heal":
+        asyncio.run(cmd_heal(args))
+    elif args.command == "approve":
+        asyncio.run(cmd_approve(args))
+    elif args.command == "collectors":
+        asyncio.run(cmd_collectors(args))
     elif args.command == "ci-run":
         asyncio.run(cmd_ci_run(args))
     elif args.command == "ask":

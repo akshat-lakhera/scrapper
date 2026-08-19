@@ -15,7 +15,7 @@ class Settings:
     SCRAPER_PROVIDER: str = os.getenv("SCRAPER_PROVIDER", "local").lower()
     
     BRIGHTDATA_API_KEY: str = os.getenv("BRIGHTDATA_API_KEY", "")
-    BRIGHTDATA_SCRAPER_ID: str = os.getenv("BRIGHTDATA_SCRAPER_ID", "")
+    BRIGHTDATA_SCRAPER_ID: str = os.getenv("BRIGHTDATA_SCRAPER_STUDIO_COLLECTOR_ID") or os.getenv("BRIGHTDATA_SCRAPER_ID", "")
     BRIGHTDATA_WORKSPACE_ID: str = os.getenv("BRIGHTDATA_WORKSPACE_ID", "")
     BRIGHTDATA_BASE_URL: str = os.getenv("BRIGHTDATA_BASE_URL", "https://api.brightdata.com")
     BRIGHTDATA_SERP_ZONE: str = os.getenv("BRIGHTDATA_SERP_ZONE", "serp_api1")

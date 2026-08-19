@@ -102,20 +102,22 @@ func main() {
 	fmt.Println("Response:", string(body))
 }`;
 
-  const brightDataSnippet = `// Direct Bright Data Web Unlocker Proxy Integration
+  const brightDataSnippet = `// Official Bright Data Datasets v3 / Scraper Studio Trigger
 const axios = require('axios');
-const HttpsProxyAgent = require('https-proxy-agent');
 
-const proxyUrl = 'http://brd-customer-hl_marketscout-zone-unlocker:pass123@brd.superproxy.io:22225';
-const agent = new HttpsProxyAgent(proxyUrl);
+const API_KEY = process.env.BRIGHTDATA_API_KEY;
+const DATASET_ID = process.env.BRIGHTDATA_PRODUCT_DATASET_ID || 'your_dataset_id';
 
-axios.get('${targetUrl}', {
-  httpsAgent: agent,
-  headers: {
-    'User-Agent': 'MarketScout-Autonomous-Agent/2.0'
+axios.post(\`https://api.brightdata.com/datasets/v3/trigger?dataset_id=\${DATASET_ID}&include_errors=true\`, 
+  [{ url: '${targetUrl}' }],
+  {
+    headers: {
+      'Authorization': \`Bearer \${API_KEY}\`,
+      'Content-Type': 'application/json'
+    }
   }
-}).then(res => {
-  console.log('Unblocked HTML status:', res.status);
+).then(res => {
+  console.log('Bright Data Snapshot ID:', res.data.snapshot_id);
 });`;
 
   const snippets: Record<string, string> = {
