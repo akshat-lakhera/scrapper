@@ -15,7 +15,7 @@ from app.services.regression_validator import RegressionValidator
 
 def print_header(title: str):
     print("\n" + "=" * 60)
-    print(f"  MARKETSCOUT CLI — {title}")
+    print(f"  MARKETSCOUT CLI - {title}")
     print("=" * 60)
 
 async def cmd_status(args):
