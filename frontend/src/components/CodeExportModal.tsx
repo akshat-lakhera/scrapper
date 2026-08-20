@@ -138,9 +138,12 @@ axios.post(\`https://api.brightdata.com/datasets/v3/trigger?dataset_id=\${DATASE
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+    >
       <div 
-        className="w-full max-w-3xl bg-[#090c13] border border-white/15 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-up"
+        className="enter-fade-up w-full max-w-3xl bg-[#090c13] border border-white/15 rounded-2xl shadow-2xl overflow-hidden flex flex-col cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -152,12 +155,15 @@ axios.post(\`https://api.brightdata.com/datasets/v3/trigger?dataset_id=\${DATASE
               <span className="text-[11px] text-slate-400 font-mono">Deploy extraction pipelines from any codebase</span>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg transition-colors cursor-pointer"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <kbd className="kbd-badge hidden sm:inline-flex">Esc</kbd>
+            <button 
+              onClick={onClose}
+              className="tactile-press text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Tab Selector */}
@@ -173,7 +179,7 @@ axios.post(\`https://api.brightdata.com/datasets/v3/trigger?dataset_id=\${DATASE
               <button
                 key={tab.id}
                 onClick={() => setActiveLang(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                className={`tactile-press px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                   activeLang === tab.id
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'

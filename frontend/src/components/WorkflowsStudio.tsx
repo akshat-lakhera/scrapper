@@ -27,6 +27,7 @@ import { executeScrape } from '../api';
 import { useToast } from './ToastContext';
 import { StatusBadge } from './StatusBadge';
 import { CodeExportModal } from './CodeExportModal';
+import { SpotlightCard } from './SpotlightCard';
 
 interface WorkflowPreset {
   id: string;
@@ -278,13 +279,15 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
 
   return (
     <div className="space-y-8 pb-16 font-sans">
-      {/* ── TOP HERO HEADER ── */}
-      <div className="bento-card p-8 sm:p-10 relative overflow-hidden">
+      {/* ── [01 // WORKFLOW PRESETS] TOP HERO HEADER ── */}
+      <SpotlightCard className="p-8 sm:p-10 relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-              <Layers className="w-3.5 h-3.5" />
-              <span>Multi-Platform Scraper Studio</span>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-300 font-bold tracking-wider">
+                [01 // WORKFLOW PRESETS & SCHEMAS]
+              </span>
+              <span className="text-[11px] font-mono text-slate-500">SCHEMAS: 8 ACTIVE</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Extraction Studio & Schema Engine
@@ -296,21 +299,27 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
 
           <button
             onClick={() => setShowCodeModal(true)}
-            className="px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-md self-start md:self-auto cursor-pointer"
+            className="tactile-press px-5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-md self-start md:self-auto cursor-pointer"
           >
             <FileCode className="w-4 h-4 text-cyan-400" />
             <span>Generate SDK Snippet</span>
+            <kbd className="kbd-badge bg-white/10 text-white border-white/20 text-[9px] py-0.5 px-1.5 ml-1">⌘I</kbd>
           </button>
         </div>
-      </div>
+      </SpotlightCard>
 
-      {/* ── 8 PLATFORM BENTO DECK (4x2 GRID) ── */}
+      {/* ── [02 // PROTOCOL MATRIX] 8 PLATFORM BENTO DECK (4x2 GRID) ── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-            Select Target Platform:
-          </span>
-          <span className="text-xs font-mono text-slate-500">8 Supported Schemas</span>
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-slate-400 font-bold">
+              [02 // PROTOCOL MATRIX]
+            </span>
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+              Select Target Platform Protocol:
+            </span>
+          </div>
+          <span className="text-xs font-mono text-slate-500 font-bold">8 Supported Schemas</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -321,10 +330,10 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
               <div
                 key={wf.id}
                 onClick={() => handleSelectWorkflow(wf)}
-                className={`bento-card p-5 cursor-pointer flex flex-col justify-between transition-all ${
+                className={`tactile-press p-5 rounded-2xl border cursor-pointer flex flex-col justify-between transition-all relative ${
                   isSelected
-                    ? 'border-blue-400 bg-[#161d2d] shadow-xl shadow-blue-500/20 scale-[1.01]'
-                    : 'border-white/15 bg-[#0e1320] hover:bg-[#182136] hover:border-blue-400/40 shadow-sm'
+                    ? 'border-blue-400 bg-[#141b2e] shadow-xl shadow-blue-500/20 scale-[1.01]'
+                    : 'border-white/15 bg-[#0a0e18] hover:bg-[#121829] hover:border-blue-400/40 shadow-sm'
                 }`}
               >
                 <div>
@@ -343,15 +352,15 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                 <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
                   {isSelected ? (
                     <span className="text-blue-300 font-bold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-blue-400 status-dot-blue animate-pulse" />
                       <span>Active Target</span>
                     </span>
                   ) : (
-                    <span className="text-slate-200 font-semibold group-hover:text-white transition-colors">
+                    <span className="text-slate-300 font-semibold group-hover:text-white transition-colors">
                       Select
                     </span>
                   )}
-                  <ArrowRight className={`w-3.5 h-3.5 transition-all ${isSelected ? 'text-blue-300' : 'text-slate-300 group-hover:text-blue-300 group-hover:translate-x-1'}`} />
+                  <ArrowRight className={`w-3.5 h-3.5 transition-all ${isSelected ? 'text-blue-300' : 'text-slate-400'}`} />
                 </div>
               </div>
             );
@@ -363,11 +372,13 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Target Configuration (Span 5) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bento-card p-7 space-y-6 bg-[#0e1320] border-white/15">
+          <SpotlightCard className="p-7 space-y-6 relative">
             <div className="space-y-1">
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-300">
-                Target Configuration
-              </span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-300 font-bold tracking-wider">
+                  [03 // TARGET CONFIGURATION]
+                </span>
+              </div>
               <h2 className="text-xl font-bold text-white">{selectedWorkflow.name}</h2>
               <p className="text-xs text-slate-300 leading-relaxed">
                 {selectedWorkflow.description}
@@ -382,7 +393,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                 value={targetUrl}
                 onChange={(e) => setTargetUrl(e.target.value)}
                 placeholder={selectedWorkflow.placeholder}
-                className="w-full bg-[#080b12] border border-white/20 rounded-xl px-4 py-3.5 text-xs sm:text-sm font-mono text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-400 shadow-inner"
+                className="w-full bg-[#080b12] border border-white/20 rounded-xl px-4 py-3.5 text-xs sm:text-sm font-mono text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-400 shadow-inner"
               />
             </div>
 
@@ -394,7 +405,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                   <button
                     key={idx}
                     onClick={() => setTargetUrl(p.url)}
-                    className="w-full text-left p-3 rounded-xl bg-[#080b12] hover:bg-[#141b2e] border border-white/15 text-xs font-mono text-slate-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer font-medium shadow-sm"
+                    className="tactile-press w-full text-left p-3 rounded-xl bg-[#080b12] hover:bg-[#141b2e] border border-white/15 text-xs font-mono text-slate-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer font-medium shadow-sm"
                   >
                     <span className="truncate">{p.label}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-blue-400 opacity-75 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0" />
@@ -422,7 +433,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
             <button
               onClick={handleRunScrape}
               disabled={loading || !targetUrl.trim()}
-              className="btn-pulse w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xl shadow-blue-600/30 disabled:opacity-50 cursor-pointer transition-all"
+              className="btn-pulse tactile-press w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xl shadow-blue-600/30 disabled:opacity-50 cursor-pointer transition-all"
             >
               {loading ? (
                 <>
@@ -433,184 +444,190 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                 <>
                   <Play className="w-4 h-4 fill-white" />
                   <span>Deploy Scraper Pipeline</span>
+                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-[9px] py-0.5 px-1.5 ml-1">↵</kbd>
                 </>
               )}
             </button>
-          </div>
+          </SpotlightCard>
         </div>
 
         {/* Right Column: Live Entity Inspector (Span 7) */}
-        <div className="lg:col-span-7 bento-card p-7 flex flex-col min-h-[540px] bg-[#0e1320] border-white/15">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
-            <div className="flex items-center gap-2.5">
-              <Terminal className="w-5 h-5 text-blue-400" />
-              <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-slate-100">
-                Live Entity Inspector
-              </h3>
-            </div>
-
-            {result && (
-              <div className="flex items-center gap-2">
-                <div className="flex bg-[#080b12] p-1 rounded-lg border border-white/15 text-xs font-mono">
-                  <button
-                    onClick={() => setActiveView('card')}
-                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:text-white'}`}
-                  >
-                    Visual Card
-                  </button>
-                  <button
-                    onClick={() => setActiveView('json')}
-                    className={`px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:text-white'}`}
-                  >
-                    Raw JSON
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-mono text-slate-100 border border-white/15 transition-colors cursor-pointer font-bold"
-                >
-                  {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedJson ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Results Area */}
-          {result ? (
-            <div className="flex-1 space-y-5">
-              {/* Telemetry Header */}
-              <div className="p-4 rounded-xl bg-[#080b12] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={result.status} />
-                  <span className="text-slate-300">
-                    Quality: <strong className="text-emerald-400 font-bold">{result.quality_score}%</strong>
-                  </span>
-                </div>
-                <div className="text-slate-300">
-                  Latency: <strong className="text-white font-bold">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-300 font-bold">{result.selected_strategy}</strong>
-                </div>
+        <div className="lg:col-span-7">
+          <SpotlightCard className="p-7 flex flex-col min-h-[540px] relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+              <div className="flex items-center gap-2.5">
+                <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-300 font-bold tracking-wider">
+                  [04 // ENTITY INSPECTOR]
+                </span>
+                <Terminal className="w-4 h-4 text-blue-400" />
+                <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-slate-100">
+                  Live Entity Inspector
+                </h3>
               </div>
 
-              {activeView === 'card' ? (
-                <div className="p-6 rounded-xl bg-[#080b12] border border-white/15 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-                    {/* Product Image Preview */}
-                    {(result.extracted_data?.image_url || result.extracted_data?.image) && (
-                      <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-black/60 border border-white/20 p-2 flex items-center justify-center shrink-0 overflow-hidden group shadow-lg">
-                        <img
-                          src={result.extracted_data.image_url || result.extracted_data.image}
-                          alt={result.extracted_data?.title || 'Product'}
-                          className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-                        />
-                      </div>
-                    )}
-
-                    <div className="space-y-1.5 flex-1 max-w-2xl">
-                      <h4 className="text-xl font-bold text-white leading-snug">
-                        {result.extracted_data?.title || result.extracted_data?.name || result.extracted_data?.job_title || result.extracted_data?.doc_title || 'Extracted Entity'}
-                      </h4>
-                      <a
-                        href={result.target_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-mono text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 truncate font-medium"
-                      >
-                        <span>{result.target_url}</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-
-                    {result.extracted_data?.price !== undefined && (
-                      <div className="text-left sm:text-right shrink-0 bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 rounded-xl">
-                        <span className="text-2xl font-extrabold font-mono text-emerald-400 block">
-                          {result.extracted_data.currency || '$'}{typeof result.extracted_data.price === 'number' ? result.extracted_data.price.toFixed(2) : result.extracted_data.price}
-                        </span>
-                        <span className="text-[10px] font-mono text-emerald-300 uppercase font-bold">
-                          {result.extracted_data.availability || 'In Stock'}
-                        </span>
-                      </div>
-                    )}
+              {result && (
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-[#080b12] p-1 rounded-lg border border-white/15 text-xs font-mono">
+                    <button
+                      onClick={() => setActiveView('card')}
+                      className={`tactile-press px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'card' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:text-white'}`}
+                    >
+                      Visual Card
+                    </button>
+                    <button
+                      onClick={() => setActiveView('json')}
+                      className={`tactile-press px-4 py-1.5 rounded transition-colors cursor-pointer ${activeView === 'json' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:text-white'}`}
+                    >
+                      Raw JSON
+                    </button>
                   </div>
 
-                  {/* Dynamic Attributes Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10">
-                    {Object.entries(result.extracted_data || {}).map(([key, value]) => {
-                      if (['title', 'name', 'job_title', 'doc_title', 'image_url', 'image', 'price', 'currency', 'availability'].includes(key)) {
-                        return null;
-                      }
-                      return (
-                        <div key={key} className="p-3.5 rounded-xl bg-white/[0.04] border border-white/10">
-                          <span className="text-[10px] font-mono uppercase text-slate-300 font-bold block mb-1">
-                            {key.replace(/_/g, ' ')}
-                          </span>
-                          <div className="text-xs font-mono text-slate-100 break-words font-medium">
-                            {formatFieldValue(value)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <button
+                    onClick={handleCopyJson}
+                    className="tactile-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-mono text-slate-100 border border-white/15 transition-colors cursor-pointer font-bold"
+                  >
+                    {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedJson ? 'Copied' : 'Copy'}</span>
+                  </button>
                 </div>
-              ) : (
-                <pre className="p-6 rounded-xl bg-[#080b12] border border-white/15 text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px] leading-relaxed font-semibold">
-                  {JSON.stringify(result.extracted_data, null, 2)}
-                </pre>
               )}
             </div>
-          ) : (
-            /* Interactive Schema Contract Blueprint Preview */
-            <div className="flex-1 flex flex-col justify-between space-y-6">
-              <div className="p-5 rounded-2xl bg-[#080b12] border border-blue-500/20 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
-                    <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
-                      Schema Blueprint Contract: {selectedWorkflow.name}
+
+            {/* Results Area */}
+            {result ? (
+              <div className="flex-1 space-y-5">
+                {/* Telemetry Header */}
+                <div className="p-4 rounded-xl bg-[#080b12] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={result.status} />
+                    <span className="text-slate-300">
+                      Quality: <strong className="text-emerald-400 font-bold">{result.quality_score}%</strong>
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold">
-                    Armed for Deployment
-                  </span>
+                  <div className="text-slate-300">
+                    Latency: <strong className="text-white font-bold">{result.duration_ms}ms</strong> · Strategy: <strong className="text-cyan-300 font-bold">{result.selected_strategy}</strong>
+                  </div>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  The multi-strategy pipeline is initialized. Once deployed, the extractor will execute the 5-stage waterfall and populate these structured attributes:
-                </p>
+                {activeView === 'card' ? (
+                  <div className="p-6 rounded-xl bg-[#080b12] border border-white/15 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+                      {/* Product Image Preview */}
+                      {(result.extracted_data?.image_url || result.extracted_data?.image) && (
+                        <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-black/60 border border-white/20 p-2 flex items-center justify-center shrink-0 overflow-hidden group shadow-lg">
+                          <img
+                            src={result.extracted_data.image_url || result.extracted_data.image}
+                            alt={result.extracted_data?.title || 'Product'}
+                            className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                          />
+                        </div>
+                      )}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
-                  {selectedWorkflow.sampleAttributes.map((attr, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col justify-between gap-1 shadow-sm"
-                    >
-                      <span className="text-[10px] font-mono text-blue-400 font-bold uppercase">{attr}</span>
-                      <span className="text-[11px] font-mono text-slate-300 italic">string · validated</span>
+                      <div className="space-y-1.5 flex-1 max-w-2xl">
+                        <h4 className="text-xl font-bold text-white leading-snug">
+                          {result.extracted_data?.title || result.extracted_data?.name || result.extracted_data?.job_title || result.extracted_data?.doc_title || 'Extracted Entity'}
+                        </h4>
+                        <a
+                          href={result.target_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-mono text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 truncate font-medium"
+                        >
+                          <span>{result.target_url}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+
+                      {result.extracted_data?.price !== undefined && (
+                        <div className="text-left sm:text-right shrink-0 bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 rounded-xl">
+                          <span className="text-2xl font-extrabold font-mono text-emerald-400 block">
+                            {result.extracted_data.currency || '$'}{typeof result.extracted_data.price === 'number' ? result.extracted_data.price.toFixed(2) : result.extracted_data.price}
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-300 uppercase font-bold">
+                            {result.extracted_data.availability || 'In Stock'}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-950/20 to-cyan-950/20 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">Ready to Test Real-Time Extraction?</h4>
-                  <p className="text-xs text-slate-300 font-mono">
-                    Target URL: <span className="text-blue-300 font-medium">{targetUrl.substring(0, 45)}...</span>
-                  </p>
-                </div>
-                <button
-                  onClick={handleRunScrape}
-                  disabled={loading}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer shrink-0"
-                >
-                  <Play className="w-3.5 h-3.5 fill-white" />
-                  <span>Execute Sample</span>
-                </button>
+                    {/* Dynamic Attributes Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10">
+                      {Object.entries(result.extracted_data || {}).map(([key, value]) => {
+                        if (['title', 'name', 'job_title', 'doc_title', 'image_url', 'image', 'price', 'currency', 'availability'].includes(key)) {
+                          return null;
+                        }
+                        return (
+                          <div key={key} className="p-3.5 rounded-xl bg-white/[0.04] border border-white/10">
+                            <span className="text-[10px] font-mono uppercase text-slate-300 font-bold block mb-1">
+                              {key.replace(/_/g, ' ')}
+                            </span>
+                            <div className="text-xs font-mono text-slate-100 break-words font-medium">
+                              {formatFieldValue(value)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <pre className="p-6 rounded-xl bg-[#080b12] border border-white/15 text-xs font-mono text-emerald-300 overflow-x-auto max-h-[380px] leading-relaxed font-semibold">
+                    {JSON.stringify(result.extracted_data, null, 2)}
+                  </pre>
+                )}
               </div>
-            </div>
-          )}
+            ) : (
+              /* Interactive Schema Contract Blueprint Preview */
+              <div className="flex-1 flex flex-col justify-between space-y-6">
+                <div className="p-5 rounded-2xl bg-[#080b12] border border-blue-500/20 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                      <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                        Schema Blueprint Contract: {selectedWorkflow.name}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold">
+                      Armed for Deployment
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    The multi-strategy pipeline is initialized. Once deployed, the extractor will execute the 5-stage waterfall and populate these structured attributes:
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
+                    {selectedWorkflow.sampleAttributes.map((attr, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col justify-between gap-1 shadow-sm"
+                      >
+                        <span className="text-[10px] font-mono text-blue-400 font-bold uppercase">{attr}</span>
+                        <span className="text-[11px] font-mono text-slate-300 italic">string · validated</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-950/20 to-cyan-950/20 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-0.5">Ready to Test Real-Time Extraction?</h4>
+                    <p className="text-xs text-slate-300 font-mono">
+                      Target URL: <span className="text-blue-300 font-medium">{targetUrl.substring(0, 45)}...</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRunScrape}
+                    disabled={loading}
+                    className="tactile-press px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer shrink-0"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>Execute Sample</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </SpotlightCard>
         </div>
       </div>
 

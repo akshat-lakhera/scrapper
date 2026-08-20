@@ -147,9 +147,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-black/70 backdrop-blur-md animate-fade-in">
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-black/75 backdrop-blur-md animate-fade-in cursor-pointer"
+    >
       <div 
-        className="w-full max-w-2xl bg-[#060a12] border border-white/15 rounded-2xl shadow-2xl shadow-cyan-500/10 overflow-hidden flex flex-col max-h-[540px] animate-scale-up"
+        className="w-full max-w-2xl bg-[#060a12] border border-white/15 rounded-2xl shadow-2xl shadow-cyan-500/10 overflow-hidden flex flex-col max-h-[540px] animate-scale-up cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Header */}
@@ -161,11 +164,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             value={query}
             onChange={(e) => { setQuery(e.target.value); setSelectedIndex(0); }}
             placeholder="Type a command, URL, or jump to workspace..."
-            className="w-full bg-transparent text-sm font-medium text-white placeholder-slate-500 focus:outline-none mono"
+            className="w-full bg-transparent text-sm font-medium text-white placeholder-slate-500 focus:outline-none font-mono"
           />
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-slate-400 border border-white/10 shrink-0">
-            ESC
-          </kbd>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <kbd className="kbd-badge text-[10px] hidden sm:inline-flex">
+              ESC
+            </kbd>
+            <button
+              onClick={onClose}
+              className="tactile-press p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Close Command Palette (Esc)"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Results List */}

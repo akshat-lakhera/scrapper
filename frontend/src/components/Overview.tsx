@@ -212,35 +212,40 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
   return (
     <div className="space-y-6 pb-12">
-      {/* ── UNIFIED COMPACT WORKSPACE TOOLBAR (Execution Controls Only) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-2xl bg-[#0a0d16] border border-white/10 shadow-lg">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={() => setScrapeMode('single')}
-            className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
-              scrapeMode === 'single' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
-            }`}
-          >
-            Single Target
-          </button>
-          <button
-            onClick={() => setScrapeMode('batch')}
-            className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              scrapeMode === 'batch' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Batch Multi-URL</span>
-          </button>
-          <button
-            onClick={() => setScrapeMode('crawl')}
-            className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              scrapeMode === 'crawl' ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
-            }`}
-          >
-            <Network className="w-3.5 h-3.5" />
-            <span>🕸️ Deep Crawler</span>
-          </button>
+      {/* ── [01 // CONTROL DECK] WORKSPACE EXECUTION CONTROLS ── */}
+      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-2xl bg-[#090c14] border border-white/10 shadow-xl">
+        <div className="flex items-center gap-3">
+          <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-slate-400 font-bold tracking-wider">
+            [01 // CONTROL DECK]
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setScrapeMode('single')}
+              className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                scrapeMode === 'single' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
+              }`}
+            >
+              Single Target
+            </button>
+            <button
+              onClick={() => setScrapeMode('batch')}
+              className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                scrapeMode === 'batch' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Batch Multi-URL</span>
+            </button>
+            <button
+              onClick={() => setScrapeMode('crawl')}
+              className={`tactile-press px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                scrapeMode === 'crawl' ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25' : 'bg-[#121728] text-slate-200 border border-white/15 hover:bg-[#1a2238] hover:text-white'
+              }`}
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span>🕸️ Deep Crawler</span>
+            </button>
+          </div>
         </div>
 
         {/* Action Trigger: Autonomous Drift Simulator */}
@@ -352,11 +357,17 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
       {/* ── MAIN BENTO GRID ARCHITECTURE ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ── CELL 1: HERO EXTRACTION SANDBOX (Span 8 cols) ── */}
-        <SpotlightCard className="col-span-1 lg:col-span-8 p-7 sm:p-9 flex flex-col justify-between min-h-[380px]">
+        <SpotlightCard className="col-span-1 lg:col-span-8 p-7 sm:p-9 flex flex-col justify-between min-h-[380px] relative">
           <div className="space-y-6">
-            {/* Header with System Ready Pill */}
+            {/* Header with System Ready Pill & Swiss Coordinate */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-300 font-bold tracking-wider">
+                    [02 // INGESTION SANDBOX]
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-500">SCHEMAS: 8 ACTIVE</span>
+                </div>
                 <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
                   <Globe className="w-6 h-6 text-blue-400" />
                   <span>
@@ -369,7 +380,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
               </div>
 
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold shrink-0 self-start sm:self-auto">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 status-dot-emerald animate-pulse" />
                 <ScrambleText text="SYSTEM READY" speed={40} />
               </div>
             </div>
@@ -382,7 +393,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                   rows={4}
                   value={batchUrls}
                   onChange={(e) => setBatchUrls(e.target.value)}
-                  className="w-full bg-[#090c13] border border-white/10 text-white font-mono text-xs sm:text-sm p-4 rounded-xl focus:border-blue-500 focus:outline-none transition-colors shadow-inner"
+                  className="w-full bg-[#090c13] border border-white/15 text-white font-mono text-xs sm:text-sm p-4 rounded-xl focus:border-blue-500 focus:outline-none transition-colors shadow-inner"
                   placeholder="https://example.com/target1&#10;https://example.com/target2"
                 />
               </div>
@@ -450,7 +461,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                     <button
                       key={p.id}
                       onClick={() => handleSelectPlatform(p)}
-                      className={`px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2.5 border cursor-pointer ${
+                      className={`tactile-press px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2.5 border cursor-pointer ${
                         isSelected
                           ? 'border-blue-400 bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30 scale-[1.02]'
                           : 'border-white/20 bg-[#121728] text-slate-100 hover:text-white hover:bg-[#1c2742] hover:border-blue-400/60 font-semibold shadow-sm'
@@ -471,13 +482,13 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
               Provider: Bright Data Scraper Studio & Datasets v3
             </span>
 
-              <button
-                onClick={handleExecuteLiveScrape}
-                disabled={loading || (scrapeMode !== 'batch' && !urlInput.trim())}
-                className={`btn-pulse tactile-press px-8 py-3.5 rounded-xl text-white font-bold text-sm flex items-center gap-2.5 shadow-xl transition-all disabled:opacity-50 cursor-pointer ${
-                  scrapeMode === 'crawl' ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
-                }`}
-              >
+            <button
+              onClick={handleExecuteLiveScrape}
+              disabled={loading || (scrapeMode !== 'batch' && !urlInput.trim())}
+              className={`btn-pulse tactile-press px-8 py-3.5 rounded-xl text-white font-bold text-sm flex items-center gap-2.5 shadow-xl transition-all disabled:opacity-50 cursor-pointer ${
+                scrapeMode === 'crawl' ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/30'
+              }`}
+            >
               {loading ? (
                 <>
                   <Zap className="w-4 h-4 animate-spin text-white" />
@@ -491,6 +502,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
                     {scrapeMode === 'crawl' ? 'Launch Deep Crawler' : (scrapeMode === 'batch' ? 'Deploy Batch Pipeline' : 'Deploy Agent')}
                   </span>
                   <Send className="w-4 h-4" />
+                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 ml-1 text-[9px] py-0.5 px-1.5">↵</kbd>
                 </>
               )}
             </button>
@@ -498,11 +510,14 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
         </SpotlightCard>
 
         {/* ── CELL 2: EXTRACTION AUDIT STREAM / PRE-FLIGHT BLUEPRINT (Span 4 cols) ── */}
-        <SpotlightCard className="col-span-1 lg:col-span-4 p-0 flex flex-col justify-between min-h-[380px]">
+        <SpotlightCard className="col-span-1 lg:col-span-4 p-0 flex flex-col justify-between min-h-[380px] relative">
           <div className="p-4 border-b border-white/10 bg-[#0f1422] flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
+              <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[9px] font-mono text-cyan-300 font-bold">
+                [03]
+              </span>
               <History className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-bold text-white">Audit Stream</h3>
+              <h3 className="text-sm font-bold text-white font-mono">Telemetry Feed</h3>
             </div>
 
             <div className="flex items-center gap-2">
@@ -642,9 +657,12 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
         </SpotlightCard>
 
         {/* ── CELL 3: 5-STAGE PIPELINE WATERFALL (Span 12 cols) ── */}
-        <SpotlightCard className="col-span-1 lg:col-span-12 p-6 sm:p-8 space-y-4">
+        <SpotlightCard className="col-span-1 lg:col-span-12 p-6 sm:p-8 space-y-4 relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
+              <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-300 font-bold tracking-wider">
+                [04 // WATERFALL CASCADE]
+              </span>
               <Terminal className="w-4 h-4 text-blue-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
                 Multi-Strategy Pipeline Waterfall
@@ -713,10 +731,10 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </div>
 
           {/* ── WATERFALL LIVE TELEMETRY & THROUGHPUT DOCK (Balances Bottom Right) ── */}
-          <div className="pt-3 border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono text-slate-300">
+          <div className="pt-3 border-t border-white/10 flex flex-col md:flex-row md:flex-row md:items-center justify-between gap-3 text-xs font-mono text-slate-300">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 status-dot-emerald animate-pulse" />
                 <span>5-STAGE CASCADE ARMED</span>
               </div>
               <span className="text-slate-600 hidden sm:inline">|</span>
@@ -727,7 +745,7 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
             <div className="flex items-center gap-4 shrink-0">
               <span className="text-slate-300">
-                Avg Latency: <strong className="text-white font-bold">{metrics?.avg_duration_ms || 21}ms</strong>
+                Avg Latency: <strong className="text-white font-bold">{metrics?.avg_duration_ms ? Math.round(metrics.avg_duration_ms) : 18}ms</strong>
               </span>
               <span className="text-slate-600 hidden sm:inline">|</span>
               <div className="flex items-center gap-1 text-[11px] text-cyan-300 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-0.5 rounded-full font-bold">
@@ -740,11 +758,23 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
         {/* ── CELL 4: 4 PRECISION METRIC CARDS WITH PROGRESS ARCS (Span 12 cols) ── */}
         <div className="col-span-1 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1 */}
-          <SpotlightCard className="p-6 flex items-center justify-between">
+          <SpotlightCard className="p-6 flex items-center justify-between relative">
             <div className="space-y-1">
-              <span className="text-xs font-mono text-slate-400 font-bold uppercase">Data Reliability</span>
+              <div className="flex items-center gap-1.5">
+                <span className="px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-slate-400 font-bold">01</span>
+                <span className="text-xs font-mono text-slate-400 font-bold uppercase">Data Reliability</span>
+              </div>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.overall_reliability !== undefined ? metrics.overall_reliability : 100} suffix="%" />
+                <CountUp 
+                  end={
+                    metrics?.overall_reliability !== undefined 
+                      ? Math.round(metrics.overall_reliability) 
+                      : (recentRuns.length > 0 
+                          ? Math.round((recentRuns.filter(r => r.status === 'success' || r.status === 'repaired').length / recentRuns.length) * 100)
+                          : 100)
+                  } 
+                  suffix="%" 
+                />
               </div>
               <span className="text-[11px] text-slate-400 block">Pydantic validation rate</span>
             </div>
@@ -772,11 +802,25 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </SpotlightCard>
 
           {/* Card 2 */}
-          <SpotlightCard className="p-6 flex items-center justify-between">
+          <SpotlightCard className="p-6 flex items-center justify-between relative">
             <div className="space-y-1">
-              <span className="text-xs font-mono text-slate-400 font-bold uppercase">Mean Speed</span>
+              <div className="flex items-center gap-1.5">
+                <span className="px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-slate-400 font-bold">02</span>
+                <span className="text-xs font-mono text-slate-400 font-bold uppercase">Mean Speed</span>
+              </div>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.avg_duration_ms !== undefined ? Math.round(metrics.avg_duration_ms) : 0} /><span className="text-base text-blue-400 font-normal">ms</span>
+                <CountUp 
+                  end={
+                    metrics?.avg_duration_ms !== undefined && metrics.avg_duration_ms > 0
+                      ? Math.round(metrics.avg_duration_ms) 
+                      : (metrics?.average_latency_ms !== undefined && metrics.average_latency_ms > 0
+                          ? Math.round(metrics.average_latency_ms)
+                          : (recentRuns.length > 0 
+                              ? Math.round(recentRuns.reduce((acc, r) => acc + (r.duration_ms || 0), 0) / recentRuns.length)
+                              : 18))
+                  } 
+                />
+                <span className="text-base text-blue-400 font-normal">ms</span>
               </div>
               <span className="text-[11px] text-slate-400 block">Average execution latency</span>
             </div>
@@ -804,11 +848,23 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </SpotlightCard>
 
           {/* Card 3 */}
-          <SpotlightCard className="p-6 flex items-center justify-between">
+          <SpotlightCard className="p-6 flex items-center justify-between relative">
             <div className="space-y-1">
-              <span className="text-xs font-mono text-slate-400 font-bold uppercase">Self-Healing Rate</span>
+              <div className="flex items-center gap-1.5">
+                <span className="px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-slate-400 font-bold">03</span>
+                <span className="text-xs font-mono text-slate-400 font-bold uppercase">Self-Healing Rate</span>
+              </div>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.healing_success_rate !== undefined ? Math.round(metrics.healing_success_rate) : 100} suffix="%" />
+                <CountUp 
+                  end={
+                    metrics?.healing_success_rate !== undefined 
+                      ? Math.round(metrics.healing_success_rate) 
+                      : ((metrics?.repair_metrics as any)?.same_template_repair_success_rate !== undefined
+                          ? Math.round((metrics?.repair_metrics as any).same_template_repair_success_rate)
+                          : 100)
+                  } 
+                  suffix="%" 
+                />
               </div>
               <span className="text-[11px] text-slate-400 block">Holdout validated (≥ 70%)</span>
             </div>
@@ -836,11 +892,21 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
           </SpotlightCard>
 
           {/* Card 4 */}
-          <SpotlightCard className="p-6 flex items-center justify-between">
+          <SpotlightCard className="p-6 flex items-center justify-between relative">
             <div className="space-y-1">
-              <span className="text-xs font-mono text-slate-400 font-bold uppercase">Rule Bundles</span>
+              <div className="flex items-center gap-1.5">
+                <span className="px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-slate-400 font-bold">04</span>
+                <span className="text-xs font-mono text-slate-400 font-bold uppercase">Rule Bundles</span>
+              </div>
               <div className="text-3xl font-extrabold font-mono text-white">
-                <CountUp end={metrics?.template_count !== undefined ? metrics.template_count : 1} />
+                <CountUp 
+                  end={
+                    metrics?.template_count ?? 
+                    (metrics?.repair_metrics as any)?.template_count ?? 
+                    (metrics?.repair_metrics as any)?.active_rule_bundles ?? 
+                    7
+                  } 
+                />
               </div>
               <span className="text-[11px] text-slate-400 block">DOM Hash Keyed</span>
             </div>
@@ -870,9 +936,12 @@ export const Overview: React.FC<OverviewProps> = ({ configMode, setActiveTab }) 
 
         {/* ── CELL 5: DUAL-VIEW ENTITY INSPECTOR (Span 12 cols) ── */}
         {extractedResult && (
-          <SpotlightCard className="col-span-1 lg:col-span-12 p-6 sm:p-8 space-y-6">
+          <SpotlightCard className="col-span-1 lg:col-span-12 p-6 sm:p-8 space-y-6 relative">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
+                <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-300 font-bold tracking-wider">
+                  [05 // PAYLOAD INSPECTOR]
+                </span>
                 <StatusBadge status={extractedResult.status} />
                 <div>
                   <h3 className="text-lg font-bold text-white">Extracted Entity Payload</h3>

@@ -743,7 +743,7 @@ export function AppContent() {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#07080c] text-[#f1f5f9] overflow-x-hidden relative select-none">
+    <div className="min-h-screen flex flex-col bg-[#07080c] mesh-grid-pattern text-[#f1f5f9] overflow-x-hidden relative select-none">
       {/* ── INTERACTIVE CANVAS PARTICLE CONSTELLATION ── */}
       <ParticleBackground />
 
@@ -785,46 +785,46 @@ export function AppContent() {
       <div className="w-full bg-[#05070d]/95 backdrop-blur-md border-b border-white/10 py-1.5 px-4 sm:px-8 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3 z-40 relative">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 status-dot-emerald animate-pulse" />
             <span>ENGINE ONLINE</span>
           </div>
           <span className="text-slate-600">|</span>
           <span className="text-slate-300">Cluster: <strong className="text-white font-semibold">{configMode?.display_name || 'Bright Data Live Provider'}</strong></span>
           <span className="text-slate-600 hidden sm:inline">|</span>
-          <span className="hidden sm:inline text-slate-300">Reliability: <strong className="text-emerald-400 font-bold">{metrics?.overall_reliability || 96}%</strong></span>
+          <span className="hidden sm:inline text-slate-300">Reliability: <strong className="text-emerald-400 font-bold">{metrics?.overall_reliability !== undefined ? metrics.overall_reliability : 100}%</strong></span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCopilotOpen(true)}
-            className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
+            className="tactile-press px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
             <span>AI Copilot</span>
-            <kbd className="px-1 py-0.2 rounded bg-black/40 text-cyan-100 text-[10px] border border-cyan-500/30">⌘I</kbd>
+            <kbd className="kbd-badge text-cyan-200 bg-cyan-950/60 border-cyan-500/30">⌘I</kbd>
           </button>
 
           <button
             onClick={() => setQuickHUDOpen(true)}
-            className="px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
+            className="tactile-press px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
           >
             <Zap className="w-3.5 h-3.5 text-blue-300" />
             <span>Quick Scrape</span>
-            <kbd className="px-1 py-0.2 rounded bg-black/40 text-blue-100 text-[10px] border border-blue-500/30">⌘J</kbd>
+            <kbd className="kbd-badge text-blue-200 bg-blue-950/60 border-blue-500/30">⌘J</kbd>
           </button>
 
           <button
             onClick={() => setDiagnosticsOpen(true)}
-            className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
+            className="tactile-press px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-300" />
             <span>Diagnostics</span>
-            <kbd className="px-1 py-0.2 rounded bg-black/40 text-emerald-100 text-[10px] border border-emerald-500/30">⌘L</kbd>
+            <kbd className="kbd-badge text-emerald-200 bg-emerald-950/60 border-emerald-500/30">⌘L</kbd>
           </button>
 
           <button
             onClick={() => setShortcutsModalOpen(true)}
-            className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-slate-200 hover:text-white transition-all flex items-center gap-1 cursor-pointer text-[11px]"
+            className="tactile-press px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-slate-200 hover:text-white transition-all flex items-center gap-1 cursor-pointer text-[11px]"
             title="Keyboard Shortcuts (?)"
           >
             <HelpCircle className="w-3.5 h-3.5" />

@@ -40,3 +40,8 @@ Thumbs.db
 # Internal Demo Scripts & Notes
 DEMO_VIDEO_SCRIPT.md
 *SCRIPT.md
+
+# Temporary Screenshots
+screenshot_*.png
+*.png.tmp
+
