@@ -61,6 +61,16 @@ export const RunHistory: React.FC = () => {
     loadRuns();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedDetails) {
+        setSelectedDetails(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedDetails]);
+
   const openDetails = async (id: number) => {
     try {
       setLoading(true);
