@@ -61,6 +61,10 @@ class CrawlerService:
             # Remove fragment/hash
             full_url = full_url.split("#")[0]
 
+            # Normalize trailing slash for path consistency
+            if full_url.endswith("/") and full_url.count("/") > 3:
+                full_url = full_url.rstrip("/")
+
             if CrawlerService._is_valid_child_url(base_url, full_url, workflow_type):
                 discovered.add(full_url)
 
