@@ -11,6 +11,13 @@ CURRENCY_SYMBOLS = {
     "¥": "JPY",
     "A$": "AUD",
     "C$": "CAD",
+    "NZ$": "NZD",
+    "HK$": "HKD",
+    "S$": "SGD",
+    "₩": "KRW",
+    "CHF": "CHF",
+    "R$": "BRL",
+    "kr": "SEK",
     "Rs": "INR",
     "Rs.": "INR",
     "INR": "INR",
@@ -32,14 +39,22 @@ class Normalizer:
         if isinstance(val, (int, float)):
             return float(val)
         if isinstance(val, str):
-            clean = val.replace(",", "")
-            # Look for "4.5 out of 5" pattern
-            out_of_m = re.search(r"(\d+(?:\.\d+)?)\s*(?:out of|/)\s*\d+", clean, re.I)
+            val_str = val.strip()
+            # Look for "4.5 out of 5" or "4,5 / 5" pattern
+            out_of_m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:out of|/)\s*\d+", val_str, re.I)
             if out_of_m:
                 try:
-                    return float(out_of_m.group(1))
+                    return float(out_of_m.group(1).replace(",", "."))
                 except ValueError:
                     pass
+
+            # Detect European format like 1.234,56 or 1234,56
+            if re.search(r"\d+\.\d{3},\d{2}", val_str):
+                clean = val_str.replace(".", "").replace(",", ".")
+            elif re.search(r"^\D*\d+,\d{2}\D*$", val_str) and "." not in val_str:
+                clean = val_str.replace(",", ".")
+            else:
+                clean = val_str.replace(",", "")
 
             # Extract first numeric sequence
             m = re.search(r"[-+]?\d*\.?\d+", clean)
