@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from bs4 import BeautifulSoup, Tag
 
 class DOMInspectorService:
