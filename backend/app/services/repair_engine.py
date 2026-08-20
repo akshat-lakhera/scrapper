@@ -211,23 +211,29 @@ class RepairEngine:
         if not elem or not elem.name:
             return None
 
-        # 1. ID selector
+        # 1. Stable ID selector
         elem_id = elem.get("id")
         if elem_id and not re.search(r"\d{6,}", elem_id):
             return f"#{elem_id}"
 
-        # 2. Semantic class selector
+        # 2. Data attributes and QA hooks
+        for attr in ("data-testid", "data-qa", "data-cy", "data-component", "itemprop"):
+            val = elem.get(attr)
+            if val and isinstance(val, str) and len(val) < 50:
+                return f"{elem.name}[{attr}='{val}']"
+
+        # 3. Semantic class selector
         classes = elem.get("class", [])
         stable_classes = [c for c in classes if not re.search(r"[a-f0-9]{6,}", c) and len(c) > 2]
         if stable_classes:
             class_sel = f"{elem.name}.{stable_classes[0]}"
             return class_sel
 
-        # 3. Parent-child selector
+        # 4. Bounded parent-child selector
         parent = elem.parent
-        if parent and parent.name != "[document]":
+        if parent and parent.name not in ("[document]", "html", "body"):
             parent_sel = RepairEngine._generate_unique_css_selector(parent)
-            if parent_sel:
+            if parent_sel and parent_sel != elem.name:
                 return f"{parent_sel} > {elem.name}"
 
         return elem.name
