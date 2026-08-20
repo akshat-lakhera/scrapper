@@ -74,9 +74,10 @@ class Normalizer:
     def parse_currency(val: Any) -> Optional[str]:
         if not val or not isinstance(val, str):
             return None
-        for sym, code in CURRENCY_SYMBOLS.items():
+        # Sort by length descending so multi-character symbols (e.g. A$, C$, Rs.) match before single-char ($)
+        for sym in sorted(CURRENCY_SYMBOLS.keys(), key=len, reverse=True):
             if sym in val:
-                return code
+                return CURRENCY_SYMBOLS[sym]
         return None
 
     @staticmethod

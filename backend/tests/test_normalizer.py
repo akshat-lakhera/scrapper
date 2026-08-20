@@ -35,3 +35,12 @@ def test_normalize_job_record():
     assert norm["job_title"] == "Python Developer"
     assert norm["company"] == "TechCorp"
     assert norm["location"] == "Remote"
+
+def test_european_decimals_and_international_currencies():
+    assert Normalizer.parse_number("1.499,00 €") == 1499.0
+    assert Normalizer.parse_number("1499,50") == 1499.5
+    assert Normalizer.parse_currency("£ 450.00") == "GBP"
+    assert Normalizer.parse_currency("A$ 99.00") == "AUD"
+    assert Normalizer.parse_currency("CHF 120.00") == "CHF"
+    assert Normalizer.parse_currency("₩ 50,000") == "KRW"
+    assert Normalizer.parse_number("4,8 / 5") == 4.8
