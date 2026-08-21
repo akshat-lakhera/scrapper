@@ -198,6 +198,16 @@ def get_schema_by_name(name: str) -> Optional[ScrapeSchema]:
     return SCHEMA_REGISTRY.get(name.lower())
 
 
+def get_all_schemas() -> List[ScrapeSchema]:
+    seen = set()
+    schemas = []
+    for s in SCHEMA_REGISTRY.values():
+        if s.name not in seen:
+            seen.add(s.name)
+            schemas.append(s)
+    return schemas
+
+
 def generate_brightdata_instruction(schema: ScrapeSchema) -> str:
     """Generates natural language extraction instruction for Bright Data Scraper Studio."""
     field_names = ", ".join(schema.get_all_field_names())

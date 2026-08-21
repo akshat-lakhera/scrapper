@@ -61,6 +61,16 @@ class CrawlerService:
             # Remove fragment/hash
             full_url = full_url.split("#")[0]
 
+            # Strip tracking query parameters (ref, utm_*, fbclid, gclid)
+            if "?" in full_url:
+                parsed_u = urlparse(full_url)
+                filtered_q = [
+                    p for p in parsed_u.query.split("&")
+                    if p and not p.lower().startswith(("utm_", "ref=", "fbclid=", "gclid=", "_ga="))
+                ]
+                new_q = "&".join(filtered_q)
+                full_url = f"{parsed_u.scheme}://{parsed_u.netloc}{parsed_u.path}" + (f"?{new_q}" if new_q else "")
+
             # Normalize trailing slash for path consistency
             if full_url.endswith("/") and full_url.count("/") > 3:
                 full_url = full_url.rstrip("/")

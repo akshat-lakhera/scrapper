@@ -450,6 +450,12 @@ class MultiStrategyEngine:
             if rc_elem:
                 return rc_elem.get("content") or rc_elem.get_text(strip=True), "[itemprop='reviewCount']"
 
+        # 2e. Author / User posted for social workflows
+        if field_name in ("user_posted", "author", "author_name", "creator", "page_name"):
+            u_elem = soup.select_one("[data-testid='User-Name'], .author-name, .author, .user-posted, .username, .page-name, .profile-name")
+            if u_elem:
+                return u_elem.get_text(strip=True), "[data-testid='User-Name']"
+
         # 3. HTML5 Headings for Title / Heading Fields
         if field_name in ("title", "job_title", "place_name", "doc_title", "section_heading"):
             # Google Maps URL extraction fallback
@@ -510,8 +516,8 @@ class MultiStrategyEngine:
                 return loc_elem.get_text(strip=True), "linkedin_location_class"
 
         # LinkedIn, Documentation & General Description DOM Heuristics
-        if field_name in ("description", "job_description", "post_text", "body_text", "content_body"):
-            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], article, main, .document, .content, .body, .section, article p, main p, div.body p, p")
+        if field_name in ("description", "job_description", "post_text", "body_text", "content_body", "bio", "about"):
+            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], .post-content, .post-text, .user-content, .feed-content, .bio, .about, article, main, .document, .content, .body, .section, article p, main p, div.body p, p")
             if desc_elem and len(desc_elem.get_text(strip=True)) > 5:
                 return desc_elem.get_text(separator=" ", strip=True)[:1500], "semantic_description_class"
 
