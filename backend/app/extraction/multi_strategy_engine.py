@@ -432,6 +432,24 @@ class MultiStrategyEngine:
         if elem:
             return elem.get(f"data-{field_name}") or elem.get_text(strip=True), f"[data-{field_name}]"
 
+        # 2b. Schema.org Aggregate Rating & RatingValue
+        if field_name == "rating":
+            r_elem = soup.select_one("[itemprop='ratingValue'], [itemprop='aggregateRating'] [itemprop='ratingValue'], .rating, .review-rating, .star-rating, .stars")
+            if r_elem:
+                return r_elem.get("content") or r_elem.get_text(strip=True), "[itemprop='ratingValue']"
+
+        # 2c. Documentation version & timestamps
+        if field_name in ("last_updated", "version"):
+            time_el = soup.select_one("time, .doc-version-badge, .version, .doc-updated-at, [itemprop='dateModified'], [itemprop='datePublished']")
+            if time_el:
+                return time_el.get("datetime") or time_el.get_text(strip=True), "time.doc-updated-at"
+
+        # 2d. Schema.org Review Count & Rating Count
+        if field_name in ("review_count", "reviews_count"):
+            rc_elem = soup.select_one("[itemprop='reviewCount'], [itemprop='ratingCount'], .review-count, .reviews-count, [data-testid='review-count']")
+            if rc_elem:
+                return rc_elem.get("content") or rc_elem.get_text(strip=True), "[itemprop='reviewCount']"
+
         # 3. HTML5 Headings for Title / Heading Fields
         if field_name in ("title", "job_title", "place_name", "doc_title", "section_heading"):
             # Google Maps URL extraction fallback

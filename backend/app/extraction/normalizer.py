@@ -56,6 +56,17 @@ class Normalizer:
             else:
                 clean = val_str.replace(",", "")
 
+            # Check for shorthand notations like 1.2M, 34.5K, 2.5B
+            abbrev_m = re.search(r"(\d+(?:\.\d+)?)\s*([kKmMbB])\b", val_str)
+            if abbrev_m:
+                try:
+                    base_num = float(abbrev_m.group(1))
+                    unit = abbrev_m.group(2).lower()
+                    multiplier = 1_000 if unit == "k" else (1_000_000 if unit == "m" else 1_000_000_000)
+                    return base_num * multiplier
+                except ValueError:
+                    pass
+
             # Extract first numeric sequence
             m = re.search(r"[-+]?\d*\.?\d+", clean)
             if m and m.group(0) not in ("", "-", "+", "."):
@@ -309,6 +320,15 @@ class Normalizer:
                 if name == "currency":
                     cur = Normalizer.parse_currency(str(raw_val))
                     normalized[name] = cur if cur else str(raw_val).strip()
+                elif name in ("availability", "stock"):
+                    if isinstance(raw_val, bool):
+                        normalized[name] = "In stock" if raw_val else "Out of stock"
+                    elif str(raw_val).lower() in ("true", "1"):
+                        normalized[name] = "In stock"
+                    elif str(raw_val).lower() in ("false", "0"):
+                        normalized[name] = "Out of stock"
+                    else:
+                        normalized[name] = str(raw_val).strip()
                 elif name in ("rating", "review_count") and isinstance(raw_val, (int, float)):
                     normalized[name] = str(raw_val)
                 else:
