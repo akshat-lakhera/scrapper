@@ -137,12 +137,13 @@ class RAGService:
             clean_fields = {k: v for k, v in norm_data.items() if v not in (None, "", [], {}) and k not in ("scraped_at", "target_url")}
             block = f"[Target #{r.id} ({r.workflow_type}) | Relevance: {rel_pct}% | {r.target_url}]\n"
             for k, v in clean_fields.items():
-                block += f"  - {k}: {v}\n"
+                v_str = str(v)[:400]
+                block += f"  - {k}: {v_str}\n"
                 citations_lookup.append({
                     "run_id": r.id,
                     "source_url": r.target_url,
                     "field": k,
-                    "value": v,
+                    "value": v_str,
                     "relevance_score": rel_pct
                 })
             knowledge_blocks.append(block)
