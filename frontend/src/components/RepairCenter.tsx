@@ -369,11 +369,11 @@ export const RepairCenter: React.FC = () => {
                       <button
                         onClick={handleRetest}
                         disabled={retestLoading}
-                        className="btn-pulse tactile-press px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50"
+                        className="tactile-press px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all shadow-sm disabled:opacity-50"
                       >
                         <Play className="w-3.5 h-3.5 fill-white" />
                         <span>{retestLoading ? 'Executing...' : 'Live Re-Test & Validate'}</span>
-                        <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-[9px] py-0.5 px-1.5 ml-0.5">↵</kbd>
+                        <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-xs py-0.5 px-1.5 ml-0.5">↵</kbd>
                       </button>
                     </div>
                   </div>
@@ -567,10 +567,10 @@ export const RepairCenter: React.FC = () => {
                 <button
                   onClick={() => handleEvaluateSelector()}
                   disabled={inspectLoading}
-                  className="btn-pulse tactile-press absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="tactile-press absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                 >
                   <span>{inspectLoading ? 'Evaluating...' : 'Test Selector'}</span>
-                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-[9px] py-0.5 px-1.5">↵</kbd>
+                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-xs py-0.5 px-1.5">↵</kbd>
                 </button>
               </div>
             </div>

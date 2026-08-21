@@ -433,7 +433,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
             <button
               onClick={handleRunScrape}
               disabled={loading || !targetUrl.trim()}
-              className="btn-pulse tactile-press w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xl shadow-blue-600/30 disabled:opacity-50 cursor-pointer transition-all"
+              className="tactile-press w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono rounded-xl flex items-center justify-center gap-2.5 shadow-sm disabled:opacity-50 cursor-pointer transition-all"
             >
               {loading ? (
                 <>
@@ -444,7 +444,7 @@ export const WorkflowsStudio: React.FC<WorkflowsStudioProps> = () => {
                 <>
                   <Play className="w-4 h-4 fill-white" />
                   <span>Deploy Scraper Pipeline</span>
-                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-[9px] py-0.5 px-1.5 ml-1">↵</kbd>
+                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-xs py-0.5 px-1.5 ml-1">↵</kbd>
                 </>
               )}
             </button>
