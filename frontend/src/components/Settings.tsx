@@ -90,10 +90,10 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="px-2.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-300 font-bold tracking-wider">
-                [01 // SYSTEM ADMINISTRATION & PROVIDER HUB]
+              <span className="text-xs font-mono text-blue-300 font-bold">
+                <span className="text-blue-400 font-mono mr-1">01.</span> System Administration & Provider Hub
               </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 font-mono">
+              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 font-mono">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Bright Data Enterprise Gateway v2.5
               </span>
@@ -123,38 +123,36 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Scraper Provider Config Card (Span 7) */}
         <div className="lg:col-span-7">
-          <SpotlightCard className="p-7 space-y-5 relative h-full">
+          <SpotlightCard className="p-7 space-y-5 relative h-full rounded-2xl">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-300 border border-blue-400/30 flex items-center justify-center shadow-md">
                   <Key className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-mono text-blue-300 font-bold">
-                      [02 // BRIGHT DATA GATEWAY]
-                    </span>
-                  </div>
-                  <h2 className="text-base font-bold text-white">Bright Data Scraper Studio & Datasets</h2>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-blue-400 font-mono text-xs">02.</span>
+                    <span>Bright Data Scraper Studio & Datasets</span>
+                  </h2>
                   <p className="text-xs text-slate-400 font-mono">Active provider connectivity and proxy tunnel gateway</p>
                 </div>
               </div>
-              <span className="text-[11px] font-mono px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold shrink-0">
+              <span className="text-xs font-mono px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold shrink-0">
                 ● {isLive ? 'Datasets v3 / Scraper Studio' : 'Offline Mode'}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
               <div className="p-4 rounded-xl bg-[#080b12] border border-white/10 space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Provider Mode</span>
+                <span className="text-xs text-slate-400 font-bold block">Provider Mode</span>
                 <StatusBadge status={isLive ? 'success' : 'warning'} labelOverride={configMode?.provider || 'brightdata'} size="sm" />
               </div>
               <div className="p-4 rounded-xl bg-[#080b12] border border-white/10 space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Auth Status</span>
+                <span className="text-xs text-slate-400 font-bold block">Auth Status</span>
                 <span className="font-bold text-emerald-400">AUTHENTICATED (v3)</span>
               </div>
               <div className="p-4 rounded-xl bg-[#080b12] border border-white/10 space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Proxy Cluster</span>
+                <span className="text-xs text-slate-400 font-bold block">Proxy Cluster</span>
                 <span className="font-bold text-cyan-300">US / EU / APAC Res.</span>
               </div>
             </div>
@@ -163,19 +161,17 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
 
         {/* Database & Demo Seed Control (Span 5) */}
         <div className="lg:col-span-5">
-          <SpotlightCard className="p-7 space-y-4 relative flex flex-col justify-between h-full">
+          <SpotlightCard className="p-7 space-y-4 relative flex flex-col justify-between h-full rounded-2xl">
             <div className="space-y-3">
               <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                 <div className="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-400/30 flex items-center justify-center shadow-md">
                   <Database className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[9px] font-mono text-purple-300 font-bold">
-                      [03 // DATABASE SEED]
-                    </span>
-                  </div>
-                  <h2 className="text-base font-bold text-white">Database Seed Control</h2>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-purple-400 font-mono text-xs">03.</span>
+                    <span>Database Seed Control</span>
+                  </h2>
                   <p className="text-xs text-slate-400 font-mono">Reset execution runs & repair history</p>
                 </div>
               </div>
@@ -201,18 +197,16 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Worker Pool & Rate Limiter (Span 6) */}
         <div className="lg:col-span-6">
-          <SpotlightCard className="p-7 space-y-5 relative h-full">
+          <SpotlightCard className="p-7 space-y-5 relative h-full rounded-2xl">
             <div className="flex items-center gap-3 border-b border-white/10 pb-4">
               <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 flex items-center justify-center shadow-md">
                 <Sliders className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[9px] font-mono text-cyan-300 font-bold">
-                    [04 // WORKER ENGINE]
-                  </span>
-                </div>
-                <h2 className="text-base font-bold text-white">Execution Engine & Rate Limits</h2>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-cyan-400 font-mono text-xs">04.</span>
+                  <span>Execution Engine & Rate Limits</span>
+                </h2>
                 <p className="text-xs text-slate-400 font-mono">Asynchronous crawler concurrency and worker quotas</p>
               </div>
             </div>
@@ -221,7 +215,7 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-slate-200">
                   <span className="font-bold">Max Concurrent Scrapers</span>
-                  <span className="text-blue-400 font-extrabold px-2.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+                  <span className="text-blue-400 font-extrabold px-2.5 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     {concurrency} Workers
                   </span>
                 </div>
@@ -238,7 +232,7 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-slate-200">
                   <span className="font-bold">HTTP Request Timeout</span>
-                  <span className="text-cyan-400 font-extrabold px-2.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                  <span className="text-cyan-400 font-extrabold px-2.5 py-0.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
                     {requestTimeout}s
                   </span>
                 </div>
@@ -257,18 +251,16 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
 
         {/* Autonomous Healing & Quality Policy (Span 6) */}
         <div className="lg:col-span-6">
-          <SpotlightCard className="p-7 space-y-5 relative h-full">
+          <SpotlightCard className="p-7 space-y-5 relative h-full rounded-2xl">
             <div className="flex items-center gap-3 border-b border-white/10 pb-4">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 flex items-center justify-center shadow-md">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-300 font-bold">
-                    [05 // HEALING POLICIES]
-                  </span>
-                </div>
-                <h2 className="text-base font-bold text-white">Quality Gating & Self-Healing</h2>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-emerald-400 font-mono text-xs">05.</span>
+                  <span>Quality Gating & Self-Healing</span>
+                </h2>
                 <p className="text-xs text-slate-400 font-mono">Automatic schema contract repair and validation</p>
               </div>
             </div>
@@ -277,7 +269,7 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
               <div className="p-4 rounded-xl bg-[#080b12] border border-white/10 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-white block">Autonomous AST Selector Synthesis</span>
-                  <span className="text-[11px] text-slate-400">Generate hot-patches on DOM breaking changes</span>
+                  <span className="text-xs text-slate-400">Generate hot-patches on DOM breaking changes</span>
                 </div>
                 <input 
                   type="checkbox" 
@@ -290,7 +282,7 @@ export const Settings: React.FC<SettingsProps> = ({ configMode }) => {
               <div className="p-4 rounded-xl bg-[#080b12] border border-white/10 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-white block">Strict Pydantic Schema Gating</span>
-                  <span className="text-[11px] text-slate-400">Enforce field constraints and type safety</span>
+                  <span className="text-xs text-slate-400">Enforce field constraints and type safety</span>
                 </div>
                 <input 
                   type="checkbox" 

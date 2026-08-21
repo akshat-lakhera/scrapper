@@ -52,6 +52,12 @@ import { IntelligenceStudio } from './components/IntelligenceStudio';
 import { RuleBundlesExplorer } from './components/RuleBundlesExplorer';
 import { CommandPalette } from './components/CommandPalette';
 import { ParticleBackground } from './components/effects/ParticleBackground';
+import { CookieConsent } from './components/CookieConsent';
+import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { TermsModal } from './components/TermsModal';
+import { Footer } from './components/Footer';
+import { StickyMobileCTA } from './components/StickyMobileCTA';
+import { NotFoundPage } from './components/NotFoundPage';
 
 // ── ERROR BOUNDARY CLASS COMPONENT ──────────────────────────────────────────
 interface ErrorBoundaryProps {
@@ -630,7 +636,27 @@ export function AppContent() {
   const [quickHUDOpen, setQuickHUDOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const { showToast } = useToast();
+
+  // Dynamic Document Title SEO & Workspace Awareness
+  useEffect(() => {
+    const tabTitles: Record<string, string> = {
+      overview: 'Command Center & Live Scrape | MarketScout',
+      studio: 'Workflows & Schema Contracts | MarketScout',
+      intel: 'Intelligence Studio & Living RAG | MarketScout',
+      products: 'Product & Price Intelligence | MarketScout',
+      jobs: 'Talent Radar & Job Discovery | MarketScout',
+      repair: 'Self-Healing Engine & Telemetry | MarketScout',
+      rules: 'Extractor Rule Bundles | MarketScout',
+      scrapers: 'Scraper Cluster Registry | MarketScout',
+      search: 'Search History & SERP Traces | MarketScout',
+      runs: 'Audit Timeline & Run History | MarketScout',
+      settings: 'Cluster Configurations | MarketScout',
+    };
+    document.title = tabTitles[activeTab] || 'MarketScout — Autonomous Self-Healing Web Intelligence';
+  }, [activeTab]);
 
   const loadData = useCallback(async () => {
     try {
@@ -781,64 +807,16 @@ export function AppContent() {
         onClose={() => setCopilotOpen(false)}
       />
 
-      {/* ── TOP LEVEL REAL-TIME SYSTEM TELEMETRY STRIP ── */}
-      <div className="w-full bg-[#05070d]/95 backdrop-blur-md border-b border-white/10 py-1.5 px-4 sm:px-8 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3 z-40 relative">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 status-dot-emerald animate-pulse" />
-            <span>ENGINE ONLINE</span>
-          </div>
-          <span className="text-slate-600">|</span>
-          <span className="text-slate-300">Cluster: <strong className="text-white font-semibold">{configMode?.display_name || 'Bright Data Live Provider'}</strong></span>
-          <span className="text-slate-600 hidden sm:inline">|</span>
-          <span className="hidden sm:inline text-slate-300">Reliability: <strong className="text-emerald-400 font-bold">{metrics?.overall_reliability !== undefined ? metrics.overall_reliability : 100}%</strong></span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCopilotOpen(true)}
-            className="tactile-press px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
-            <span>AI Copilot</span>
-            <kbd className="kbd-badge text-cyan-200 bg-cyan-950/60 border-cyan-500/30">⌘I</kbd>
-          </button>
-
-          <button
-            onClick={() => setQuickHUDOpen(true)}
-            className="tactile-press px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
-          >
-            <Zap className="w-3.5 h-3.5 text-blue-300" />
-            <span>Quick Scrape</span>
-            <kbd className="kbd-badge text-blue-200 bg-blue-950/60 border-blue-500/30">⌘J</kbd>
-          </button>
-
-          <button
-            onClick={() => setDiagnosticsOpen(true)}
-            className="tactile-press px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer font-bold text-[11px] shadow-sm"
-          >
-            <Terminal className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Diagnostics</span>
-            <kbd className="kbd-badge text-emerald-200 bg-emerald-950/60 border-emerald-500/30">⌘L</kbd>
-          </button>
-
-          <button
-            onClick={() => setShortcutsModalOpen(true)}
-            className="tactile-press px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-slate-200 hover:text-white transition-all flex items-center gap-1 cursor-pointer text-[11px]"
-            title="Keyboard Shortcuts (?)"
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span className="hidden md:inline font-medium">Hotkeys (?)</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Floating Island Navigation Dock */}
+      {/* Floating Island Navigation Dock with Integrated Utilities */}
       <Header
         activeTab={activeTab}
         setActiveTab={switchTab}
         configMode={configMode}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        onOpenCopilot={() => setCopilotOpen(true)}
+        onOpenQuickHUD={() => setQuickHUDOpen(true)}
+        onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+        onOpenShortcuts={() => setShortcutsModalOpen(true)}
         onReset={handleGlobalReset}
         resetting={resetting}
       />
@@ -881,55 +859,73 @@ export function AppContent() {
         {activeTab === 'settings' && <Settings configMode={configMode} />}
       </main>
 
-      {/* ── FLOATING ACTION SPEED-DIAL DOCK (Bottom Right) ── */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2.5">
+      {/* ── DEDICATED FLOATING UTILITY RAIL (Bottom Right) ── */}
+      <aside 
+        aria-label="Quick Actions Rail"
+        className="fixed bottom-6 right-6 z-40 p-1.5 rounded-2xl bg-[#090d18]/90 backdrop-blur-xl border border-white/15 shadow-2xl flex flex-col items-center gap-2"
+      >
         <button
           onClick={() => setCopilotOpen((prev) => !prev)}
-          className="p-3.5 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-xl shadow-cyan-600/30 transition-all hover:scale-105 flex items-center gap-2 text-xs font-mono font-bold cursor-pointer group"
+          className="tactile-press p-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm transition-all flex items-center justify-center cursor-pointer group"
           title="AI Knowledge Copilot (⌘I)"
+          aria-label="Open AI Copilot"
         >
           <Sparkles className="w-4 h-4 fill-white animate-pulse" />
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-out whitespace-nowrap">
-            AI Copilot (⌘I)
-          </span>
         </button>
 
         <button
           onClick={() => setQuickHUDOpen((prev) => !prev)}
-          className="p-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all hover:scale-105 flex items-center justify-center cursor-pointer"
+          className="tactile-press p-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all flex items-center justify-center cursor-pointer"
           title="Instant Quick-Extraction HUD (⌘J)"
+          aria-label="Open Quick Extraction HUD"
         >
           <Zap className="w-4 h-4 fill-white" />
         </button>
 
         <button
           onClick={() => setDiagnosticsOpen((prev) => !prev)}
-          className="p-3 rounded-xl bg-[#0e1220]/90 backdrop-blur-md border border-white/15 text-slate-300 hover:text-white hover:border-emerald-500/40 shadow-lg transition-all hover:scale-105 flex items-center justify-center cursor-pointer"
+          className="tactile-press p-3 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-white/15 text-slate-300 hover:text-white hover:border-emerald-500/40 shadow-sm transition-all flex items-center justify-center cursor-pointer"
           title="Cluster Diagnostic Stream (⌘L)"
+          aria-label="Open Diagnostics Stream"
         >
           <Terminal className="w-4 h-4 text-emerald-400" />
         </button>
-      </div>
+      </aside>
 
-      {/* Industrial Footer */}
-      <footer className="py-6 border-t border-white/[0.06] text-xs font-mono text-slate-500 relative z-10 bg-[#07080c]/80 backdrop-blur-md">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            <span className="font-semibold text-slate-300">MarketScout Enterprise v2.5</span>
-            <span>· Autonomous Web-Data Intelligence</span>
-          </div>
-          <div className="text-slate-400 flex items-center gap-4">
-            <span>Powered by Bright Data Scraper Studio & Multi-Strategy Engine</span>
-            <button
-              onClick={() => setShortcutsModalOpen(true)}
-              className="text-blue-400 hover:underline cursor-pointer"
-            >
-              Shortcuts (?)
-            </button>
-          </div>
-        </div>
-      </footer>
+      {/* Production Footer */}
+      <Footer
+        onOpenPrivacy={() => setPrivacyOpen(true)}
+        onOpenTerms={() => setTermsOpen(true)}
+        setActiveTab={switchTab}
+      />
+
+      {/* Sticky Mobile Quick-Action CTA Bar */}
+      <StickyMobileCTA
+        onExecuteScrape={() => {
+          switchTab('overview');
+        }}
+        onSimulateDrift={() => {
+          switchTab('overview');
+        }}
+        loading={false}
+        simulatingDrift={false}
+        activeTab={activeTab}
+        setActiveTab={switchTab}
+      />
+
+      {/* Privacy Policy & Terms Modals */}
+      <PrivacyPolicyModal
+        isOpen={privacyOpen}
+        onClose={() => setPrivacyOpen(false)}
+      />
+
+      <TermsModal
+        isOpen={termsOpen}
+        onClose={() => setTermsOpen(false)}
+      />
+
+      {/* Zero-PII Cookie & Telemetry Consent Banner */}
+      <CookieConsent />
     </div>
   );
 }

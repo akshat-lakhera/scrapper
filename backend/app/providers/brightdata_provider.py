@@ -368,7 +368,7 @@ class BrightDataProvider(ScraperProvider):
         try:
             async with httpx.AsyncClient(timeout=25.0) as client:
                 html_res = await client.get(target, headers=browser_headers, follow_redirects=True)
-                if html_res.status_code == 200 and len(html_res.text) > 100:
+                if html_res.status_code in (200, 201, 301, 302, 304) and len(html_res.text) > 50:
                     return {
                         "status": "success",
                         "provider_run_id": "live_web_fetch",

@@ -337,8 +337,13 @@ class Normalizer:
                         normalized[name] = ", ".join(str(x) for x in cleaned)
                     elif cleaned is not None:
                         normalized[name] = str(cleaned).strip()
-                    else:
-                        normalized[name] = None
+            elif field.data_type == "url":
+                if isinstance(raw_val, str) and (raw_val.startswith("http://") or raw_val.startswith("https://") or raw_val.startswith("/")):
+                    normalized[name] = raw_val.strip()
+                elif isinstance(raw_val, list) and len(raw_val) > 0 and isinstance(raw_val[0], str):
+                    normalized[name] = raw_val[0].strip()
+                else:
+                    normalized[name] = None
 
             elif field.data_type == "boolean":
                 if isinstance(raw_val, bool):
