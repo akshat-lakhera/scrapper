@@ -216,36 +216,42 @@ export const RepairCenter: React.FC = () => {
       {/* ── TOP HEADER & SUB-TAB SWITCHER ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] font-mono text-amber-300 font-bold tracking-wider">
+              [AUTONOMOUS SELF-HEALING ENGINE]
+            </span>
+            <span className="text-[11px] font-mono text-slate-500">AST MATRIX v2.4</span>
+          </div>
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <Wrench className="w-6 h-6 text-amber-400" />
-            <span>Autonomous Self-Healing Lab</span>
+            <span>Self-Healing Lab & AST Diff Workbench</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time DOM drift diagnostics, candidate selector synthesis, holdout validation, and visual selector testing.
+            Real-time DOM drift diagnostics, candidate selector synthesis, holdout validation, and live DOM hierarchy testing.
           </p>
         </div>
 
-        <div className="flex items-center bg-[#090c13] p-1 rounded-xl border border-white/10 text-xs font-mono">
+        <div className="flex items-center bg-[#090c13] p-1.5 rounded-xl border border-white/10 text-xs font-mono shadow-inner">
           <button
             onClick={() => setActiveTab('stream')}
-            className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`tactile-press px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'stream' ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20' : 'text-slate-400 hover:text-white'
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
-            <span>⚡ Repair Stream & Diff</span>
+            <span>[01] Repair Stream & Diff</span>
           </button>
           <button
             onClick={() => {
               setActiveTab('inspector');
               if (!evalResult) handleEvaluateSelector();
             }}
-            className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`tactile-press px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'inspector' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-white'
             }`}
           >
             <Crosshair className="w-3.5 h-3.5" />
-            <span>🎯 Visual DOM Inspector</span>
+            <span>[02] Visual DOM Inspector</span>
           </button>
         </div>
       </div>
@@ -254,11 +260,16 @@ export const RepairCenter: React.FC = () => {
       {activeTab === 'stream' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Panel: Scrape Runs List (4 cols) */}
-          <SpotlightCard className="col-span-1 lg:col-span-4 p-0 flex flex-col justify-between min-h-[500px]">
+          <SpotlightCard className="col-span-1 lg:col-span-4 p-0 flex flex-col justify-between min-h-[500px] relative">
             <div className="p-4 border-b border-white/10 bg-[#0f131f] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Scrape Run Audits</span>
-                <span className="text-[11px] font-mono text-slate-400">{filteredRuns.length} Runs</span>
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-slate-400 font-bold">
+                    [01 // QUEUE]
+                  </span>
+                  <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Diagnostic Queue</span>
+                </div>
+                <span className="text-[11px] font-mono text-slate-400 font-bold">{filteredRuns.length} Runs</span>
               </div>
 
               {/* Filter Tabs */}
@@ -283,13 +294,16 @@ export const RepairCenter: React.FC = () => {
                 </button>
               </div>
 
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter target domain..."
-                className="w-full bg-[#090c13] border border-white/10 text-white font-mono text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-amber-500"
-              />
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter target domain..."
+                  className="w-full bg-[#090c13] border border-white/10 text-white font-mono text-xs pl-8 pr-3 py-2 rounded-lg focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
             </div>
 
             <div className="flex-1 p-3 overflow-y-auto space-y-2 font-mono text-xs max-h-[460px]">
@@ -299,20 +313,20 @@ export const RepairCenter: React.FC = () => {
                   <div
                     key={r.id}
                     onClick={() => handleSelectRun(r)}
-                    className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                    className={`tactile-press p-3.5 rounded-xl border transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-amber-500/10 border-amber-500/50 shadow-md shadow-amber-500/10'
                         : 'bg-[#090c13] border-white/5 hover:border-white/20'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-slate-400 font-bold">Run #{r.id}</span>
+                      <span className="text-slate-400 font-bold text-xs">Run #{r.id}</span>
                       <StatusBadge status={r.status} />
                     </div>
-                    <span className="text-slate-200 truncate block text-[11px] mb-1">{r.target_url}</span>
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="text-slate-200 truncate block text-[11px] mb-2 font-medium">{r.target_url}</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-white/5">
                       <span>Quality: <strong className="text-emerald-400">{r.data_quality_score}%</strong></span>
-                      <span>{r.duration_ms}ms</span>
+                      <span className="text-blue-300 font-semibold">{r.duration_ms}ms</span>
                     </div>
                   </div>
                 );
@@ -325,9 +339,14 @@ export const RepairCenter: React.FC = () => {
             {selectedRun ? (
               <>
                 {/* Top Action Card */}
-                <SpotlightCard className="p-6 space-y-4">
+                <SpotlightCard className="p-6 sm:p-8 space-y-5 relative">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
                     <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] font-mono text-amber-300 font-bold tracking-wider">
+                          [02 // AST PATCH WORKBENCH]
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2.5 mb-1">
                         <span className="text-lg font-bold text-white">Diagnostic Record for Run #{selectedRun.id}</span>
                         <StatusBadge status={selectedRun.status} />
@@ -343,17 +362,18 @@ export const RepairCenter: React.FC = () => {
                         disabled={loading}
                         className="tactile-press px-4 py-2 rounded-xl bg-[#121728] hover:bg-[#1a2238] border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-mono font-medium flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                       >
-                        <Wrench className="w-3.5 h-3.5" />
+                        <Wrench className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                         <span>Synthesize Patch</span>
                       </button>
 
                       <button
                         onClick={handleRetest}
                         disabled={retestLoading}
-                        className="tactile-press px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50"
+                        className="btn-pulse tactile-press px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50"
                       >
                         <Play className="w-3.5 h-3.5 fill-white" />
                         <span>{retestLoading ? 'Executing...' : 'Live Re-Test & Validate'}</span>
+                        <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-[9px] py-0.5 px-1.5 ml-0.5">↵</kbd>
                       </button>
                     </div>
                   </div>
@@ -377,7 +397,7 @@ export const RepairCenter: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <GitBranch className="w-4 h-4 text-amber-400" />
-                          <h3 className="text-sm font-bold text-white">
+                          <h3 className="text-sm font-bold text-white font-mono">
                             Candidate Patch: v{activePatch.from_version} → v{activePatch.to_version}
                           </h3>
                         </div>
@@ -387,21 +407,34 @@ export const RepairCenter: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                        <div className="enter-fade-up stagger-1 p-4 rounded-xl bg-black/40 border border-rose-500/20 space-y-2">
-                          <span className="text-[10px] uppercase font-bold text-rose-400 block">Deprecated / Drifted Selectors:</span>
+                        <div className="enter-fade-up stagger-1 p-4 rounded-xl bg-rose-950/20 border border-rose-500/30 space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-rose-400 block tracking-wider">
+                            [-] Deprecated / Drifted Selectors:
+                          </span>
                           {(Array.isArray(activePatch.broken_fields) 
                             ? activePatch.broken_fields 
                             : (() => { try { const p = JSON.parse(activePatch.broken_fields); return Array.isArray(p) ? p : [p]; } catch { return [activePatch.broken_fields || 'price']; } })()
-                          ).map((f: string) => (
-                            <div key={f} className="text-slate-400 flex items-center gap-2">
-                              <span className="text-rose-400">✗</span>
-                              <span>{f}: .product-price</span>
-                            </div>
-                          ))}
+                          ).map((f: string) => {
+                            const rootCauses = typeof activePatch.root_cause_analysis === 'object' && activePatch.root_cause_analysis !== null 
+                              ? activePatch.root_cause_analysis 
+                              : (() => { try { return JSON.parse(activePatch.root_cause_analysis || '{}'); } catch { return {}; } })();
+                            const diffs = typeof activePatch.selector_diff === 'object' && activePatch.selector_diff !== null 
+                              ? activePatch.selector_diff 
+                              : (() => { try { return JSON.parse(activePatch.selector_diff || '{}'); } catch { return {}; } })();
+                            const oldSel = rootCauses[f]?.broken_selector || diffs[f]?.old_selector || `.${f}-deprecated`;
+                            return (
+                              <div key={f} className="text-rose-200 flex items-center gap-2">
+                                <span className="text-rose-400 font-bold">✗</span>
+                                <span>{f}: <code className="text-rose-300 font-mono">{oldSel}</code></span>
+                              </div>
+                            );
+                          })}
                         </div>
 
-                        <div className="enter-fade-up stagger-2 p-4 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2">
-                          <span className="text-[10px] uppercase font-bold text-emerald-400 block">Synthesized Replacement Selectors:</span>
+                        <div className="enter-fade-up stagger-2 p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
+                            [+] Synthesized Replacement Selectors:
+                          </span>
                           {Object.entries(
                             typeof activePatch.selector_diff === 'object' && activePatch.selector_diff !== null
                               ? activePatch.selector_diff
@@ -412,8 +445,8 @@ export const RepairCenter: React.FC = () => {
                               : String(sel);
                             return (
                               <div key={f} className="text-slate-200 flex items-center gap-2">
-                                <span className="text-emerald-400">✓</span>
-                                <span>{f}: <strong className="text-emerald-300">{typeof selText === 'object' ? JSON.stringify(selText) : String(selText)}</strong></span>
+                                <span className="text-emerald-400 font-bold">✓</span>
+                                <span>{f}: <strong className="text-emerald-300 font-mono">{typeof selText === 'object' ? JSON.stringify(selText) : String(selText)}</strong></span>
                               </div>
                             );
                           })}
@@ -441,7 +474,7 @@ export const RepairCenter: React.FC = () => {
                           <button
                             onClick={handleApprove}
                             disabled={loading}
-                            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                            className="tactile-press px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-600/20 disabled:opacity-50"
                           >
                             <Check className="w-4 h-4" />
                             <span>Promote Candidate to Rule Bundle</span>
@@ -484,9 +517,14 @@ export const RepairCenter: React.FC = () => {
         /* ── TAB 2: INTERACTIVE VISUAL DOM INSPECTOR & SELECTOR TESTER ── */
         <div className="space-y-6">
           {/* Top Control Bar & Live Omnibar */}
-          <SpotlightCard className="p-6 sm:p-8 space-y-6">
+          <SpotlightCard className="p-6 sm:p-8 space-y-6 relative">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-300 font-bold tracking-wider">
+                    [03 // SELECTOR PLAYGROUND]
+                  </span>
+                </div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Crosshair className="w-5 h-5 text-blue-400" />
                   <span>Real-Time DOM Selector Playground</span>
@@ -507,7 +545,7 @@ export const RepairCenter: React.FC = () => {
                     key={field}
                     onClick={() => handleSuggestField(field)}
                     disabled={suggestLoading}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-mono text-slate-300 hover:text-white capitalize transition-all cursor-pointer"
+                    className="tactile-press px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-mono text-slate-300 hover:text-white capitalize transition-all cursor-pointer"
                   >
                     {field.replace('_', ' ')}
                   </button>
@@ -524,21 +562,22 @@ export const RepairCenter: React.FC = () => {
                   onChange={(e) => setTargetSelector(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleEvaluateSelector(); }}
                   placeholder="Enter CSS selector (e.g. .price-current, h1.title, span[data-asin], div.job-desc)..."
-                  className="w-full bg-[#090c13] border border-white/15 text-white font-mono text-sm sm:text-base py-3.5 pl-4 pr-32 rounded-xl focus:border-blue-500 focus:outline-none transition-colors shadow-inner"
+                  className="w-full bg-[#090c13] border border-white/15 text-white font-mono text-sm sm:text-base py-3.5 pl-4 pr-36 rounded-xl focus:border-blue-500 focus:outline-none transition-colors shadow-inner"
                 />
                 <button
                   onClick={() => handleEvaluateSelector()}
                   disabled={inspectLoading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                  className="btn-pulse tactile-press absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {inspectLoading ? 'Evaluating...' : 'Test Selector'}
+                  <span>{inspectLoading ? 'Evaluating...' : 'Test Selector'}</span>
+                  <kbd className="kbd-badge bg-white/15 text-white border-white/25 text-[9px] py-0.5 px-1.5">↵</kbd>
                 </button>
               </div>
             </div>
 
             {/* Quick Preset Selector Chips */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 text-xs font-mono text-slate-400">
-              <span className="text-[11px] text-slate-500">Presets:</span>
+              <span className="text-[11px] text-slate-500 font-bold">PRESETS:</span>
               {['.price-current', 'h1', '.product-title', '.availability', 'article', 'span.price', 'div[class*="price"]'].map((preset) => (
                 <button
                   key={preset}
@@ -546,7 +585,7 @@ export const RepairCenter: React.FC = () => {
                     setTargetSelector(preset);
                     handleEvaluateSelector(preset);
                   }}
-                  className="px-2.5 py-1 rounded bg-white/[0.03] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[11px] cursor-pointer"
+                  className="tactile-press px-2.5 py-1 rounded bg-white/[0.03] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[11px] cursor-pointer"
                 >
                   {preset}
                 </button>
@@ -558,7 +597,7 @@ export const RepairCenter: React.FC = () => {
           {evalResult && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Telemetry Summary (4 cols) */}
-              <SpotlightCard className="col-span-1 lg:col-span-4 p-6 space-y-5">
+              <SpotlightCard className="col-span-1 lg:col-span-4 p-6 space-y-5 relative">
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                   <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">Selector Telemetry</span>
                   <span className={`px-2.5 py-0.5 rounded text-[11px] font-mono font-bold ${
@@ -614,7 +653,7 @@ export const RepairCenter: React.FC = () => {
               </SpotlightCard>
 
               {/* Matched Elements Inspector List (8 cols) */}
-              <SpotlightCard className="col-span-1 lg:col-span-8 p-6 space-y-4">
+              <SpotlightCard className="col-span-1 lg:col-span-8 p-6 space-y-4 relative">
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                   <div className="flex items-center gap-2">
                     <ListTree className="w-4 h-4 text-blue-400" />

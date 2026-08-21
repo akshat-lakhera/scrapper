@@ -196,6 +196,45 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── SWISS PRECISION & DEVELOPER UTILITIES ── */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: -0.02em;
+}
+
+.hairline-divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.08) 80%, transparent);
+}
+
+.status-dot-emerald {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+.status-dot-amber {
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+.status-dot-blue {
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+}
+
+.mesh-grid-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar {
   width: 6px;

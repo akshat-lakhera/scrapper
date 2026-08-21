@@ -156,7 +156,7 @@ class RepairEngine:
             "job_title": [re.compile(r"job.*title", re.I), re.compile(r"position", re.I), re.compile(r"heading", re.I)],
             "company": [re.compile(r"company", re.I), re.compile(r"employer", re.I), re.compile(r"org", re.I), re.compile(r"vendor", re.I)],
             "location": [re.compile(r"location", re.I), re.compile(r"city", re.I), re.compile(r"place", re.I)],
-            "salary": [re.compile(r"salary", re.I), re.compile(r"pay", re.I), re.compile(r"compensation", re.I), re.compile(r"stipend", re.I)],
+            "salary": [re.compile(r"salary", re.I), re.compile(r"pay", re.I), re.compile(r"comp", re.I), re.compile(r"compensation", re.I), re.compile(r"stipend", re.I), re.compile(r"remuneration", re.I)],
             "description": [re.compile(r"desc", re.I), re.compile(r"summary", re.I), re.compile(r"detail", re.I), re.compile(r"about", re.I), re.compile(r"spec", re.I)],
             "availability": [re.compile(r"availab", re.I), re.compile(r"stock", re.I), re.compile(r"inventory", re.I)],
             "rating": [re.compile(r"rating", re.I), re.compile(r"stars?", re.I), re.compile(r"score", re.I), re.compile(r"metric", re.I)],
@@ -174,25 +174,37 @@ class RepairEngine:
             for el in soup.find_all(attrs={"class": pat}):
                 txt = el.get_text(strip=True)
                 if txt and len(txt) > 1:
+                    # Skip outer container if any child tag matches any class pattern
+                    child_matches = [
+                        c for c in el.find_all(True)
+                        if any(p.search(" ".join(c.get("class", []))) for p in patterns)
+                    ]
+                    if child_matches:
+                        continue
                     # Check format if price or number
                     if data_type in ("number", "integer") and not re.search(r"\d", txt):
                         continue
                     sel = RepairEngine._generate_unique_css_selector(el)
                     if sel:
-                        return sel, txt, 0.82
+                        return sel, txt, 0.88
 
         # 5. Content-Aware Value Regex Pattern Scan (for obfuscated/hashed CSS classes)
         if field_name in ("price", "salary") or data_type in ("number", "integer"):
-            price_pat = re.compile(r'^(?:[\$€£₹¥]\s?\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s?(?:USD|EUR|INR|GBP|CAD))$', re.I)
-            for tag in soup.find_all(["span", "div", "p", "b", "strong"], limit=100):
+            price_pat = re.compile(r'^(?:[\$€£₹¥]\s?\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s?(?:USD|EUR|INR|GBP|CAD)|\$\d+(?:,\d{3})*(?:\s?-\s?\$?\d+(?:,\d{3})*)?(?:\s?/\s?(?:yr|year|mo|month|hr|hour))?.*)$', re.I)
+            for tag in soup.find_all(["span", "div", "p", "b", "strong", "h1", "h2", "h3"], limit=120):
                 txt = tag.get_text(strip=True)
                 if price_pat.match(txt):
+                    # Check if there is a child element that also matches (if so, let child be matched instead)
+                    child_matches = [c for c in tag.find_all(True) if price_pat.match(c.get_text(strip=True))]
+                    if child_matches:
+                        continue
                     parent = tag.parent
                     p_cls = " ".join(parent.get("class", [])) if parent else ""
-                    if "strike" not in p_cls.lower() and "old" not in p_cls.lower():
+                    tag_cls = " ".join(tag.get("class", []))
+                    if "strike" not in p_cls.lower() and "old" not in p_cls.lower() and "strike" not in tag_cls.lower() and "line-through" not in tag_cls.lower():
                         sel = RepairEngine._generate_unique_css_selector(tag)
                         if sel:
-                            return sel, txt, 0.85
+                            return sel, txt, 0.88
 
         if field_name in ("availability", "stock"):
             avail_pat = re.compile(r'^(?:in stock|out of stock|available|sold out|pre-order)$', re.I)
@@ -211,23 +223,35 @@ class RepairEngine:
         if not elem or not elem.name:
             return None
 
-        # 1. ID selector
+        # 1. Stable ID selector (valid CSS identifier only)
         elem_id = elem.get("id")
-        if elem_id and not re.search(r"\d{6,}", elem_id):
+        if elem_id and isinstance(elem_id, str) and re.match(r"^[a-zA-Z_][a-zA-Z0-9_-]*$", elem_id) and not re.search(r"\d{6,}", elem_id):
             return f"#{elem_id}"
 
-        # 2. Semantic class selector
+        # 2. Data attributes and QA hooks
+        for attr in ("data-testid", "data-qa", "data-cy", "data-component", "itemprop", "role"):
+            val = elem.get(attr)
+            if val and isinstance(val, str) and len(val) < 50 and '"' not in val:
+                return f"{elem.name}[{attr}='{val}']"
+
+        # 3. Semantic class selector (must be valid CSS identifier, excluding Tailwind colon/bracket classes)
         classes = elem.get("class", [])
-        stable_classes = [c for c in classes if not re.search(r"[a-f0-9]{6,}", c) and len(c) > 2]
+        stable_classes = [
+            c for c in classes 
+            if isinstance(c, str) 
+            and re.match(r"^[a-zA-Z_][a-zA-Z0-9_-]*$", c) 
+            and not re.search(r"^[a-f0-9]{6,}$", c) 
+            and len(c) > 2
+        ]
         if stable_classes:
             class_sel = f"{elem.name}.{stable_classes[0]}"
             return class_sel
 
-        # 3. Parent-child selector
+        # 4. Bounded parent-child selector
         parent = elem.parent
-        if parent and parent.name != "[document]":
+        if parent and parent.name not in ("[document]", "html", "body"):
             parent_sel = RepairEngine._generate_unique_css_selector(parent)
-            if parent_sel:
+            if parent_sel and parent_sel != elem.name:
                 return f"{parent_sel} > {elem.name}"
 
         return elem.name

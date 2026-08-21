@@ -11,6 +11,13 @@ CURRENCY_SYMBOLS = {
     "¥": "JPY",
     "A$": "AUD",
     "C$": "CAD",
+    "NZ$": "NZD",
+    "HK$": "HKD",
+    "S$": "SGD",
+    "₩": "KRW",
+    "CHF": "CHF",
+    "R$": "BRL",
+    "kr": "SEK",
     "Rs": "INR",
     "Rs.": "INR",
     "INR": "INR",
@@ -32,12 +39,31 @@ class Normalizer:
         if isinstance(val, (int, float)):
             return float(val)
         if isinstance(val, str):
-            clean = val.replace(",", "")
-            # Look for "4.5 out of 5" pattern
-            out_of_m = re.search(r"(\d+(?:\.\d+)?)\s*(?:out of|/)\s*\d+", clean, re.I)
+            val_str = val.strip()
+            # Look for "4.5 out of 5" or "4,5 / 5" pattern
+            out_of_m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:out of|/)\s*\d+", val_str, re.I)
             if out_of_m:
                 try:
-                    return float(out_of_m.group(1))
+                    return float(out_of_m.group(1).replace(",", "."))
+                except ValueError:
+                    pass
+
+            # Detect European format like 1.234,56 or 1234,56
+            if re.search(r"\d+\.\d{3},\d{2}", val_str):
+                clean = val_str.replace(".", "").replace(",", ".")
+            elif re.search(r"^\D*\d+,\d{2}\D*$", val_str) and "." not in val_str:
+                clean = val_str.replace(",", ".")
+            else:
+                clean = val_str.replace(",", "")
+
+            # Check for shorthand notations like 1.2M, 34.5K, 2.5B
+            abbrev_m = re.search(r"(\d+(?:\.\d+)?)\s*([kKmMbB])\b", val_str)
+            if abbrev_m:
+                try:
+                    base_num = float(abbrev_m.group(1))
+                    unit = abbrev_m.group(2).lower()
+                    multiplier = 1_000 if unit == "k" else (1_000_000 if unit == "m" else 1_000_000_000)
+                    return base_num * multiplier
                 except ValueError:
                     pass
 
@@ -59,9 +85,10 @@ class Normalizer:
     def parse_currency(val: Any) -> Optional[str]:
         if not val or not isinstance(val, str):
             return None
-        for sym, code in CURRENCY_SYMBOLS.items():
+        # Sort by length descending so multi-character symbols (e.g. A$, C$, Rs.) match before single-char ($)
+        for sym in sorted(CURRENCY_SYMBOLS.keys(), key=len, reverse=True):
             if sym in val:
-                return code
+                return CURRENCY_SYMBOLS[sym]
         return None
 
     @staticmethod
@@ -293,6 +320,15 @@ class Normalizer:
                 if name == "currency":
                     cur = Normalizer.parse_currency(str(raw_val))
                     normalized[name] = cur if cur else str(raw_val).strip()
+                elif name in ("availability", "stock"):
+                    if isinstance(raw_val, bool):
+                        normalized[name] = "In stock" if raw_val else "Out of stock"
+                    elif str(raw_val).lower() in ("true", "1"):
+                        normalized[name] = "In stock"
+                    elif str(raw_val).lower() in ("false", "0"):
+                        normalized[name] = "Out of stock"
+                    else:
+                        normalized[name] = str(raw_val).strip()
                 elif name in ("rating", "review_count") and isinstance(raw_val, (int, float)):
                     normalized[name] = str(raw_val)
                 else:

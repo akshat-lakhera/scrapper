@@ -61,7 +61,7 @@ class MetricsService:
         successful_runs = status_counts.get("success", 0) + status_counts.get("repaired", 0)
         overall_reliability = round((successful_runs / total_runs * 100), 1) if total_runs > 0 else 100.0
         avg_latency = round(total_latency / total_runs, 1) if total_runs > 0 else 0.0
-        healing_success_rate = repair_precision if repair_precision is not None else (100.0 if approved_repairs > 0 or len(repairs) > 0 else 0.0)
+        healing_success_rate = repair_precision if repair_precision is not None else (100.0 if approved_repairs > 0 or len(repairs) > 0 or len(promoted_patches) > 0 else 0.0)
 
         return {
             "total_runs": total_runs,

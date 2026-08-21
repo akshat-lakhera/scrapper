@@ -37,9 +37,10 @@ class Settings:
     # CORS Configuration
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://127.0.0.1:8000,http://localhost:5173,http://localhost:3000")
 
-    # Groq Extraction & Normalization
+    # Groq & Gemini LLM Settings
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     BACKEND_DIR: Path = Path(__file__).resolve().parent.parent
@@ -53,6 +54,9 @@ class Settings:
 
     def is_groq_enabled(self) -> bool:
         return bool(self.GROQ_API_KEY)
+
+    def is_gemini_enabled(self) -> bool:
+        return bool(self.GEMINI_API_KEY)
 
     def get_cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.FRONTEND_ORIGIN.split(",") if origin.strip()]

@@ -432,6 +432,30 @@ class MultiStrategyEngine:
         if elem:
             return elem.get(f"data-{field_name}") or elem.get_text(strip=True), f"[data-{field_name}]"
 
+        # 2b. Schema.org Aggregate Rating & RatingValue
+        if field_name == "rating":
+            r_elem = soup.select_one("[itemprop='ratingValue'], [itemprop='aggregateRating'] [itemprop='ratingValue'], .rating, .review-rating, .star-rating, .stars")
+            if r_elem:
+                return r_elem.get("content") or r_elem.get_text(strip=True), "[itemprop='ratingValue']"
+
+        # 2c. Documentation version & timestamps
+        if field_name in ("last_updated", "version"):
+            time_el = soup.select_one("time, .doc-version-badge, .version, .doc-updated-at, [itemprop='dateModified'], [itemprop='datePublished']")
+            if time_el:
+                return time_el.get("datetime") or time_el.get_text(strip=True), "time.doc-updated-at"
+
+        # 2d. Schema.org Review Count & Rating Count
+        if field_name in ("review_count", "reviews_count"):
+            rc_elem = soup.select_one("[itemprop='reviewCount'], [itemprop='ratingCount'], .review-count, .reviews-count, [data-testid='review-count']")
+            if rc_elem:
+                return rc_elem.get("content") or rc_elem.get_text(strip=True), "[itemprop='reviewCount']"
+
+        # 2e. Author / User posted for social workflows
+        if field_name in ("user_posted", "author", "author_name", "creator", "page_name"):
+            u_elem = soup.select_one("[data-testid='User-Name'], .author-name, .author, .user-posted, .username, .page-name, .profile-name")
+            if u_elem:
+                return u_elem.get_text(strip=True), "[data-testid='User-Name']"
+
         # 3. HTML5 Headings for Title / Heading Fields
         if field_name in ("title", "job_title", "place_name", "doc_title", "section_heading"):
             # Google Maps URL extraction fallback
@@ -492,8 +516,8 @@ class MultiStrategyEngine:
                 return loc_elem.get_text(strip=True), "linkedin_location_class"
 
         # LinkedIn, Documentation & General Description DOM Heuristics
-        if field_name in ("description", "job_description", "post_text", "body_text", "content_body"):
-            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], article, main, .document, .content, .body, .section, article p, main p, div.body p, p")
+        if field_name in ("description", "job_description", "post_text", "body_text", "content_body", "bio", "about"):
+            desc_elem = soup.select_one(".show-more-less-html__markup, .description__text, .job-details-jobs-unified-top-card__description, [data-testid='tweetText'], .post-content, .post-text, .user-content, .feed-content, .bio, .about, article, main, .document, .content, .body, .section, article p, main p, div.body p, p")
             if desc_elem and len(desc_elem.get_text(strip=True)) > 5:
                 return desc_elem.get_text(separator=" ", strip=True)[:1500], "semantic_description_class"
 

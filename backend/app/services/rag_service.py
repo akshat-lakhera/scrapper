@@ -186,7 +186,7 @@ class RAGService:
 
         # Try Google Gemini (gemini-2.5-flash)
         if not llm_answer:
-            gemini_key = os.environ.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+            gemini_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
             if gemini_key:
                 try:
                     async with httpx.AsyncClient(timeout=30.0) as http_client:

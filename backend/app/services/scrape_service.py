@@ -256,11 +256,19 @@ class ScrapeService:
 
         start_time = time.time()
         active_scraper_id_str = str(scraper_id or "")
-        scrape_res = await provider.run_scraper(
-            scraper_id=active_scraper_id_str,
-            target=target_url,
-            schema=schema
-        )
+        try:
+            scrape_res = await provider.run_scraper(
+                scraper_id=active_scraper_id_str,
+                target=target_url,
+                schema=schema
+            )
+        except Exception as e:
+            scrape_res = {
+                "status": "failed",
+                "error": str(e),
+                "raw_result": {},
+                "raw_html": None
+            }
         duration_ms = int((time.time() - start_time) * 1000)
 
         raw_result = scrape_res.get("raw_result", {})
@@ -303,11 +311,14 @@ class ScrapeService:
         # Strict Multi-Axis Schema & Semantic Validation Gating
         is_valid, missing_fields, validation_errors = Validator.validate_record(normalized, schema)
 
-        if not is_valid:
+        if provider_status in ("provider_error", "failed"):
+            status = "failed"
+            is_valid = False
+            repair_triggered = False
+            if scrape_res.get("error"):
+                validation_errors.append(f"Network provider failure: {scrape_res.get('error')}")
+        elif not is_valid:
             status = "degraded"
-            repair_triggered = True
-        elif provider_status in ("provider_error", "failed"):
-            status = "provider_error"
             repair_triggered = True
         else:
             status = "success"

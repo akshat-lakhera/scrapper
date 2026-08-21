@@ -176,3 +176,49 @@ def test_provider_dataset_resolution():
     assert provider._resolve_dataset_id("", "facebook") == "gd_lkaxegm826bjpoo9m5"
     assert provider._resolve_dataset_id("", "instagram") == "gd_l1vikfch901nx3by4"
     assert provider._resolve_dataset_id("", "google_maps") == "gd_m8ebnr0q2qlklc02fz"
+
+
+def test_instagram_profile_with_brightdata_deprecated_null_fields():
+    """
+    Verifies that Instagram Scraper (gd_l1vikfch901nx3by4) output schema changes
+    where fields like has_channel, is_business_account, posts, related_accounts
+    return null are gracefully handled without schema or validation failures.
+    """
+    schema = get_schema_by_name("instagram")
+    raw_payload_with_deprecated_nulls = {
+        "url": "https://www.instagram.com/openai/",
+        "username": "openai",
+        "full_name": "OpenAI",
+        "biography": "Creating safe AGI that benefits all of humanity.",
+        "followers_count": "5,400,000",
+        "following_count": "15",
+        "posts_count": "240",
+        "is_verified": True,
+        # Deprecated fields returned as Null by Bright Data
+        "has_channel": None,
+        "is_business_account": None,
+        "is_professional_account": None,
+        "avg_engagement": None,
+        "business_category_name": None,
+        "category_name": None,
+        "business_address": None,
+        "related_accounts": None,
+        "posts": None
+    }
+
+    normalized = Normalizer.normalize_record(raw_payload_with_deprecated_nulls, schema)
+    assert normalized["profile_url"] == "https://www.instagram.com/openai/"
+    assert normalized["username"] == "openai"
+    assert normalized["full_name"] == "OpenAI"
+    assert normalized["followers_count"] == 5400000
+    assert normalized["posts_count"] == 240
+    assert normalized["is_verified"] is True
+
+    # Validate against schema contract
+    is_valid, missing, errors = Validator.validate_record(normalized, schema)
+    assert is_valid is True
+    assert len(missing) == 0
+    assert len(errors) == 0
+    
+    score = Validator.calculate_quality_score(normalized, schema, is_valid)
+    assert score == 100

@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-mono">
-              <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse' : 'bg-amber-400'}`} />
+              <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 status-dot-emerald animate-pulse' : 'bg-amber-400 status-dot-amber'}`} />
               <span className="text-slate-300 font-medium">{isLive ? 'Bright Data Live Provider' : 'Offline Local Fixtures'}</span>
             </div>
           </div>
@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer ${
+                className={`tactile-press flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 scale-[1.02]'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
@@ -108,19 +108,19 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onOpenCommandPalette}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121726] hover:bg-[#1a2236] text-slate-200 hover:text-white text-xs font-mono transition-all border border-white/15 shadow-sm cursor-pointer"
+            className="tactile-press flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121726] hover:bg-[#1a2236] text-slate-200 hover:text-white text-xs font-mono transition-all border border-white/15 shadow-sm cursor-pointer"
             title="Search & Quick Actions (⌘K)"
           >
             <Command size={13} className="text-blue-400" />
             <span className="hidden sm:inline font-medium">Palette</span>
-            <kbd className="bg-black/50 px-1.5 py-0.5 rounded text-[10px] text-slate-300 border border-white/10 font-bold">⌘K</kbd>
+            <kbd className="kbd-badge">⌘K</kbd>
           </button>
 
           {onReset && (
             <button
               onClick={onReset}
               disabled={resetting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/15 bg-[#121726] hover:bg-[#1a2236] text-slate-200 hover:text-white text-xs font-mono font-medium transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+              className="tactile-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/15 bg-[#121726] hover:bg-[#1a2236] text-slate-200 hover:text-white text-xs font-mono font-medium transition-all disabled:opacity-50 cursor-pointer shadow-sm"
               title="Reset database to clean baseline"
             >
               <RotateCcw size={13} className={resetting ? 'animate-spin text-amber-400' : 'text-slate-400'} />

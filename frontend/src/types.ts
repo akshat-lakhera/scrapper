@@ -55,6 +55,12 @@ export interface ScrapeRunDetails extends ScrapeRun {
   validation_errors: string[];
   repair_attempts: RepairAttempt[];
   field_changes: FieldChange[];
+  field_traces?: Array<{
+    field_name: string;
+    strategy_used: string;
+    selector_used?: string;
+    extracted_value?: any;
+  }>;
 }
 
 export interface RepairAttempt {
@@ -127,15 +133,19 @@ export interface Metrics {
   repaired_runs: number;
   healed_runs?: number;
   manual_review_runs: number;
-  avg_repair_duration_ms: number;
+  avg_repair_duration_ms?: number;
   avg_duration_ms?: number;
+  average_latency_ms?: number;
+  average_quality_score?: number;
   overall_reliability?: number;
   healing_success_rate?: number;
-  scraper_health: string;
+  scraper_health?: string;
   same_template_repair_success_rate?: number;
   avg_confidence_promoted_only?: number;
   template_count?: number;
   rule_bundle_count_by_domain?: Record<string, number>;
+  status_counts?: Record<string, number>;
+  repair_metrics?: Record<string, any>;
 }
 
 export type ScraperMetrics = Metrics;

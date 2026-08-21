@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from bs4 import BeautifulSoup, Tag
 
 class DOMInspectorService:
@@ -53,11 +53,16 @@ class DOMInspectorService:
             part = curr.name
             classes = curr.get("class", [])
             if classes:
-                clean_classes = [c for c in classes if not re.match(r"^[a-zA-Z0-9]{8,}$", c)]
+                clean_classes = [
+                    c for c in classes 
+                    if isinstance(c, str) 
+                    and re.match(r"^[a-zA-Z_][a-zA-Z0-9_-]*$", c) 
+                    and not re.match(r"^[a-fA-F0-9]{6,}$", c)
+                ]
                 if clean_classes:
                     part += f".{clean_classes[0]}"
             elem_id = curr.get("id")
-            if elem_id and not re.search(r"\d{4,}", elem_id):
+            if elem_id and isinstance(elem_id, str) and re.match(r"^[a-zA-Z_][a-zA-Z0-9_-]*$", elem_id) and not re.search(r"\d{4,}", elem_id):
                 part = f"#{elem_id}"
                 path_parts.insert(0, part)
                 break

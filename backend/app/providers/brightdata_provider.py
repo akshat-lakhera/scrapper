@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Any, Dict, List, Optional
 import httpx
 from app.config import settings
@@ -526,7 +527,7 @@ class BrightDataProvider(ScraperProvider):
                 "Action: Analyze changed page structure and update selector rules to extract missing attributes without hallucinating values."
             )
 
-        repair_id = f"rep_{scraper_id or schema.name}_{int(asyncio.get_event_loop().time() * 1000)}"
+        repair_id = f"rep_{scraper_id or schema.name}_{int(time.time() * 1000)}"
 
         # If custom Scraper Studio collector (c_*), attempt live DCA refactor endpoint
         if scraper_id and scraper_id.startswith("c_") and not scraper_id.startswith("c_studio_"):
