@@ -414,12 +414,21 @@ export const RepairCenter: React.FC = () => {
                           {(Array.isArray(activePatch.broken_fields) 
                             ? activePatch.broken_fields 
                             : (() => { try { const p = JSON.parse(activePatch.broken_fields); return Array.isArray(p) ? p : [p]; } catch { return [activePatch.broken_fields || 'price']; } })()
-                          ).map((f: string) => (
-                            <div key={f} className="text-rose-200 flex items-center gap-2">
-                              <span className="text-rose-400 font-bold">✗</span>
-                              <span>{f}: <code className="text-rose-300 font-mono">.product-price</code></span>
-                            </div>
-                          ))}
+                          ).map((f: string) => {
+                            const rootCauses = typeof activePatch.root_cause_analysis === 'object' && activePatch.root_cause_analysis !== null 
+                              ? activePatch.root_cause_analysis 
+                              : (() => { try { return JSON.parse(activePatch.root_cause_analysis || '{}'); } catch { return {}; } })();
+                            const diffs = typeof activePatch.selector_diff === 'object' && activePatch.selector_diff !== null 
+                              ? activePatch.selector_diff 
+                              : (() => { try { return JSON.parse(activePatch.selector_diff || '{}'); } catch { return {}; } })();
+                            const oldSel = rootCauses[f]?.broken_selector || diffs[f]?.old_selector || `.${f}-deprecated`;
+                            return (
+                              <div key={f} className="text-rose-200 flex items-center gap-2">
+                                <span className="text-rose-400 font-bold">✗</span>
+                                <span>{f}: <code className="text-rose-300 font-mono">{oldSel}</code></span>
+                              </div>
+                            );
+                          })}
                         </div>
 
                         <div className="enter-fade-up stagger-2 p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">

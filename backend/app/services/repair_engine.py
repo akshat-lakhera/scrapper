@@ -211,20 +211,26 @@ class RepairEngine:
         if not elem or not elem.name:
             return None
 
-        # 1. Stable ID selector
+        # 1. Stable ID selector (valid CSS identifier only)
         elem_id = elem.get("id")
-        if elem_id and not re.search(r"\d{6,}", elem_id):
+        if elem_id and isinstance(elem_id, str) and re.match(r"^[a-zA-Z_][a-zA-Z0-9_-]*$", elem_id) and not re.search(r"\d{6,}", elem_id):
             return f"#{elem_id}"
 
         # 2. Data attributes and QA hooks
-        for attr in ("data-testid", "data-qa", "data-cy", "data-component", "itemprop"):
+        for attr in ("data-testid", "data-qa", "data-cy", "data-component", "itemprop", "role"):
             val = elem.get(attr)
-            if val and isinstance(val, str) and len(val) < 50:
+            if val and isinstance(val, str) and len(val) < 50 and '"' not in val:
                 return f"{elem.name}[{attr}='{val}']"
 
-        # 3. Semantic class selector
+        # 3. Semantic class selector (must be valid CSS identifier, excluding Tailwind colon/bracket classes)
         classes = elem.get("class", [])
-        stable_classes = [c for c in classes if not re.search(r"[a-f0-9]{6,}", c) and len(c) > 2]
+        stable_classes = [
+            c for c in classes 
+            if isinstance(c, str) 
+            and re.match(r"^[a-zA-Z_][a-zA-Z0-9_-]*$", c) 
+            and not re.search(r"^[a-f0-9]{6,}$", c) 
+            and len(c) > 2
+        ]
         if stable_classes:
             class_sel = f"{elem.name}.{stable_classes[0]}"
             return class_sel
