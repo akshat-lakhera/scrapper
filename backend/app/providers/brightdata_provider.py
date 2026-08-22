@@ -361,6 +361,20 @@ class BrightDataProvider(ScraperProvider):
                 except Exception as ds_err:
                     logger.warning(f"Bright Data Datasets v3 trigger error: {ds_err}")
 
+        if not dataset_id:
+            if schema.name in ("products", "product"):
+                return {
+                    "status": "provider_error",
+                    "error": "No Bright Data dataset configured for products workflow. Configure BRIGHTDATA_PRODUCT_DATASET_ID in .env.",
+                    "raw_result": {}
+                }
+            elif schema.name in ("jobs", "job"):
+                return {
+                    "status": "provider_error",
+                    "error": "No Bright Data dataset configured for jobs workflow. Configure BRIGHTDATA_JOB_DATASET_ID in .env.",
+                    "raw_result": {}
+                }
+
         # -------------------------------------------------------------
         # 3. Live Web Unblocking & MultiStrategy Fallback
         # -------------------------------------------------------------
@@ -378,20 +392,6 @@ class BrightDataProvider(ScraperProvider):
                     }
         except Exception as live_err:
             logger.warning(f"Live HTML fetch failed for {target}: {live_err}")
-
-        if not dataset_id:
-            if schema.name in ("products", "product"):
-                return {
-                    "status": "provider_error",
-                    "error": "No Bright Data dataset configured for products workflow. Configure BRIGHTDATA_PRODUCT_DATASET_ID in .env.",
-                    "raw_result": {}
-                }
-            elif schema.name in ("jobs", "job"):
-                return {
-                    "status": "provider_error",
-                    "error": "No Bright Data dataset configured for jobs workflow. Configure BRIGHTDATA_JOB_DATASET_ID in .env.",
-                    "raw_result": {}
-                }
 
         return {
             "status": "provider_error",
